@@ -25,3 +25,6 @@ keystore.properties
 
 # Build outputs copied next to the module (Android Studio "locate" folder)
 app/release/
+
+# Kotlin build cache
+.kotlin/

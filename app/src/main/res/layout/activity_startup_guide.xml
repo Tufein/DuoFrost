@@ -40,7 +40,7 @@
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:gravity="center_horizontal"
-                        android:text="BIFROST SETUP"
+                        android:text="DUOFROST SETUP"
                         android:textColor="@color/bifrost_text"
                         android:textSize="24sp"
                         android:textStyle="bold"
@@ -74,7 +74,7 @@
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
                             android:layout_marginTop="8dp"
-                            android:text="Bifrost needs notification permission to keep the foreground LED service alive."
+                            android:text="DuoFrost needs notification permission to keep the foreground LED service alive."
                             android:textColor="@color/bifrost_text_secondary"
                             android:textSize="14sp" />
 
@@ -109,7 +109,7 @@
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
                             android:layout_marginTop="8dp"
-                            android:text="Enable Bifrost in Accessibility so ambient can capture screen colors without repeated projection popups."
+                            android:text="Enable DuoFrost in Accessibility so ambient can capture screen colors without repeated projection popups."
                             android:textColor="@color/bifrost_text_secondary"
                             android:textSize="14sp" />
 
@@ -145,7 +145,7 @@
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
                             android:layout_marginTop="8dp"
-                            android:text="Needed for App Profile mode so Bifrost can detect foreground apps and auto-switch presets."
+                            android:text="Needed for App Profile mode so DuoFrost can detect foreground apps and auto-switch presets."
                             android:textColor="@color/bifrost_text_secondary"
                             android:textSize="14sp" />
 

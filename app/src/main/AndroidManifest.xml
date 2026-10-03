@@ -32,7 +32,7 @@
     </queries>
 
     <application
-        android:name=".BifrostApp"
+        android:name=".DuoFrostApp"
         android:allowBackup="false"
         android:dataExtractionRules="@xml/data_extraction_rules"
         android:fullBackupContent="@xml/backup_rules"
@@ -41,7 +41,7 @@
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
         android:usesCleartextTraffic="false"
-        android:theme="@style/Theme.Bifrost">
+        android:theme="@style/Theme.DuoFrost">
         <activity
             android:name=".MainActivity"
             android:launchMode="singleTop"
@@ -52,6 +52,8 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+
+        <activity android:name=".CreditsActivity" android:exported="false" />
 
         <!-- First-run guide launched from MainActivity.onCreate. Must be
              declared or R8 (minifyEnabled) renames the class and startActivity
@@ -80,7 +82,7 @@
         </service>
 
         <service
-            android:name=".services.BifrostAccessibilityService"
+            android:name=".services.DuoFrostAccessibilityService"
             android:exported="true"
             android:label="@string/app_name"
             android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE">
@@ -107,10 +109,10 @@
         </service>
 
         <service
-            android:name=".services.BifrostTileService"
+            android:name=".services.DuoFrostTileService"
             android:exported="true"
             android:icon="@drawable/ic_notification_small"
-            android:label="Bifrost"
+            android:label="DuoFrost"
             android:permission="android.permission.BIND_QUICK_SETTINGS_TILE">
             <intent-filter>
                 <action android:name="android.service.quicksettings.action.QS_TILE" />
@@ -132,7 +134,7 @@
             android:enabled="true"
             android:exported="false">
             <intent-filter>
-                <action android:name="com.moonbench.bifrost.action.SCHEDULE_TICK" />
+                <action android:name="io.github.tufein.duofrost.action.SCHEDULE_TICK" />
                 <action android:name="android.intent.action.TIME_SET" />
                 <action android:name="android.intent.action.TIMEZONE_CHANGED" />
             </intent-filter>
@@ -144,12 +146,12 @@
             android:exported="true"
             android:permission="${applicationId}.permission.CONTROL_LEDS">
             <intent-filter>
-                <action android:name="com.moonbench.bifrost.api.ACTION_DISPLAY" />
-                <action android:name="com.moonbench.bifrost.api.ACTION_CLEAR" />
-                <action android:name="com.moonbench.bifrost.api.ACTION_INSTALL_PROFILE" />
-                <action android:name="com.moonbench.bifrost.api.ACTION_UNINSTALL_PROFILE" />
-                <action android:name="com.moonbench.bifrost.api.ACTION_QUERY_PLUGIN" />
-                <action android:name="com.moonbench.bifrost.api.ACTION_PULSE" />
+                <action android:name="io.github.tufein.duofrost.api.ACTION_DISPLAY" />
+                <action android:name="io.github.tufein.duofrost.api.ACTION_CLEAR" />
+                <action android:name="io.github.tufein.duofrost.api.ACTION_INSTALL_PROFILE" />
+                <action android:name="io.github.tufein.duofrost.api.ACTION_UNINSTALL_PROFILE" />
+                <action android:name="io.github.tufein.duofrost.api.ACTION_QUERY_PLUGIN" />
+                <action android:name="io.github.tufein.duofrost.api.ACTION_PULSE" />
             </intent-filter>
         </receiver>
 

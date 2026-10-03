@@ -1,5 +1,5 @@
 <resources>
-    <string name="app_name">Bifrost</string>
+    <string name="app_name">DuoFrost</string>
     <string name="delete_preset_title">Delete preset</string>
     <string name="delete_preset_subtitle">Delete "%1$s"?</string>
     <string name="delete_preset_subtitle_placeholder">Delete this preset?</string>
@@ -22,7 +22,7 @@
     <string name="ragnarok_warning_body">RAGNAROK sends LED commands as fast as possible and can overwhelm your device. Use only if you understand the risks.</string>
     <string name="ragnarok_warning_confirm">I understand</string>
 
-    <string name="beta_alert_title">BIFROST BETA WARNING</string>
+    <string name="beta_alert_title">DUOFROST BETA WARNING</string>
     <string name="beta_alert_subtitle">This app is currently in beta and may cause crashes or unstable behavior.</string>
     <string name="beta_alert_body">This app is provided for free and you should not be charged for obtaining it. It is available for free on this GitHub repo: exemplegithubrepo</string>
     <string name="alert_action_ok">OK</string>
@@ -37,44 +37,51 @@
     <string name="app_profile_info_subtitle">Animations now switch automatically based on the foreground app.</string>
     <string name="app_profile_info_body">In this mode, swiping presets will not change the running animation. Assign apps to presets in settings to control what plays automatically.</string>
 
-    <string name="perm_control_leds_label">Control Bifrost LEDs</string>
-    <string name="perm_control_leds_desc">Allows the app to send LED animations and presets to Bifrost.</string>
+    <string name="perm_control_leds_label">Control DuoFrost LEDs</string>
+    <string name="perm_control_leds_desc">Allows the app to send LED animations and presets to DuoFrost.</string>
 
     <string name="external_api_switch_label">Allow third-party LED control</string>
 
-    <string name="startup_title">Welcome to Bifrost</string>
+    <string name="startup_title">Welcome to DuoFrost</string>
     <string name="startup_progress_notifications">Step 1/3 - Enable notifications</string>
     <string name="startup_progress_accessibility">Step 2/3 - Enable accessibility capture</string>
     <string name="startup_progress_audio">Step 3/3 - Enable usage access</string>
     <string name="startup_progress_done">Setup complete</string>
 
     <string name="startup_accessibility_title">Allow full device control</string>
-    <string name="startup_accessibility_body">Bifrost uses Accessibility screenshot capture to sample your screen continuously without repeating capture prompts.</string>
+    <string name="startup_accessibility_body">DuoFrost uses Accessibility screenshot capture to sample your screen continuously without repeating capture prompts.</string>
     <string name="startup_accessibility_action">Open Accessibility Settings</string>
-    <string name="startup_accessibility_desc">Allows Bifrost to capture display frames for LED ambient effects.</string>
+    <string name="startup_accessibility_desc">Allows DuoFrost to capture display frames for LED ambient effects.</string>
 
     <string name="startup_audio_title">Allow usage access</string>
-    <string name="startup_audio_body">Needed for App Profile mode so Bifrost can detect foreground apps and auto-switch presets.</string>
+    <string name="startup_audio_body">Needed for App Profile mode so DuoFrost can detect foreground apps and auto-switch presets.</string>
     <string name="startup_audio_action">Open usage access settings</string>
 
     <string name="startup_done_title">You are ready</string>
-    <string name="startup_done_body">You can now start Bifrost and keep it running in background until you press Stop or Kill.</string>
+    <string name="startup_done_body">You can now start DuoFrost and keep it running in background until you press Stop or Kill.</string>
     <string name="startup_done_action">Continue</string>
-    <string name="crash_report_title">BIFROST CRASHED LAST TIME</string>
+    <string name="crash_report_title">DUOFROST CRASHED LAST TIME</string>
     <string name="crash_report_subtitle">A crash report was saved on this device</string>
     <string name="crash_report_body">Sending it helps fix the problem. Nothing is sent automatically, and the report contains only the error, your Android version and your device model.</string>
     <string name="crash_report_share">Share the report</string>
     <string name="crash_report_dismiss">Not now</string>
     <string name="plugin_update_prompt_title">CHECK FOR PLUGIN UPDATES?</string>
     <string name="plugin_update_prompt_subtitle">One small network request at launch</string>
-    <string name="plugin_update_prompt_body">Bifrost can check the plugin store for updates each time it starts.\n\nThis is off by default. You can change it anytime in the Plugin Store.</string>
+    <string name="plugin_update_prompt_body">DuoFrost can check the plugin store for updates each time it starts.\n\nThis is off by default. You can change it anytime in the Plugin Store.</string>
     <string name="plugin_update_prompt_confirm">Enable</string>
     <string name="plugin_update_prompt_dismiss">Not now</string>
     <string name="ambilight_accessibility_title">SWITCH TO ACCESSIBILITY CAPTURE?</string>
     <string name="ambilight_accessibility_subtitle">Ambient and AmbiAurora will look less fluid</string>
     <string name="ambilight_accessibility_body">Accessibility capture never asks for permission again, but it samples the screen more slowly, so Ambient and AmbiAurora animations lose smoothness.\n\nScreen capture stays fluid and is the default. It asks for permission once per launch.</string>
     <string name="ambilight_accessibility_confirm">Use accessibility</string>
-    <string name="accessibility_service_description">Allows Bifrost to capture display frames for LED effects.</string>
+    <string name="accessibility_service_description">Allows DuoFrost to capture display frames for LED effects.</string>
     <string name="live_wallpaper_description">Video live wallpaper.</string>
 
+    <string name="credits_title">About DuoFrost</string>
+    <string name="credits_version">DuoFrost %1$s</string>
+    <string name="credits_body">Maintained by Stefan van Den Broek (Tufein).\n\nOriginal BiFrost by Pollux / Pollux-MoonBench. Major contributions by KuriGohan-Kamehameha. Low-battery alerts contributed by paradox; Retroid Pocket Mini investigation by hupo224. Additional contributors are credited in the Git history.\n\nDuoFrost is an independent, modified GPLv3 continuation of BiFrost. You may use, modify and redistribute it under GPLv3. Provided without warranty. Not affiliated with AYN.</string>
+    <string name="credits_repository">Source, releases and issues</string>
+    <string name="credits_license">GNU GPLv3 license</string>
+    <string name="repository_url" translatable="false">https://github.com/Tufein/DuoFrost</string>
+    <string name="credits_no_browser">Install a browser to open the repository.</string>
 </resources>

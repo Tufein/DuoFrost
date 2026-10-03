@@ -1,10 +1,10 @@
 <resources xmlns:tools="http://schemas.android.com/tools">
-    <style name="Base.Theme.Bifrost" parent="Theme.Material3.DayNight.NoActionBar">
+    <style name="Base.Theme.DuoFrost" parent="Theme.Material3.DayNight.NoActionBar">
     </style>
 
-    <style name="Theme.Bifrost" parent="Base.Theme.Bifrost" />
+    <style name="Theme.DuoFrost" parent="Base.Theme.DuoFrost" />
 
-    <style name="BifrostSeekBar" parent="Widget.AppCompat.SeekBar">
+    <style name="DuoFrostSeekBar" parent="Widget.AppCompat.SeekBar">
         <item name="android:progressDrawable">@drawable/seekbar_progress</item>
         <item name="android:thumb">@drawable/seekbar_thumb</item>
         <item name="android:maxHeight">4dp</item>
@@ -12,7 +12,7 @@
         <item name="android:thumbOffset">0dp</item>
     </style>
 
-    <style name="BifrostSeekBarRGB" parent="Widget.AppCompat.SeekBar">
+    <style name="DuoFrostSeekBarRGB" parent="Widget.AppCompat.SeekBar">
         <item name="android:progressDrawable">@drawable/seekbar_progress_rgb</item>
         <item name="android:thumb">@drawable/seekbar_thumb_rgb</item>
         <item name="android:maxHeight">6dp</item>

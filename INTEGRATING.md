@@ -1,10 +1,10 @@
-# Integrating with Bifrost
+# Integrating with DuoFrost
 
-Bifrost exposes a broadcast-based IPC API that lets other apps on the device drive its LEDs — flashing police lights during a car chase, matching the LED colour to a character's health bar, setting a preset for your launcher wallpaper, reacting to in-game events in real time. It is entirely opt-in: the user must enable **"Allow third-party LED control"** in Bifrost settings before any command is accepted.
+DuoFrost exposes a broadcast-based IPC API that lets other apps on the device drive its LEDs — flashing police lights during a car chase, matching the LED colour to a character's health bar, setting a preset for your launcher wallpaper, reacting to in-game events in real time. It is entirely opt-in: the user must enable **"Allow third-party LED control"** in DuoFrost settings before any command is accepted.
 
-> **Minimum Bifrost version:** 1.2.0-beta  
+> **Minimum DuoFrost version:** 1.0.0
 > **API version:** 1  
-> **Min Android SDK for callers:** 33 (same as Bifrost itself)
+> **Min Android SDK for callers:** 33 (same as DuoFrost itself)
 
 ---
 
@@ -14,7 +14,7 @@ Bifrost exposes a broadcast-based IPC API that lets other apps on the device dri
 2. [Declare the permission](#2--declare-the-permission)
 3. [Copy the constants](#3--copy-the-constants)
 4. [Send a command](#4--send-a-command)
-5. [Check if Bifrost is available](#5--check-if-bifrost-is-available)
+5. [Check if DuoFrost is available](#5--check-if-duofrost-is-available)
 6. [Available effects](#6--available-effects)
 7. [ACTION_DISPLAY — live override](#7--action_display--live-override)
 8. [ACTION_CLEAR](#8--action_clear)
@@ -33,8 +33,8 @@ Bifrost exposes a broadcast-based IPC API that lets other apps on the device dri
 | Concept | What it means for you |
 |---|---|
 | **Commands are broadcasts** | Send an explicit ordered broadcast; read the result code if you need acknowledgement. |
-| **Your override is a removable layer** | Bifrost snapshots its current state when your override starts and restores it automatically when it ends. App-profile switching is paused while an override is active. |
-| **Bifrost must already be running** | You cannot start the foreground service remotely (Android 12+ restriction). If it's not running, commands are silently dropped. Design gracefully for this. |
+| **Your override is a removable layer** | DuoFrost snapshots its current state when your override starts and restores it automatically when it ends. App-profile switching is paused while an override is active. |
+| **DuoFrost must already be running** | You cannot start the foreground service remotely (Android 12+ restriction). If it's not running, commands are silently dropped. Design gracefully for this. |
 | **Rate limit: 8 burst / 4 per second** | Per calling UID. Burst budget refills at 4 tokens/s. |
 | **Priority arbitrates between apps** | If two apps both try to drive the LEDs, the higher-priority command wins. Each app can always update its own active override regardless of priority. |
 | **No library dependency needed** | Copy the string constants below. The API surface is intentionally minimal. |
@@ -46,10 +46,10 @@ Bifrost exposes a broadcast-based IPC API that lets other apps on the device dri
 Add one line to your `AndroidManifest.xml`. This is a `normal`-level permission — Android grants it automatically at install time; no runtime prompt is needed.
 
 ```xml
-<uses-permission android:name="com.moonbench.bifrost.permission.CONTROL_LEDS" />
+<uses-permission android:name="io.github.tufein.duofrost.permission.CONTROL_LEDS" />
 ```
 
-The user still has to flip **"Allow third-party LED control"** inside Bifrost settings. Your commands are silently rejected until they do.
+The user still has to flip **"Allow third-party LED control"** inside DuoFrost settings. Your commands are silently rejected until they do.
 
 ---
 
@@ -58,19 +58,19 @@ The user still has to flip **"Allow third-party LED control"** inside Bifrost se
 There is no library or AAR to depend on. Copy this object into your project:
 
 ```kotlin
-object BifrostApi {
+object DuoFrostApi {
 
     // ── Identity ──────────────────────────────────────────────────────────
-    const val PERMISSION         = "com.moonbench.bifrost.permission.CONTROL_LEDS"
-    const val RECEIVER_PACKAGE   = "com.moonbench.bifrost"
-    const val RECEIVER_CLASS     = "com.moonbench.bifrost.external.ExternalApiReceiver"
+    const val PERMISSION         = "io.github.tufein.duofrost.permission.CONTROL_LEDS"
+    const val RECEIVER_PACKAGE   = "io.github.tufein.duofrost"
+    const val RECEIVER_CLASS     = "io.github.tufein.duofrost.external.ExternalApiReceiver"
 
     // ── Actions ───────────────────────────────────────────────────────────
-    const val ACTION_DISPLAY           = "com.moonbench.bifrost.api.ACTION_DISPLAY"
-    const val ACTION_CLEAR             = "com.moonbench.bifrost.api.ACTION_CLEAR"
-    const val ACTION_INSTALL_PROFILE   = "com.moonbench.bifrost.api.ACTION_INSTALL_PROFILE"
-    const val ACTION_UNINSTALL_PROFILE = "com.moonbench.bifrost.api.ACTION_UNINSTALL_PROFILE"
-    const val ACTION_QUERY_PLUGIN      = "com.moonbench.bifrost.api.ACTION_QUERY_PLUGIN"
+    const val ACTION_DISPLAY           = "io.github.tufein.duofrost.api.ACTION_DISPLAY"
+    const val ACTION_CLEAR             = "io.github.tufein.duofrost.api.ACTION_CLEAR"
+    const val ACTION_INSTALL_PROFILE   = "io.github.tufein.duofrost.api.ACTION_INSTALL_PROFILE"
+    const val ACTION_UNINSTALL_PROFILE = "io.github.tufein.duofrost.api.ACTION_UNINSTALL_PROFILE"
+    const val ACTION_QUERY_PLUGIN      = "io.github.tufein.duofrost.api.ACTION_QUERY_PLUGIN"
 
     // ── Protocol ──────────────────────────────────────────────────────────
     const val API_VERSION        = 1
@@ -115,7 +115,7 @@ object BifrostApi {
 
     // ── Result codes (ordered broadcasts only) ───────────────────────────
     const val RESULT_ACCEPTED              =  0
-    const val RESULT_REJECTED_DISABLED     = -1  // toggle is off in Bifrost settings
+    const val RESULT_REJECTED_DISABLED     = -1  // toggle is off in DuoFrost settings
     const val RESULT_REJECTED_VERSION      = -2  // apiVersion mismatch
     const val RESULT_REJECTED_VALIDATION   = -3  // bad/missing extras
     const val RESULT_REJECTED_UNAUTHORIZED = -4  // caller UID could not be resolved
@@ -133,30 +133,30 @@ All commands go to the same receiver via **explicit broadcast** (package + class
 
 ```kotlin
 // Helper — fire and forget
-fun sendToBifrost(context: Context, action: String, fill: Intent.() -> Unit = {}) {
+fun sendToDuoFrost(context: Context, action: String, fill: Intent.() -> Unit = {}) {
     val intent = Intent(action).apply {
-        setClassName(BifrostApi.RECEIVER_PACKAGE, BifrostApi.RECEIVER_CLASS)
-        putExtra(BifrostApi.EXTRA_API_VERSION, BifrostApi.API_VERSION)
+        setClassName(DuoFrostApi.RECEIVER_PACKAGE, DuoFrostApi.RECEIVER_CLASS)
+        putExtra(DuoFrostApi.EXTRA_API_VERSION, DuoFrostApi.API_VERSION)
         fill()
     }
-    context.sendBroadcast(intent, BifrostApi.PERMISSION)
+    context.sendBroadcast(intent, DuoFrostApi.PERMISSION)
 }
 
 // Helper — with result callback
-fun sendToBifrostForResult(
+fun sendToDuoFrostForResult(
     context: Context,
     action: String,
     fill: Intent.() -> Unit = {},
     onResult: (code: Int, requestId: String?) -> Unit,
 ) {
     val intent = Intent(action).apply {
-        setClassName(BifrostApi.RECEIVER_PACKAGE, BifrostApi.RECEIVER_CLASS)
-        putExtra(BifrostApi.EXTRA_API_VERSION, BifrostApi.API_VERSION)
+        setClassName(DuoFrostApi.RECEIVER_PACKAGE, DuoFrostApi.RECEIVER_CLASS)
+        putExtra(DuoFrostApi.EXTRA_API_VERSION, DuoFrostApi.API_VERSION)
         fill()
     }
     context.sendOrderedBroadcast(
         intent,
-        BifrostApi.PERMISSION,
+        DuoFrostApi.PERMISSION,
         object : BroadcastReceiver() {
             override fun onReceive(ctx: Context, i: Intent) {
                 onResult(resultCode, resultData)
@@ -171,24 +171,24 @@ Use `sendBroadcast` for fire-and-forget (the common case). Use `sendOrderedBroad
 
 ---
 
-## 5 — Check if Bifrost is available
+## 5 — Check if DuoFrost is available
 
-Bifrost won't be installed on every device. Guard your calls:
+DuoFrost won't be installed on every device. Guard your calls:
 
 ```kotlin
-fun isBifrostInstalled(context: Context): Boolean =
+fun isDuoFrostInstalled(context: Context): Boolean =
     runCatching {
-        context.packageManager.getPackageInfo(BifrostApi.RECEIVER_PACKAGE, 0)
+        context.packageManager.getPackageInfo(DuoFrostApi.RECEIVER_PACKAGE, 0)
         true
     }.getOrDefault(false)
 
 // In your manifest, declare a <queries> block so PackageManager
-// lets you inspect Bifrost's presence:
+// lets you inspect DuoFrost's presence:
 ```
 
 ```xml
 <queries>
-    <package android:name="com.moonbench.bifrost" />
+    <package android:name="io.github.tufein.duofrost" />
 </queries>
 ```
 
@@ -198,7 +198,7 @@ You do **not** need to add the `<queries>` block just to send broadcasts — And
 
 ## 6 — Available effects
 
-Pass one of these strings as `EXTRA_EFFECT`. Effects requiring screen capture (`AMBIENT`, `AUDIO_REACTIVE`, `AMBIAURORA`) are blocked in the external API — they need a MediaProjection consent flow that only Bifrost's own UI can trigger.
+Pass one of these strings as `EXTRA_EFFECT`. Effects requiring screen capture (`AMBIENT`, `AUDIO_REACTIVE`, `AMBIAURORA`) are blocked in the external API — they need a MediaProjection consent flow that only DuoFrost's own UI can trigger.
 
 | Effect name | Color | R/L independent | Speed | Smoothness | Sensitivity | Notes |
 |---|---|---|---|---|---|---|
@@ -221,19 +221,19 @@ Pass one of these strings as `EXTRA_EFFECT`. Effects requiring screen capture (`
 
 ## 7 — `ACTION_DISPLAY` — live override
 
-Drives the LEDs immediately. Bifrost snapshots its current state, applies your command, and reverts when the override ends.
+Drives the LEDs immediately. DuoFrost snapshots its current state, applies your command, and reverts when the override ends.
 
 ```kotlin
 // Police lights for 4 seconds
-sendToBifrost(context, BifrostApi.ACTION_DISPLAY) {
-    putExtra(BifrostApi.EXTRA_EFFECT,       "STROBE")
-    putExtra(BifrostApi.EXTRA_COLOR,        Color.RED)
-    putExtra(BifrostApi.EXTRA_COLOR_RIGHT,  Color.BLUE)
-    putExtra(BifrostApi.EXTRA_SPEED,        0.85f)
-    putExtra(BifrostApi.EXTRA_INTENSITY,    255)
-    putExtra(BifrostApi.EXTRA_DURATION_MS,  4_000L)
-    putExtra(BifrostApi.EXTRA_PRIORITY,     70)
-    putExtra(BifrostApi.EXTRA_REQUEST_ID,   "chase-001")
+sendToDuoFrost(context, DuoFrostApi.ACTION_DISPLAY) {
+    putExtra(DuoFrostApi.EXTRA_EFFECT,       "STROBE")
+    putExtra(DuoFrostApi.EXTRA_COLOR,        Color.RED)
+    putExtra(DuoFrostApi.EXTRA_COLOR_RIGHT,  Color.BLUE)
+    putExtra(DuoFrostApi.EXTRA_SPEED,        0.85f)
+    putExtra(DuoFrostApi.EXTRA_INTENSITY,    255)
+    putExtra(DuoFrostApi.EXTRA_DURATION_MS,  4_000L)
+    putExtra(DuoFrostApi.EXTRA_PRIORITY,     70)
+    putExtra(DuoFrostApi.EXTRA_REQUEST_ID,   "chase-001")
 }
 ```
 
@@ -248,7 +248,7 @@ Specify exactly **one**. Combining them is a validation error.
 | `EXTRA_UNTIL = UNTIL_EXPLICIT_CLEAR` | Persists until your app sends `ACTION_CLEAR`. |
 | `EXTRA_INDEFINITE = true` | Identical to `UNTIL_EXPLICIT_CLEAR`. Provided for readability. |
 
-When the override ends (for any reason), Bifrost reverts to whatever it was doing before: if app-profile switching was active it re-resolves the current foreground app immediately; otherwise it restores the user's last preset.
+When the override ends (for any reason), DuoFrost reverts to whatever it was doing before: if app-profile switching was active it re-resolves the current foreground app immediately; otherwise it restores the user's last preset.
 
 ### Priority
 
@@ -262,12 +262,12 @@ Use high priority (≥80) for urgent, user-visible notifications. Use default (5
 
 ### Intensity scale
 
-If your game or app has its own brightness range, tell Bifrost the scale so it can normalise correctly:
+If your game or app has its own brightness range, tell DuoFrost the scale so it can normalise correctly:
 
 ```kotlin
 // Your brightness is 0–100, not 0–255
-putExtra(BifrostApi.EXTRA_INTENSITY,       75)   // value
-putExtra(BifrostApi.EXTRA_INTENSITY_SCALE, 100)  // max of your range
+putExtra(DuoFrostApi.EXTRA_INTENSITY,       75)   // value
+putExtra(DuoFrostApi.EXTRA_INTENSITY_SCALE, 100)  // max of your range
 ```
 
 ---
@@ -277,46 +277,46 @@ putExtra(BifrostApi.EXTRA_INTENSITY_SCALE, 100)  // max of your range
 Immediately ends your app's active override. You can only clear your own override.
 
 ```kotlin
-sendToBifrost(context, BifrostApi.ACTION_CLEAR)
+sendToDuoFrost(context, DuoFrostApi.ACTION_CLEAR)
 ```
 
-Always call this from `onPause` / `onStop` if you used `UNTIL_EXPLICIT_CLEAR` or `UNTIL_NEXT_COMMAND`, so Bifrost doesn't stay stuck on your effect after the user leaves your app.
+Always call this from `onPause` / `onStop` if you used `UNTIL_EXPLICIT_CLEAR` or `UNTIL_NEXT_COMMAND`, so DuoFrost doesn't stay stuck on your effect after the user leaves your app.
 
 ---
 
 ## 9 — `ACTION_INSTALL_PROFILE` / `ACTION_UNINSTALL_PROFILE` / `ACTION_QUERY_PLUGIN`
 
-Install a named preset that appears in Bifrost's preset carousel alongside the user's own presets. Good for shipping a branded theme with your app.
+Install a named preset that appears in DuoFrost's preset carousel alongside the user's own presets. Good for shipping a branded theme with your app.
 
 ```kotlin
 // Install on first launch
-sendToBifrost(context, BifrostApi.ACTION_INSTALL_PROFILE) {
-    putExtra(BifrostApi.EXTRA_PROFILE_NAME,              "Emerald Trail")
-    putExtra(BifrostApi.EXTRA_EFFECT,                    "CHASE")
-    putExtra(BifrostApi.EXTRA_COLOR,                     Color.GREEN)
-    putExtra(BifrostApi.EXTRA_COLOR_RIGHT,               Color.rgb(0, 200, 80))
-    putExtra(BifrostApi.EXTRA_INTENSITY,                 200)
-    putExtra(BifrostApi.EXTRA_SPEED,                     0.6f)
-    putExtra(BifrostApi.EXTRA_PROFILE_REPLACE_IF_EXISTS, true)
+sendToDuoFrost(context, DuoFrostApi.ACTION_INSTALL_PROFILE) {
+    putExtra(DuoFrostApi.EXTRA_PROFILE_NAME,              "Emerald Trail")
+    putExtra(DuoFrostApi.EXTRA_EFFECT,                    "CHASE")
+    putExtra(DuoFrostApi.EXTRA_COLOR,                     Color.GREEN)
+    putExtra(DuoFrostApi.EXTRA_COLOR_RIGHT,               Color.rgb(0, 200, 80))
+    putExtra(DuoFrostApi.EXTRA_INTENSITY,                 200)
+    putExtra(DuoFrostApi.EXTRA_SPEED,                     0.6f)
+    putExtra(DuoFrostApi.EXTRA_PROFILE_REPLACE_IF_EXISTS, true)
 }
 
-// Remove on explicit uninstall flow (optional — Bifrost auto-cleans on package removal)
-sendToBifrost(context, BifrostApi.ACTION_UNINSTALL_PROFILE) {
-    putExtra(BifrostApi.EXTRA_PROFILE_NAME, "Emerald Trail")
+// Remove on explicit uninstall flow (optional — DuoFrost auto-cleans on package removal)
+sendToDuoFrost(context, DuoFrostApi.ACTION_UNINSTALL_PROFILE) {
+    putExtra(DuoFrostApi.EXTRA_PROFILE_NAME, "Emerald Trail")
 }
 ```
 
-**Ownership:** presets are tagged with your package name. You can only uninstall presets your package installed. Bifrost removes all your presets automatically when Android broadcasts your app's uninstall.
+**Ownership:** presets are tagged with your package name. You can only uninstall presets your package installed. DuoFrost removes all your presets automatically when Android broadcasts your app's uninstall.
 
-**Visibility:** the preset appears the next time the user opens Bifrost (the UI reloads from SharedPreferences on resume).
+**Visibility:** the preset appears the next time the user opens DuoFrost (the UI reloads from SharedPreferences on resume).
 
 **`replaceIfExists`:** if `false` (default), a second install with the same name is a no-op. Set to `true` to update the preset on each app version upgrade.
 
 **Plugin query:** use an ordered `ACTION_QUERY_PLUGIN` broadcast with
-`EXTRA_PLUGIN_ID` to check whether a Plugin Store bundle is installed. Bifrost
+`EXTRA_PLUGIN_ID` to check whether a Plugin Store bundle is installed. DuoFrost
 returns `RESULT_ACCEPTED` with `resultData = "<pluginId>:<version>"` when the
 plugin is installed, or `RESULT_NOT_FOUND` when it is not. This query does not
-require the third-party LED-control toggle because it only reports Bifrost's own
+require the third-party LED-control toggle because it only reports DuoFrost's own
 plugin inventory.
 
 ---
@@ -353,19 +353,19 @@ import android.graphics.Color
 import android.util.Log
 
 /**
- * Thin wrapper for sending commands to Bifrost.
+ * Thin wrapper for sending commands to DuoFrost.
  * No state is held; all methods are stateless helpers.
  */
-object Bifrost {
+object DuoFrost {
 
-    private const val TAG = "Bifrost"
+    private const val TAG = "DuoFrost"
 
     // ── Availability ──────────────────────────────────────────────────────
 
-    /** Returns true if Bifrost is installed on this device. */
+    /** Returns true if DuoFrost is installed on this device. */
     fun isInstalled(context: Context): Boolean =
         runCatching {
-            context.packageManager.getPackageInfo(BifrostApi.RECEIVER_PACKAGE, 0)
+            context.packageManager.getPackageInfo(DuoFrostApi.RECEIVER_PACKAGE, 0)
             true
         }.getOrDefault(false)
 
@@ -386,15 +386,15 @@ object Bifrost {
         durationMs: Long = 2_000L,
         priority: Int = 50,
         requestId: String? = null,
-    ) = send(context, BifrostApi.ACTION_DISPLAY) {
-        putExtra(BifrostApi.EXTRA_EFFECT,      effect)
-        putExtra(BifrostApi.EXTRA_COLOR,       colorLeft)
-        putExtra(BifrostApi.EXTRA_COLOR_RIGHT, colorRight)
-        putExtra(BifrostApi.EXTRA_INTENSITY,   intensity.coerceIn(0, 255))
-        putExtra(BifrostApi.EXTRA_SPEED,       speed.coerceIn(0f, 1f))
-        putExtra(BifrostApi.EXTRA_DURATION_MS, durationMs.coerceIn(1L, BifrostApi.MAX_DURATION_MS))
-        putExtra(BifrostApi.EXTRA_PRIORITY,    priority.coerceIn(0, 100))
-        requestId?.let { putExtra(BifrostApi.EXTRA_REQUEST_ID, it.take(64)) }
+    ) = send(context, DuoFrostApi.ACTION_DISPLAY) {
+        putExtra(DuoFrostApi.EXTRA_EFFECT,      effect)
+        putExtra(DuoFrostApi.EXTRA_COLOR,       colorLeft)
+        putExtra(DuoFrostApi.EXTRA_COLOR_RIGHT, colorRight)
+        putExtra(DuoFrostApi.EXTRA_INTENSITY,   intensity.coerceIn(0, 255))
+        putExtra(DuoFrostApi.EXTRA_SPEED,       speed.coerceIn(0f, 1f))
+        putExtra(DuoFrostApi.EXTRA_DURATION_MS, durationMs.coerceIn(1L, DuoFrostApi.MAX_DURATION_MS))
+        putExtra(DuoFrostApi.EXTRA_PRIORITY,    priority.coerceIn(0, 100))
+        requestId?.let { putExtra(DuoFrostApi.EXTRA_REQUEST_ID, it.take(64)) }
     }
 
     /**
@@ -410,23 +410,23 @@ object Bifrost {
         speed: Float = 0.5f,
         priority: Int = 50,
         requestId: String? = null,
-    ) = send(context, BifrostApi.ACTION_DISPLAY) {
-        putExtra(BifrostApi.EXTRA_EFFECT,      effect)
-        putExtra(BifrostApi.EXTRA_COLOR,       colorLeft)
-        putExtra(BifrostApi.EXTRA_COLOR_RIGHT, colorRight)
-        putExtra(BifrostApi.EXTRA_INTENSITY,   intensity.coerceIn(0, 255))
-        putExtra(BifrostApi.EXTRA_SPEED,       speed.coerceIn(0f, 1f))
-        putExtra(BifrostApi.EXTRA_INDEFINITE,  true)
-        putExtra(BifrostApi.EXTRA_PRIORITY,    priority.coerceIn(0, 100))
-        requestId?.let { putExtra(BifrostApi.EXTRA_REQUEST_ID, it.take(64)) }
+    ) = send(context, DuoFrostApi.ACTION_DISPLAY) {
+        putExtra(DuoFrostApi.EXTRA_EFFECT,      effect)
+        putExtra(DuoFrostApi.EXTRA_COLOR,       colorLeft)
+        putExtra(DuoFrostApi.EXTRA_COLOR_RIGHT, colorRight)
+        putExtra(DuoFrostApi.EXTRA_INTENSITY,   intensity.coerceIn(0, 255))
+        putExtra(DuoFrostApi.EXTRA_SPEED,       speed.coerceIn(0f, 1f))
+        putExtra(DuoFrostApi.EXTRA_INDEFINITE,  true)
+        putExtra(DuoFrostApi.EXTRA_PRIORITY,    priority.coerceIn(0, 100))
+        requestId?.let { putExtra(DuoFrostApi.EXTRA_REQUEST_ID, it.take(64)) }
     }
 
     /** End your app's current LED override. */
     fun clear(context: Context) =
-        send(context, BifrostApi.ACTION_CLEAR)
+        send(context, DuoFrostApi.ACTION_CLEAR)
 
     /**
-     * Install a named preset into Bifrost's preset list.
+     * Install a named preset into DuoFrost's preset list.
      * The preset is tagged to your package and removed automatically if your app is uninstalled.
      */
     fun installPreset(
@@ -438,31 +438,31 @@ object Bifrost {
         intensity: Int = 200,
         speed: Float = 0.5f,
         replaceIfExists: Boolean = true,
-    ) = send(context, BifrostApi.ACTION_INSTALL_PROFILE) {
-        putExtra(BifrostApi.EXTRA_PROFILE_NAME,              name)
-        putExtra(BifrostApi.EXTRA_EFFECT,                    effect)
-        putExtra(BifrostApi.EXTRA_COLOR,                     colorLeft)
-        putExtra(BifrostApi.EXTRA_COLOR_RIGHT,               colorRight)
-        putExtra(BifrostApi.EXTRA_INTENSITY,                 intensity.coerceIn(0, 255))
-        putExtra(BifrostApi.EXTRA_SPEED,                     speed.coerceIn(0f, 1f))
-        putExtra(BifrostApi.EXTRA_PROFILE_REPLACE_IF_EXISTS, replaceIfExists)
+    ) = send(context, DuoFrostApi.ACTION_INSTALL_PROFILE) {
+        putExtra(DuoFrostApi.EXTRA_PROFILE_NAME,              name)
+        putExtra(DuoFrostApi.EXTRA_EFFECT,                    effect)
+        putExtra(DuoFrostApi.EXTRA_COLOR,                     colorLeft)
+        putExtra(DuoFrostApi.EXTRA_COLOR_RIGHT,               colorRight)
+        putExtra(DuoFrostApi.EXTRA_INTENSITY,                 intensity.coerceIn(0, 255))
+        putExtra(DuoFrostApi.EXTRA_SPEED,                     speed.coerceIn(0f, 1f))
+        putExtra(DuoFrostApi.EXTRA_PROFILE_REPLACE_IF_EXISTS, replaceIfExists)
     }
 
     /** Remove a preset your app previously installed. */
     fun uninstallPreset(context: Context, name: String) =
-        send(context, BifrostApi.ACTION_UNINSTALL_PROFILE) {
-            putExtra(BifrostApi.EXTRA_PROFILE_NAME, name)
+        send(context, DuoFrostApi.ACTION_UNINSTALL_PROFILE) {
+            putExtra(DuoFrostApi.EXTRA_PROFILE_NAME, name)
         }
 
     // ── Internals ─────────────────────────────────────────────────────────
 
     private fun send(context: Context, action: String, fill: Intent.() -> Unit = {}) {
         val intent = Intent(action).apply {
-            setClassName(BifrostApi.RECEIVER_PACKAGE, BifrostApi.RECEIVER_CLASS)
-            putExtra(BifrostApi.EXTRA_API_VERSION, BifrostApi.API_VERSION)
+            setClassName(DuoFrostApi.RECEIVER_PACKAGE, DuoFrostApi.RECEIVER_CLASS)
+            putExtra(DuoFrostApi.EXTRA_API_VERSION, DuoFrostApi.API_VERSION)
             fill()
         }
-        runCatching { context.sendBroadcast(intent, BifrostApi.PERMISSION) }
+        runCatching { context.sendBroadcast(intent, DuoFrostApi.PERMISSION) }
             .onFailure { Log.w(TAG, "sendBroadcast failed", it) }
     }
 
@@ -475,16 +475,16 @@ Usage:
 
 ```kotlin
 // In a game: show wanted-level red for 5s
-Bifrost.flash(this, effect = "STROBE", colorLeft = Color.RED, durationMs = 5_000L)
+DuoFrost.flash(this, effect = "STROBE", colorLeft = Color.RED, durationMs = 5_000L)
 
 // On a menu: ambient purple
-Bifrost.show(this, effect = "BREATH", colorLeft = Color.rgb(120, 0, 255))
+DuoFrost.show(this, effect = "BREATH", colorLeft = Color.rgb(120, 0, 255))
 
 // When leaving the menu
-Bifrost.clear(this)
+DuoFrost.clear(this)
 
 // Ship a branded preset
-Bifrost.installPreset(this, name = "Cyber Neon", effect = "CHASE",
+DuoFrost.installPreset(this, name = "Cyber Neon", effect = "CHASE",
     colorLeft = Color.CYAN, colorRight = Color.MAGENTA)
 ```
 
@@ -497,11 +497,11 @@ The API is equally usable from Java:
 ```java
 public class MyActivity extends AppCompatActivity {
 
-    private static final String BIFROST_PACKAGE = "com.moonbench.bifrost";
-    private static final String BIFROST_RECEIVER = BIFROST_PACKAGE + ".external.ExternalApiReceiver";
-    private static final String PERMISSION       = BIFROST_PACKAGE + ".permission.CONTROL_LEDS";
-    private static final String ACTION_DISPLAY   = BIFROST_PACKAGE + ".api.ACTION_DISPLAY";
-    private static final String ACTION_CLEAR     = BIFROST_PACKAGE + ".api.ACTION_CLEAR";
+    private static final String DUOFROST_PACKAGE = "io.github.tufein.duofrost";
+    private static final String DUOFROST_RECEIVER = DUOFROST_PACKAGE + ".external.ExternalApiReceiver";
+    private static final String PERMISSION       = DUOFROST_PACKAGE + ".permission.CONTROL_LEDS";
+    private static final String ACTION_DISPLAY   = DUOFROST_PACKAGE + ".api.ACTION_DISPLAY";
+    private static final String ACTION_CLEAR     = DUOFROST_PACKAGE + ".api.ACTION_CLEAR";
 
     @Override
     protected void onResume() {
@@ -512,12 +512,12 @@ public class MyActivity extends AppCompatActivity {
     @Override
     protected void onPause() {
         super.onPause();
-        Intent clear = makeBifrostIntent(ACTION_CLEAR);
+        Intent clear = makeDuoFrostIntent(ACTION_CLEAR);
         sendBroadcast(clear, PERMISSION);
     }
 
     private void sendDisplay(int color, String effect, int intensity, long durationMs) {
-        Intent intent = makeBifrostIntent(ACTION_DISPLAY);
+        Intent intent = makeDuoFrostIntent(ACTION_DISPLAY);
         intent.putExtra("effect",       effect);
         intent.putExtra("color",        color);
         intent.putExtra("intensity",    intensity);
@@ -525,9 +525,9 @@ public class MyActivity extends AppCompatActivity {
         sendBroadcast(intent, PERMISSION);
     }
 
-    private Intent makeBifrostIntent(String action) {
+    private Intent makeDuoFrostIntent(String action) {
         Intent i = new Intent(action);
-        i.setClassName(BIFROST_PACKAGE, BIFROST_RECEIVER);
+        i.setClassName(DUOFROST_PACKAGE, DUOFROST_RECEIVER);
         i.putExtra("apiVersion", 1);
         return i;
     }
@@ -549,7 +549,7 @@ fun onHealthChanged(context: Context, hp: Int, maxHp: Int) {
         ratio > 0.3f -> Color.YELLOW
         else         -> Color.RED
     }
-    Bifrost.flash(context,
+    DuoFrost.flash(context,
         effect    = "STATIC",
         colorLeft = color, colorRight = color,
         intensity = (ratio * 255).toInt().coerceIn(60, 255),
@@ -562,7 +562,7 @@ fun onHealthChanged(context: Context, hp: Int, maxHp: Int) {
 
 ```kotlin
 fun onLowBattery(context: Context) {
-    Bifrost.flash(context,
+    DuoFrost.flash(context,
         effect    = "STROBE",
         colorLeft = Color.RED,
         durationMs = 8_000L,
@@ -576,14 +576,14 @@ fun onLowBattery(context: Context) {
 val playerColors = listOf(Color.BLUE, Color.RED, Color.GREEN, Color.YELLOW)
 
 fun onPlayerAssigned(context: Context, playerIndex: Int) {
-    Bifrost.show(context,
+    DuoFrost.show(context,
         effect    = "BREATH",
         colorLeft = playerColors[playerIndex],
         priority  = 60)
 }
 
 fun onSessionEnd(context: Context) {
-    Bifrost.clear(context)
+    DuoFrost.clear(context)
 }
 ```
 
@@ -592,7 +592,7 @@ fun onSessionEnd(context: Context) {
 ```kotlin
 // In Application.onCreate or first-launch flow
 fun installBrandPresets(context: Context) {
-    Bifrost.installPreset(context,
+    DuoFrost.installPreset(context,
         name      = "Ember Glow",
         effect    = "PULSE",
         colorLeft = Color.rgb(255, 80, 0),
@@ -608,11 +608,11 @@ fun installBrandPresets(context: Context) {
 
 ### Command is silently dropped
 
-Bifrost only processes commands when its foreground service is running. There is no way to start it remotely. If the user hasn't opened Bifrost or has swiped it away, your broadcasts vanish. Guard with `isInstalled` and design your integration to degrade gracefully when absent.
+DuoFrost only processes commands when its foreground service is running. There is no way to start it remotely. If the user hasn't opened DuoFrost or has swiped it away, your broadcasts vanish. Guard with `isInstalled` and design your integration to degrade gracefully when absent.
 
 ### `RESULT_REJECTED_DISABLED`
 
-The user hasn't toggled "Allow third-party LED control" in Bifrost's settings. You may surface a friendly prompt ("Enable Bifrost integration in Bifrost › Settings for LED effects"), but respect their choice. Don't poll or re-prompt on every launch.
+The user hasn't toggled "Allow third-party LED control" in DuoFrost's settings. You may surface a friendly prompt ("Enable DuoFrost integration in DuoFrost › Settings for LED effects"), but respect their choice. Don't poll or re-prompt on every launch.
 
 ### `RESULT_REJECTED_RATE_LIMITED`
 
@@ -624,33 +624,33 @@ private var ledRunnable: Runnable? = null
 
 fun setLedColor(context: Context, color: Int) {
     ledRunnable?.let(ledDebounce::removeCallbacks)
-    ledRunnable = Runnable { Bifrost.flash(context, colorLeft = color, durationMs = 300L) }
+    ledRunnable = Runnable { DuoFrost.flash(context, colorLeft = color, durationMs = 300L) }
     ledDebounce.postDelayed(ledRunnable!!, 200)
 }
 ```
 
 ### Forgetting to call `clear`
 
-If you use `UNTIL_EXPLICIT_CLEAR` or `UNTIL_NEXT_COMMAND` (the default), an override that starts in `onResume` must be cleared in `onPause`. If you go to background without clearing, the LEDs stay on your effect until Bifrost is restarted.
+If you use `UNTIL_EXPLICIT_CLEAR` or `UNTIL_NEXT_COMMAND` (the default), an override that starts in `onResume` must be cleared in `onPause`. If you go to background without clearing, the LEDs stay on your effect until DuoFrost is restarted.
 
 ### Not declaring `<queries>`
 
-If you call `context.packageManager.getPackageInfo("com.moonbench.bifrost", 0)` to check availability without the `<queries>` block, it will always return false on Android 11+. Add:
+If you call `context.packageManager.getPackageInfo("io.github.tufein.duofrost", 0)` to check availability without the `<queries>` block, it will always return false on Android 11+. Add:
 
 ```xml
 <queries>
-    <package android:name="com.moonbench.bifrost" />
+    <package android:name="io.github.tufein.duofrost" />
 </queries>
 ```
 
 ### Using `Color.TRANSPARENT` or `Color.BLACK` as "off"
 
-Bifrost won't turn the LEDs off — it sets them to the colour you specify. `Color.TRANSPARENT` is `0x00000000`, which passes alpha 0 but the hardware ignores alpha. Use `ACTION_CLEAR` to revert to Bifrost's own state instead of trying to force colour 0.
+DuoFrost won't turn the LEDs off — it sets them to the colour you specify. `Color.TRANSPARENT` is `0x00000000`, which passes alpha 0 but the hardware ignores alpha. Use `ACTION_CLEAR` to revert to DuoFrost's own state instead of trying to force colour 0.
 
 ---
 
 ## 15 — API versioning
 
-Always include `EXTRA_API_VERSION = 1`. If a future Bifrost release introduces a breaking change, it will increment `API_VERSION` and reject older callers with `RESULT_REJECTED_VERSION`. This makes version skew immediately visible rather than silently producing wrong behaviour.
+Always include `EXTRA_API_VERSION = 1`. If a future DuoFrost release introduces a breaking change, it will increment `API_VERSION` and reject older callers with `RESULT_REJECTED_VERSION`. This makes version skew immediately visible rather than silently producing wrong behaviour.
 
-When targeting a new API version, check the Bifrost changelog for migration notes and update your constants. The stable contract is the string values in `BifrostApi` — the Kotlin object itself is just a convenient copy.
+When targeting a new API version, check the DuoFrost changelog for migration notes and update your constants. The stable contract is the string values in `DuoFrostApi` — the Kotlin object itself is just a convenient copy.

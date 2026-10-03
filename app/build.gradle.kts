@@ -6,17 +6,17 @@ plugins {
 }
 
 android {
-    namespace = "com.moonbench.bifrost"
+    namespace = "io.github.tufein.duofrost"
     compileSdk {
         version = release(36)
     }
 
     defaultConfig {
-        applicationId = "com.moonbench.bifrost"
+        applicationId = "io.github.tufein.duofrost"
         minSdk = 33
         targetSdk = 36
-        versionCode = 16
-        versionName = "1.3.1"
+        versionCode = 17
+        versionName = "1.0.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -58,6 +58,10 @@ android {
             }
         }
     }
+    buildFeatures {
+        buildConfig = true
+    }
+
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_11
         targetCompatibility = JavaVersion.VERSION_11

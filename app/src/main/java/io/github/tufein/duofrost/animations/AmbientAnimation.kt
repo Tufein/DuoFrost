@@ -1,0 +1,160 @@
+package io.github.tufein.duofrost.animations
+
+import android.graphics.Color
+import android.media.projection.MediaProjection
+import android.util.DisplayMetrics
+import android.view.Display
+import io.github.tufein.duofrost.animations.LedAnimationType
+import io.github.tufein.duofrost.tools.LedController
+import io.github.tufein.duofrost.tools.PerformanceProfile
+import io.github.tufein.duofrost.tools.ScreenAnalyzer
+import io.github.tufein.duofrost.tools.ScreenColors
+import kotlin.math.roundToInt
+
+class AmbientAnimation(
+    ledController: LedController,
+    private val mediaProjection: MediaProjection?,
+    private val displayMetrics: DisplayMetrics,
+    private val profile: PerformanceProfile,
+    private val useCustomSampling: Boolean,
+    private val useSingleColor: Boolean,
+    initialSaturationBoost: Float = 0.0f,
+    private val displayId: Int = Display.DEFAULT_DISPLAY
+) : LedAnimation(ledController) {
+
+    override val type: LedAnimationType = LedAnimationType.AMBIENT
+    override val needsColorSelection: Boolean = false
+
+    private var screenAnalyzer: ScreenAnalyzer? = null
+
+    private var currentLeftColor = Color.BLACK
+    private var currentRightColor = Color.BLACK
+
+    private var targetBrightness: Int = 255
+    private var currentBrightness: Int = 255
+    private var response: Float = 0.5f
+    private var saturationBoost: Float = initialSaturationBoost
+    private var lastLedUpdateAt = 0L
+    private var lastLeftLedColor = Color.TRANSPARENT
+    private var lastRightLedColor = Color.TRANSPARENT
+
+    override fun setTargetBrightness(brightness: Int) {
+        targetBrightness = brightness.coerceIn(0, 255)
+    }
+
+    override fun setLerpStrength(strength: Float) {
+        response = strength.coerceIn(0f, 1f)
+    }
+
+    override fun setSpeed(speed: Float) {
+        response = speed.coerceIn(0f, 1f)
+    }
+
+    override fun setSaturationBoost(boost: Float) {
+        saturationBoost = boost.coerceIn(0f, 1f)
+        screenAnalyzer?.saturationBoost = saturationBoost
+    }
+
+    override fun start() {
+        screenAnalyzer = ScreenAnalyzer(
+            mediaProjection,
+            displayMetrics,
+            profile,
+            useCustomSampling,
+            useSingleColor,
+            saturationBoost,
+            displayId = displayId
+        ) { colors ->
+            updateColors(colors)
+        }
+        screenAnalyzer?.start()
+    }
+
+    override fun stop() {
+        screenAnalyzer?.stop()
+        screenAnalyzer = null
+    }
+
+    private fun colorLerpFactor(): Float {
+        val min = 0.1f
+        val max = 0.9f
+        return min + (max - min) * response
+    }
+
+    private fun brightnessLerpFactor(): Float {
+        val min = 0.1f
+        val max = 0.9f
+        return min + (max - min) * response
+    }
+
+    private fun updateColors(colors: ScreenColors) {
+        val now = System.currentTimeMillis()
+        if (now - lastLedUpdateAt < 16L) return
+
+        val leftTarget = if (isColorBlack(colors.leftColor)) {
+            Color.BLACK
+        } else {
+            colors.leftColor
+        }
+
+        val rightTarget = if (isColorBlack(colors.rightColor)) {
+            Color.BLACK
+        } else {
+            colors.rightColor
+        }
+
+        currentLeftColor = if (isColorBlack(leftTarget)) {
+            Color.BLACK
+        } else {
+            lerpColor(currentLeftColor, leftTarget, colorLerpFactor())
+        }
+
+        currentRightColor = if (isColorBlack(rightTarget)) {
+            Color.BLACK
+        } else {
+            lerpColor(currentRightColor, rightTarget, colorLerpFactor())
+        }
+
+        currentBrightness = lerpBrightnessInt(currentBrightness, targetBrightness, brightnessLerpFactor())
+
+        val gammaCorrectedBrightness = applyGamma(currentBrightness)
+        val scale = gammaCorrectedBrightness / 255f
+
+        val leftRed = (Color.red(currentLeftColor) * scale).roundToInt().coerceIn(0, 255)
+        val leftGreen = (Color.green(currentLeftColor) * scale).roundToInt().coerceIn(0, 255)
+        val leftBlue = (Color.blue(currentLeftColor) * scale).roundToInt().coerceIn(0, 255)
+
+        val rightRed = (Color.red(currentRightColor) * scale).roundToInt().coerceIn(0, 255)
+        val rightGreen = (Color.green(currentRightColor) * scale).roundToInt().coerceIn(0, 255)
+        val rightBlue = (Color.blue(currentRightColor) * scale).roundToInt().coerceIn(0, 255)
+
+        val newLeftLedColor = Color.rgb(leftRed, leftGreen, leftBlue)
+        val newRightLedColor = Color.rgb(rightRed, rightGreen, rightBlue)
+        if (newLeftLedColor == lastLeftLedColor && newRightLedColor == lastRightLedColor) {
+            return
+        }
+        lastLeftLedColor = newLeftLedColor
+        lastRightLedColor = newRightLedColor
+        lastLedUpdateAt = now
+
+        ledController.setLedColor(
+            leftRed,
+            leftGreen,
+            leftBlue,
+            leftTop = true,
+            leftBottom = true,
+            rightTop = false,
+            rightBottom = false
+        )
+
+        ledController.setLedColor(
+            rightRed,
+            rightGreen,
+            rightBlue,
+            leftTop = false,
+            leftBottom = false,
+            rightTop = true,
+            rightBottom = true
+        )
+    }
+}

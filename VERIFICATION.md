@@ -1,17 +1,25 @@
-# Verification
+# DuoFrost 1.0.0 verification
 
-Based on upstream `1baddf1` (BiFrost 1.3.1).
+Verified on 2026-10-03. Based on BiFrost 1.3.1 (`1baddf1`), with original Git history retained.
 
-- Android debug build: successful.
-- JVM unit tests: 67 passed, 0 failures, 0 errors, 0 skipped.
-- Includes 7 new screen sampling regression tests, including 4,096 RGB combinations.
+- JVM tests: **67 passed, 0 failures, 0 errors, 0 skipped**.
+- Includes 7 screen-sampling regression tests; one covers 4,096 RGB combinations.
+- Signed, optimized release APK: **build successful**.
+- Release-critical Android lint: **passed**.
+- APK signature: verified, RSA 3072, APK Signature Scheme v2.
+- Application ID: `io.github.tufein.duofrost`.
+- Version: `1.0.0`; version code: `17`; minimum Android SDK: `33`.
+- Release APK SHA-256: `ce57bbc7748c3c6e0b4a38df6a6fb94a6d1e7913220a89908f22d6d0f047039c`.
+- Signing certificate SHA-256: `a0402863156665d4c6401bbb4a632c574978aca7000281196fc3cfa2cfc3b201`.
 - `git diff --check`: passed.
-- Debug APK uses `com.moonbench.bifrost.debug`; it can coexist with the original installation.
-- Physical Thor LED output, capture lifecycle, and sleep/wake behavior: not tested here.
 
-Command: `bash gradlew --no-daemon :app:testDebugUnitTest :app:assembleDebug`
+Command: `bash gradlew --no-daemon :app:testDebugUnitTest :app:assembleRelease`
 Toolchain: JDK 17, Gradle 8.13, Android SDK 36.
 
-Existing deprecation warnings and an unstripped third-party native library warning
-do not prevent the debug build. GitHub Actions is configured, but has not been run
-on GitHub. See IMPROVEMENTS.md for the device test checklist.
+Physical Thor LED output, capture permissions, credits navigation and sleep/wake
+behavior were not tested here. See IMPROVEMENTS.md for the device checklist.
+Existing upstream deprecation warnings and a third-party unstripped native
+library warning do not prevent the release build.
+
+GitHub Actions is configured for debug builds and unit tests. Release signing
+keys and passwords are private, excluded from Git and from release assets.

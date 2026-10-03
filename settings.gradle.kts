@@ -20,5 +20,5 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "Bifrost"
+rootProject.name = "DuoFrost"
 include(":app")

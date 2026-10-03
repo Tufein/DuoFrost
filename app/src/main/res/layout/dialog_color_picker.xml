@@ -85,7 +85,7 @@
             android:id="@+id/seekRed"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            style="@style/BifrostSeekBarRGB" />
+            style="@style/DuoFrostSeekBarRGB" />
     </LinearLayout>
 
     <LinearLayout
@@ -121,7 +121,7 @@
             android:id="@+id/seekGreen"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            style="@style/BifrostSeekBarRGB" />
+            style="@style/DuoFrostSeekBarRGB" />
     </LinearLayout>
 
     <LinearLayout
@@ -156,7 +156,7 @@
             android:id="@+id/seekBlue"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            style="@style/BifrostSeekBarRGB" />
+            style="@style/DuoFrostSeekBarRGB" />
     </LinearLayout>
 
 </LinearLayout>

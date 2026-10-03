@@ -1,0 +1,1908 @@
+package io.github.tufein.duofrost.services
+
+import android.app.Activity
+import android.app.ActivityManager
+import android.app.Notification
+import android.app.NotificationChannel
+import android.app.NotificationManager
+import android.app.PendingIntent
+import android.app.Service
+import android.Manifest
+import android.content.BroadcastReceiver
+import android.content.Context
+import android.content.Intent
+import android.content.IntentFilter
+import android.content.pm.PackageManager
+import android.database.ContentObserver
+import android.provider.Settings
+import android.content.pm.ServiceInfo
+import android.graphics.BitmapFactory
+import android.graphics.Color
+import android.media.projection.MediaProjection
+import android.media.projection.MediaProjectionManager
+import android.os.BatteryManager
+import android.os.Build
+import android.os.Handler
+import android.os.IBinder
+import android.os.SystemClock
+import android.os.Looper
+import android.os.PowerManager
+import android.hardware.display.DisplayManager
+import android.util.DisplayMetrics
+import android.util.Log
+import android.view.Display
+import android.view.WindowManager
+import androidx.core.app.NotificationCompat
+import androidx.core.app.NotificationManagerCompat
+import androidx.core.content.ContextCompat
+import io.github.tufein.duofrost.MainActivity
+import io.github.tufein.duofrost.R
+import io.github.tufein.duofrost.plugins.PluginPrefs
+import io.github.tufein.duofrost.plugins.LivePolicy
+import io.github.tufein.duofrost.plugins.LivePolicyStore
+import io.github.tufein.duofrost.plugins.BrightnessSource
+import kotlin.math.roundToInt
+import io.github.tufein.duofrost.animations.AmbiAuroraAnimation
+import io.github.tufein.duofrost.animations.AmbientAnimation
+import io.github.tufein.duofrost.animations.AudioReactiveAnimation
+import io.github.tufein.duofrost.animations.BatteryIndicatorAnimation
+import io.github.tufein.duofrost.animations.BreathAnimation
+import io.github.tufein.duofrost.animations.ChaseAnimation
+import io.github.tufein.duofrost.animations.CpuTemperatureAnimation
+import io.github.tufein.duofrost.animations.FadeTransitionAnimation
+import io.github.tufein.duofrost.animations.LedAnimation
+import io.github.tufein.duofrost.animations.LedAnimationType
+import io.github.tufein.duofrost.animations.PipBoyAnimation
+import io.github.tufein.duofrost.animations.PulseAnimation
+import io.github.tufein.duofrost.animations.RainbowAnimation
+import io.github.tufein.duofrost.animations.RaveAnimation
+import io.github.tufein.duofrost.animations.SparkleAnimation
+import io.github.tufein.duofrost.animations.StaticAnimation
+import io.github.tufein.duofrost.animations.StrobeAnimation
+import io.github.tufein.duofrost.external.ExternalOverrideState
+import io.github.tufein.duofrost.external.Terminator
+import io.github.tufein.duofrost.tools.Crossfade
+import io.github.tufein.duofrost.tools.LedController
+import io.github.tufein.duofrost.tools.PerformanceProfile
+import java.util.concurrent.atomic.AtomicBoolean
+
+class LEDService : Service() {
+
+    companion object {
+        private const val TAG = "BIBI"
+        private const val PREF_KEY_LAST_PRESET = "last_preset_name"
+        private const val ACTIVITY_CHECK_INTERVAL_MS = 2000L
+        private const val ACTIVITY_CHECK_INTERVAL_APP_PROFILE_MS = 700L
+        // An external override is a renewable lease: the owning app must keep
+        // refreshing it (heartbeat). If it stops — app closed, backgrounded, or
+        // crashed — the lease goes stale and DuoFrost cleanly reverts. Must
+        // comfortably exceed the caller's heartbeat interval (~500ms) but stay
+        // tight so the sticks don't linger on a dead effect: 1.5s = 3 missed
+        // beats. While an override is live we also poll faster (below) so the
+        // watchdog notices within ~one beat of the lease expiring, not seconds.
+        private const val EXTERNAL_LEASE_TIMEOUT_MS = 1500L
+        private const val EXTERNAL_OVERRIDE_CHECK_INTERVAL_MS = 400L
+        // Crossfade that masks an override→revert hard cut: dip the outgoing
+        // effect to black, swap animations under cover, fade the incoming up.
+        private const val CROSSFADE_OUT_MS = 170L
+        private const val CROSSFADE_IN_MS = 230L
+        private const val CROSSFADE_TICK_MS = 25L
+        private const val TRANSITION_RETRY_DELAY_MS = 200L
+        private const val TRANSITION_START_DELAY_MS = 100L
+        private const val PROJECTION_RESTART_DELAY_MS = 150L
+        private const val LED_OFF_SETTLE_DELAY_MS = 120L
+        private const val LOW_BATTERY_ALERT_INTERVAL_MS = 500L
+
+        const val CHANNEL_ID = "LEDServiceChannel"
+        const val NOTIFICATION_ID = 4242
+        const val ACTION_STOP = "io.github.tufein.duofrost.STOP"
+        /** Legacy alias for [ACTION_STOP] that also signals MainActivity to finish. */
+        const val ACTION_KILL = "io.github.tufein.duofrost.KILL"
+        const val ACTION_UPDATE_PARAMS = "io.github.tufein.duofrost.UPDATE_PARAMS"
+        const val ACTION_FORCE_APP_PROFILE_RESOLUTION = "io.github.tufein.duofrost.FORCE_APP_PROFILE_RESOLUTION"
+        const val ACTION_SUPPLY_PROJECTION = "io.github.tufein.duofrost.SUPPLY_PROJECTION"
+        const val ACTION_EXTERNAL_DISPLAY = "io.github.tufein.duofrost.EXTERNAL_DISPLAY"
+        const val ACTION_EXTERNAL_CLEAR = "io.github.tufein.duofrost.EXTERNAL_CLEAR"
+        const val ACTION_EXTERNAL_PULSE = "io.github.tufein.duofrost.EXTERNAL_PULSE"
+        const val EXTRA_EXTERNAL_PULSE_KIND = "external.pulseKind"
+        const val EXTRA_ALLOW_BACKGROUND_RUN = "allowBackgroundRun"
+        const val EXTRA_BATTERY_OVERRIDE_WHEN_PLUGGED = "batteryOverrideWhenPlugged"
+        const val EXTRA_LOW_BATTERY_ALERT_ENABLED = "lowBatteryAlertEnabled"
+        const val EXTRA_LOW_BATTERY_ALERT_THRESHOLD = "lowBatteryAlertThreshold"
+        const val EXTRA_DISABLE_LOW_BATTERY_ALERT_WHILE_CHARGING = "disableLowBatteryAlertWhileCharging"
+        const val EXTRA_PERSISTENT_NOTIFICATION = "persistentNotification"
+        const val EXTRA_ADAPTIVE_BRIGHTNESS = "adaptiveBrightness"
+
+        const val EXTRA_EXTERNAL_CALLER_PACKAGE = "external.callerPackage"
+        const val EXTRA_EXTERNAL_EFFECT = "external.effect"
+        const val EXTRA_EXTERNAL_COLOR = "external.color"
+        const val EXTRA_EXTERNAL_COLOR_RIGHT = "external.colorRight"
+        const val EXTRA_EXTERNAL_INTENSITY = "external.intensity"
+        const val EXTRA_EXTERNAL_SPEED = "external.speed"
+        const val EXTRA_EXTERNAL_SMOOTHNESS = "external.smoothness"
+        const val EXTRA_EXTERNAL_SENSITIVITY = "external.sensitivity"
+        const val EXTRA_EXTERNAL_PRIORITY = "external.priority"
+        const val EXTRA_EXTERNAL_TERMINATOR = "external.terminator"
+        const val EXTRA_EXTERNAL_DURATION_MS = "external.durationMs"
+        const val EXTRA_EXTERNAL_PHASE_SECONDS = "external.phaseSeconds"
+        const val EXTRA_EXTERNAL_FLICKERING = "external.flickering"
+        const val EXTRA_EXTERNAL_BURST_WALL_MS = "external.burstWallMs"
+        // PIPBOY wake-lock renewal window. Re-acquired on every 500ms heartbeat
+        // while active; if the caller stops heartbeating (e.g. dies), the lock
+        // auto-releases this long after — a backstop on top of the explicit
+        // release in revertExternalOverride/cleanupAndStop.
+        private const val PIPBOY_WAKELOCK_TIMEOUT_MS = 3_000L
+
+        const val TERMINATOR_DURATION = "DURATION"
+        const val TERMINATOR_NEXT_COMMAND = "NEXT_COMMAND"
+        const val TERMINATOR_EXPLICIT_CLEAR = "EXPLICIT_CLEAR"
+
+        /** Minimum LED scale applied when screen brightness is at its lowest (0–255 → 0.25). */
+        private const val ADAPTIVE_BRIGHTNESS_MIN_SCALE = 0.25f
+        // Secondary-display brightness level (0..100) on the AYN Thor. Not exposed in
+        // android.provider.Settings.System constants, so referenced by its raw key.
+        private const val SETTING_DUAL_SCREEN_BRIGHTNESS = "dual_screen_brightness_level"
+        private const val EXTRA_BATTERY_LOW_COLOR_OVERRIDE = "batteryLowColorOverride"
+        private const val EXTRA_BATTERY_MID_COLOR_OVERRIDE = "batteryMidColorOverride"
+        private const val EXTRA_BATTERY_HIGH_COLOR_OVERRIDE = "batteryHighColorOverride"
+        private const val EXTRA_CPU_COOL_COLOR_OVERRIDE = "cpuCoolColorOverride"
+        private const val EXTRA_CPU_WARM_COLOR_OVERRIDE = "cpuWarmColorOverride"
+        private const val EXTRA_CPU_HOT_COLOR_OVERRIDE = "cpuHotColorOverride"
+        const val EXTRA_FADE_END_COLOR = "fadeEndColor"
+        const val EXTRA_FADE_END_RIGHT_COLOR = "fadeEndRightColor"
+        private const val COLOR_OVERRIDE_UNSET = Int.MIN_VALUE
+        private const val PROJECTION_PROMPT_CHANNEL_ID = "bifrost_projection_prompt_channel_v2"
+        private const val PROJECTION_PROMPT_NOTIFICATION_ID = 4244
+        const val PREF_AMBILIGHT_USE_MEDIA_PROJECTION = "ambilight_use_media_projection"
+        const val DEFAULT_AMBILIGHT_USE_MEDIA_PROJECTION = true
+        var isRunning = false
+    }
+
+    private var mediaProjection: MediaProjection? = null
+    private lateinit var mediaProjectionManager: MediaProjectionManager
+    private lateinit var ledController: LedController
+    private var currentAnimation: LedAnimation? = null
+    private val handler = Handler(Looper.getMainLooper())
+    private val isTransitioning = AtomicBoolean(false)
+    private val isStopping = AtomicBoolean(false)
+    private val mediaProjectionLock = Any()
+
+    private var currentColor: Int = Color.WHITE
+    private var currentRightColor: Int = Color.WHITE
+    private var currentBrightness: Int = 255
+    private var currentSpeed: Float = 0.5f
+    private var currentSmoothness: Float = 0.5f
+    private var currentSensitivity: Float = 0.5f
+    private var currentPhaseSeconds: Double = 0.0   // external phase-align hint (PIPBOY)
+    private var currentFlickering: Boolean = false   // external flicker state (PIPBOY)
+    private var currentBurstWallMs: Long = 0L        // external burst anchor (PIPBOY)
+    // Held only while a PIPBOY override is active: keeps the CPU from powering
+    // down between events so the first action after a quiet spell isn't delayed.
+    private var pipboyWakeLock: PowerManager.WakeLock? = null
+    private var currentProfile: PerformanceProfile = PerformanceProfile.MEDIUM
+    private var currentAnimationType: LedAnimationType = LedAnimationType.AMBIENT
+    private var currentSaturationBoost: Float = 0f
+    private var currentUseCustomSampling: Boolean = false
+    private var currentUseSingleColor: Boolean = false
+    private var currentFadeEndColor: Int = FadeTransitionAnimation.DEFAULT_END_COLOR
+    private var currentFadeEndRightColor: Int = FadeTransitionAnimation.DEFAULT_END_COLOR
+    private var currentBreatheWhenCharging: Boolean = false
+    private var currentIndicateChargingSpeed: Boolean = false
+    private var currentFlashWhenReady: Boolean = false
+    private var currentBatteryLowColorOverride: Int? = null
+    private var currentBatteryMidColorOverride: Int? = null
+    private var currentBatteryHighColorOverride: Int? = null
+    private var currentCpuCoolColorOverride: Int? = null
+    private var currentCpuWarmColorOverride: Int? = null
+    private var currentCpuHotColorOverride: Int? = null
+    private var currentBatteryOverrideWhenPlugged: Boolean = false
+    private var currentLowBatteryAlertEnabled: Boolean = false
+    private var currentLowBatteryAlertThreshold: Int = 20
+    private var currentDisableLowBatteryAlertWhileCharging: Boolean = false
+    private var currentPersistentNotification: Boolean = true
+    private var currentAdaptiveBrightness: Boolean = false
+    private var allowBackgroundRun: Boolean = false
+    private var currentAmbientDisplayId: Int = Display.DEFAULT_DISPLAY
+
+    // Fallout "mirror bottom screen" mode: when on, the companion's PIPBOY signal
+    // is reinterpreted as AMBIENT-mirroring whichever display shows the Pip-Boy
+    // (accessibility capture, per-display). mirrorRunningDisplayId is the display
+    // the live mirror is capturing, so a Pip-Boy move to the other screen forces
+    // a restart on the new display.
+    @Volatile private var mirrorMode = false
+    private var mirrorRunningDisplayId = Display.INVALID_DISPLAY
+    private var activeAnimationType: LedAnimationType? = null
+    private var lastProjectionResultCode: Int = Activity.RESULT_OK
+    private var lastProjectionData: Intent? = null
+    private var isDevicePluggedIn: Boolean = false
+    private var batteryLevelPercent: Int = 100
+    private var isLowBatteryAlertActive: Boolean = false
+    private var batteryReceiverRegistered: Boolean = false
+    private var pendingTransitionRunnable: Runnable? = null
+    private var pendingProjectionRunnable: Runnable? = null
+    private var pendingShutdownRunnable: Runnable? = null
+    private var isAppProfileSuppressed: Boolean = false
+
+    private var activeExternalOverride: ExternalOverrideState? = null
+    private var externalOverrideLastSeenMs: Long = 0L   // lease renewal timestamp
+
+    // Generic plugin live-feed policy in effect for the active external override
+    // (looked up by the override's caller package). Null when no policy applies.
+    // stableLeft/RightColor are the colour-stabilizer's held hue per stick (0 =
+    // unset); reset when an override begins or ends. See LivePolicy / stabilizeColor.
+    private var currentLivePolicy: LivePolicy? = null
+    private var stableLeftColor: Int = 0
+    private var stableRightColor: Int = 0
+    private var externalExpiryRunnable: Runnable? = null
+    private var crossfadeRunnable: Runnable? = null
+    private var savedStateBeforeExternalOverride: ExternalOverrideSnapshot? = null
+
+    private data class ExternalOverrideSnapshot(
+        val animationType: LedAnimationType,
+        val color: Int,
+        val rightColor: Int,
+        val brightness: Int,
+        val speed: Float,
+        val smoothness: Float,
+        val sensitivity: Float,
+        val isAppProfileSuppressed: Boolean,
+    )
+
+    /**
+     * Maps the current system screen brightness (0–255) to an LED brightness multiplier.
+     * Brightness 0 → ADAPTIVE_BRIGHTNESS_MIN_SCALE, brightness 255 → 1.0.
+     */
+    private val screenBrightnessObserver = object : ContentObserver(Handler(Looper.getMainLooper())) {
+        override fun onChange(selfChange: Boolean) {
+            if (!currentAdaptiveBrightness) return
+            applyAdaptiveBrightnessToAnimation()
+        }
+    }
+
+    private fun screenBrightnessScale(): Float {
+        val raw = runCatching {
+            Settings.System.getInt(contentResolver, Settings.System.SCREEN_BRIGHTNESS)
+        }.getOrDefault(255)
+        val normalised = raw.coerceIn(0, 255) / 255f
+        return ADAPTIVE_BRIGHTNESS_MIN_SCALE + normalised * (1f - ADAPTIVE_BRIGHTNESS_MIN_SCALE)
+    }
+
+    private fun effectiveBrightness(): Int {
+        // A live-feed policy's brightness cap is authoritative when present: the LED
+        // tops out at cap% of full, scaled by the chosen screen's level (so e.g.
+        // the sticks track the bottom screen). This overrides the feed's own
+        // intensity and adaptive brightness, by design. Read into locals so the
+        // policy + cap are sampled once (consistent, robust to field reassignment).
+        val policy = currentLivePolicy
+        val cap = policy?.brightnessCapPercent
+        if (policy != null && cap != null) {
+            val capScale = cap.coerceIn(0, 100) / 100f
+            val srcScale = when (policy.brightnessSource) {
+                BrightnessSource.MAIN_SCREEN -> mainScreenLevelPercent() / 100f
+                BrightnessSource.BOTTOM_SCREEN -> bottomScreenLevelPercent() / 100f
+                else -> 1f
+            }
+            return (255f * capScale * srcScale).roundToInt().coerceIn(0, 255)
+        }
+        if (!currentAdaptiveBrightness) return currentBrightness
+        return (currentBrightness * screenBrightnessScale()).toInt().coerceIn(0, 255)
+    }
+
+    /** Main system screen brightness as 0..100. */
+    private fun mainScreenLevelPercent(): Int {
+        val raw = runCatching {
+            Settings.System.getInt(contentResolver, Settings.System.SCREEN_BRIGHTNESS)
+        }.getOrDefault(255).coerceIn(0, 255)
+        return (raw * 100) / 255
+    }
+
+    /** Dual/bottom screen brightness as 0..100 (the AYN Thor's second display,
+     *  where the Pip-Boy companion is shown). Defaults to 50 if unavailable. */
+    private fun bottomScreenLevelPercent(): Int =
+        runCatching {
+            Settings.System.getInt(contentResolver, SETTING_DUAL_SCREEN_BRIGHTNESS)
+        }.getOrDefault(50).coerceIn(0, 100)
+
+    /**
+     * Colour-stabilizer for a live feed (driven by [LivePolicy.colorStabilize]).
+     * A "collapse" frame — the established [stable] hue with channels dropped out
+     * (a transmission glitch that reads as a wrong/red flash) — is rejected: the
+     * hue is held and the drop is expressed as a brightness DUCK toward the
+     * dropout's own brightness, scaled by [duckSeverity]. A genuinely new hue (a
+     * channel rising, or a frame not markedly dimmer) is adopted as the new stable
+     * hue. Per-stick state (stableLeft/RightColor); 0 = unset (first frame adopts).
+     */
+    private fun stabilizeColor(incoming: Int, leftStick: Boolean, duckSeverity: Float): Int {
+        val stable = if (leftStick) stableLeftColor else stableRightColor
+        if (stable == 0) {
+            if (leftStick) stableLeftColor = incoming else stableRightColor = incoming
+            return incoming
+        }
+        val sr = Color.red(stable); val sg = Color.green(stable); val sb = Color.blue(stable)
+        val cr = Color.red(incoming); val cg = Color.green(incoming); val cb = Color.blue(incoming)
+        val tol = 10
+        val subset = cr <= sr + tol && cg <= sg + tol && cb <= sb + tol
+        val markedlyDimmer = (cr + cg + cb) * 10 < (sr + sg + sb) * 6   // < 60% total ⇒ a dropout
+        if (subset && markedlyDimmer) {
+            val lumaStable = 0.299 * sr + 0.587 * sg + 0.114 * sb
+            val lumaIn = 0.299 * cr + 0.587 * cg + 0.114 * cb
+            val ratio = if (lumaStable > 1.0) (lumaIn / lumaStable).coerceIn(0.0, 1.0) else 1.0
+            val f = 1.0 - duckSeverity * (1.0 - ratio)   // brightness duck of the held hue
+            return Color.rgb(
+                (sr * f).roundToInt().coerceIn(0, 255),
+                (sg * f).roundToInt().coerceIn(0, 255),
+                (sb * f).roundToInt().coerceIn(0, 255)
+            )
+        }
+        if (leftStick) stableLeftColor = incoming else stableRightColor = incoming
+        return incoming
+    }
+
+    private fun applyAdaptiveBrightnessToAnimation() {
+        currentAnimation?.setTargetBrightness(effectiveBrightness())
+    }
+
+    private fun mountScreenBrightnessObserver() {
+        contentResolver.registerContentObserver(
+            Settings.System.getUriFor(Settings.System.SCREEN_BRIGHTNESS),
+            false,
+            screenBrightnessObserver
+        )
+    }
+
+    private fun unmountScreenBrightnessObserver() {
+        runCatching { contentResolver.unregisterContentObserver(screenBrightnessObserver) }
+    }
+
+    private val batteryStateReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context?, intent: Intent?) {
+            val batteryIntent = intent ?: return
+            val pluggedStateChanged = updatePluggedState(batteryIntent)
+            val alertStateChanged = updateBatteryAlertState(batteryIntent)
+            if (pluggedStateChanged || alertStateChanged) {
+                restartAnimationForCurrentState(force = alertStateChanged)
+            }
+        }
+    }
+
+    private val prefs by lazy {
+        getSharedPreferences("bifrost_prefs", MODE_PRIVATE)
+    }
+
+    private val appProfileManager by lazy {
+        AppProfileManager(prefs)
+    }
+
+    private val activityCheckRunnable = object : Runnable {
+        override fun run() {
+            if (!isRunning || isStopping.get()) return
+
+            if (!allowBackgroundRun && !isActivityRunning()) {
+                Log.d(TAG, "activityCheckRunnable: activity not running & no background run → stopping")
+                cleanupAndStop()
+            } else {
+                Log.d(TAG, "activityCheckRunnable: tick — appProfileEnabled=${appProfileManager.isEnabled}, currentAnimationType=$currentAnimationType, activeAnimationType=$activeAnimationType, currentAnimation=${currentAnimation != null}, isTransitioning=${isTransitioning.get()}")
+                // Lease watchdog: an override whose owner stopped renewing it
+                // (closed/backgrounded/crashed) is cleanly reverted.
+                if (activeExternalOverride != null &&
+                    System.currentTimeMillis() - externalOverrideLastSeenMs > EXTERNAL_LEASE_TIMEOUT_MS) {
+                    Log.i(TAG, "activityCheckRunnable: external override lease expired → reverting")
+                    revertExternalOverride()
+                }
+                checkAutoProfileSwitch()
+                val nextDelay = when {
+                    // A live override is polled tightly so a stale lease is caught
+                    // within ~one heartbeat, not the multi-second idle cadence.
+                    activeExternalOverride != null -> EXTERNAL_OVERRIDE_CHECK_INTERVAL_MS
+                    appProfileManager.isEnabled -> ACTIVITY_CHECK_INTERVAL_APP_PROFILE_MS
+                    else -> ACTIVITY_CHECK_INTERVAL_MS
+                }
+                handler.postDelayed(this, nextDelay)
+            }
+        }
+    }
+
+    override fun onCreate() {
+        super.onCreate()
+        createNotificationChannel()
+        mediaProjectionManager = getSystemService(MediaProjectionManager::class.java)
+        ledController = LedController()
+        registerBatteryStateReceiver()
+        refreshBatteryStateSnapshot()
+        mountScreenBrightnessObserver()
+        handler.post(activityCheckRunnable)
+    }
+
+    override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        if (intent == null) {
+            stopSelf()
+            return START_NOT_STICKY
+        }
+
+        if (intent.action == ACTION_STOP) {
+            cleanupAndStop()
+            return START_NOT_STICKY
+        }
+
+        if (intent.action == ACTION_UPDATE_PARAMS) {
+            handleUpdateParams(intent)
+            return START_NOT_STICKY
+        }
+
+        if (intent.action == ACTION_FORCE_APP_PROFILE_RESOLUTION) {
+            Log.d(TAG, "onStartCommand: ACTION_FORCE_APP_PROFILE_RESOLUTION, isRunning=$isRunning")
+            if (isRunning) {
+                checkAutoProfileSwitch()
+            }
+            return START_NOT_STICKY
+        }
+
+        if (intent.action == ACTION_SUPPLY_PROJECTION) {
+            handleSupplyProjection(intent)
+            return START_NOT_STICKY
+        }
+
+        if (intent.action == ACTION_EXTERNAL_DISPLAY) {
+            handleExternalDisplay(intent)
+            return START_NOT_STICKY
+        }
+
+        if (intent.action == ACTION_EXTERNAL_CLEAR) {
+            handleExternalClear(intent.getStringExtra(EXTRA_EXTERNAL_CALLER_PACKAGE))
+            return START_NOT_STICKY
+        }
+
+        if (intent.action == ACTION_EXTERNAL_PULSE) {
+            handleExternalPulse(intent.getStringExtra(EXTRA_EXTERNAL_PULSE_KIND))
+            return START_NOT_STICKY
+        }
+
+        allowBackgroundRun = intent.getBooleanExtra(EXTRA_ALLOW_BACKGROUND_RUN, allowBackgroundRun)
+        currentBatteryOverrideWhenPlugged = intent.getBooleanExtra(
+            EXTRA_BATTERY_OVERRIDE_WHEN_PLUGGED,
+            currentBatteryOverrideWhenPlugged
+        )
+        currentLowBatteryAlertEnabled = intent.getBooleanExtra(
+            EXTRA_LOW_BATTERY_ALERT_ENABLED,
+            currentLowBatteryAlertEnabled
+        )
+        currentLowBatteryAlertThreshold = intent.getIntExtra(
+            EXTRA_LOW_BATTERY_ALERT_THRESHOLD,
+            currentLowBatteryAlertThreshold
+        ).coerceIn(1, 100)
+        currentDisableLowBatteryAlertWhileCharging = intent.getBooleanExtra(
+            EXTRA_DISABLE_LOW_BATTERY_ALERT_WHILE_CHARGING,
+            currentDisableLowBatteryAlertWhileCharging
+        )
+        currentPersistentNotification = intent.getBooleanExtra(
+            EXTRA_PERSISTENT_NOTIFICATION,
+            currentPersistentNotification
+        )
+        currentAdaptiveBrightness = intent.getBooleanExtra(
+            EXTRA_ADAPTIVE_BRIGHTNESS,
+            currentAdaptiveBrightness
+        )
+
+        val notification = createNotification()
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            val willUseProjection = intent.hasExtra("data") ||
+                lastProjectionData != null ||
+                synchronized(mediaProjectionLock) { mediaProjection != null }
+
+            when {
+                willUseProjection -> startForeground(
+                    NOTIFICATION_ID,
+                    notification,
+                    ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PROJECTION
+                )
+
+                Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE -> startForeground(
+                    NOTIFICATION_ID,
+                    notification,
+                    ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE
+                )
+
+                else -> startForeground(NOTIFICATION_ID, notification)
+            }
+        } else {
+            startForeground(NOTIFICATION_ID, notification)
+        }
+
+        isRunning = true
+        DuoFrostTileService.refreshFrom(this)
+
+        val animationTypeName = intent.getStringExtra("animationType")
+        val animationType = animationTypeName?.let {
+            LedAnimationType.fromStoredName(it)
+        } ?: LedAnimationType.AMBIENT
+
+        val profileName = intent.getStringExtra("performanceProfile")
+        val profile = profileName?.let {
+            runCatching { PerformanceProfile.valueOf(it) }.getOrNull()
+        } ?: PerformanceProfile.HIGH
+
+        val color = intent.getIntExtra("animationColor", Color.WHITE)
+        val rightColor = intent.getIntExtra("animationRightColor", color)
+        val brightness = intent.getIntExtra("brightness", 255).coerceIn(0, 255)
+        val speed = intent.getFloatExtra("speed", 0.5f).coerceIn(0f, 1f)
+        val smoothness = intent.getFloatExtra("smoothness", 0.5f).coerceIn(0f, 1f)
+        val sensitivity = intent.getFloatExtra("sensitivity", 0.5f).coerceIn(0f, 1f)
+        currentSaturationBoost = intent.getFloatExtra("saturationBoost", 0f).coerceIn(0f, 1f)
+        currentUseCustomSampling = intent.getBooleanExtra("useCustomSampling", false)
+        currentUseSingleColor = intent.getBooleanExtra("useSingleColor", false)
+        currentFadeEndColor = intent.getIntExtra(
+            EXTRA_FADE_END_COLOR,
+            FadeTransitionAnimation.DEFAULT_END_COLOR
+        )
+        currentFadeEndRightColor = intent.getIntExtra(
+            EXTRA_FADE_END_RIGHT_COLOR,
+            currentFadeEndColor
+        )
+        currentBreatheWhenCharging = intent.getBooleanExtra("breatheWhenCharging", false)
+        currentIndicateChargingSpeed = intent.getBooleanExtra("indicateChargingSpeed", false)
+        currentFlashWhenReady = intent.getBooleanExtra("flashWhenReady", false)
+        currentBatteryLowColorOverride = parseOptionalColor(intent, EXTRA_BATTERY_LOW_COLOR_OVERRIDE)
+        currentBatteryMidColorOverride = parseOptionalColor(intent, EXTRA_BATTERY_MID_COLOR_OVERRIDE)
+        currentBatteryHighColorOverride = parseOptionalColor(intent, EXTRA_BATTERY_HIGH_COLOR_OVERRIDE)
+        currentCpuCoolColorOverride = parseOptionalColor(intent, EXTRA_CPU_COOL_COLOR_OVERRIDE)
+        currentCpuWarmColorOverride = parseOptionalColor(intent, EXTRA_CPU_WARM_COLOR_OVERRIDE)
+        currentCpuHotColorOverride = parseOptionalColor(intent, EXTRA_CPU_HOT_COLOR_OVERRIDE)
+        currentAmbientDisplayId = intent.getIntExtra("ambientDisplayId", Display.DEFAULT_DISPLAY)
+
+        // Protect existing projection data when app-profile mode is active
+        // and the intent was built for a non-MP animation (won't have real MP extras).
+        if (intent.hasExtra("resultCode")) {
+            lastProjectionResultCode = intent.getIntExtra("resultCode", Activity.RESULT_OK)
+        }
+        if (intent.hasExtra("data")) {
+            val intentData: Intent? = intent.getParcelableExtra("data")
+            if (intentData != null || !appProfileManager.isEnabled) {
+                lastProjectionData = intentData
+            }
+            Log.d(TAG, "onStartCommand: intentData=${intentData != null}, kept lastProjectionData=${lastProjectionData != null}")
+        } else {
+            Log.d(TAG, "onStartCommand: no 'data' extra in intent, lastProjectionData preserved=${lastProjectionData != null}")
+        }
+        Log.d(TAG, "onStartCommand: lastProjectionResultCode=$lastProjectionResultCode, lastProjectionData=${lastProjectionData != null}")
+
+        currentAnimationType = animationType
+        currentProfile = profile
+        currentColor = color
+        currentRightColor = rightColor
+        currentBrightness = brightness
+        currentSpeed = speed
+        currentSmoothness = smoothness
+        currentSensitivity = sensitivity
+        isAppProfileSuppressed = false
+
+
+        refreshBatteryStateSnapshot()
+
+        if (appProfileManager.isEnabled) {
+            Log.d(TAG, "onStartCommand: app profile enabled, calling checkAutoProfileSwitch()")
+            checkAutoProfileSwitch()
+            if (!isAppProfileSuppressed && currentAnimation == null) {
+                Log.d(TAG, "onStartCommand: no animation running after profile check, starting fallback with force=true")
+                restartAnimationForCurrentState(force = true)
+            }
+        } else {
+            Log.d(TAG, "onStartCommand: app profile disabled, restarting animation with force=true")
+            restartAnimationForCurrentState(force = true)
+        }
+
+        return START_NOT_STICKY
+    }
+
+    private fun handleUpdateParams(intent: Intent) {
+        if (!isRunning) return
+        Log.d(TAG, "handleUpdateParams: received update, appProfileEnabled=${appProfileManager.isEnabled}")
+        isAppProfileSuppressed = false
+        val animation = currentAnimation
+
+        if (intent.hasExtra("animationColor") || intent.hasExtra("animationRightColor")) {
+            val newColor = intent.getIntExtra("animationColor", currentColor)
+            val newRightColor = intent.getIntExtra("animationRightColor", currentRightColor)
+            if (newColor != currentColor || newRightColor != currentRightColor) {
+                currentColor = newColor
+                currentRightColor = newRightColor
+                if (currentAnimationType.needsColorSelection) {
+                    restartAnimationForCurrentState(force = true)
+                    return
+                }
+            }
+        }
+
+        if (intent.hasExtra(EXTRA_FADE_END_RIGHT_COLOR)) {
+            val newFadeEndRight = intent.getIntExtra(EXTRA_FADE_END_RIGHT_COLOR, currentFadeEndRightColor)
+            if (newFadeEndRight != currentFadeEndRightColor) {
+                currentFadeEndRightColor = newFadeEndRight
+                animation?.setFadeEndRightColor(currentFadeEndRightColor)
+            }
+        }
+
+        if (intent.hasExtra(EXTRA_FADE_END_COLOR)) {
+            val newFadeEnd = intent.getIntExtra(EXTRA_FADE_END_COLOR, currentFadeEndColor)
+            if (newFadeEnd != currentFadeEndColor) {
+                currentFadeEndColor = newFadeEnd
+                animation?.setFadeEndColor(currentFadeEndColor)
+            }
+        }
+
+        if (intent.hasExtra("brightness")) {
+            val newBrightness = intent.getIntExtra("brightness", currentBrightness).coerceIn(0, 255)
+            currentBrightness = newBrightness
+            animation?.setTargetBrightness(effectiveBrightness())
+        }
+
+        if (intent.hasExtra(EXTRA_ADAPTIVE_BRIGHTNESS)) {
+            val newAdaptive = intent.getBooleanExtra(EXTRA_ADAPTIVE_BRIGHTNESS, currentAdaptiveBrightness)
+            if (newAdaptive != currentAdaptiveBrightness) {
+                currentAdaptiveBrightness = newAdaptive
+                animation?.setTargetBrightness(effectiveBrightness())
+            }
+        }
+
+        if (intent.hasExtra("speed")) {
+            val newSpeed = intent.getFloatExtra("speed", currentSpeed).coerceIn(0f, 1f)
+            currentSpeed = newSpeed
+            animation?.setSpeed(currentSpeed)
+        }
+
+        if (intent.hasExtra("smoothness")) {
+            val newSmoothness = intent.getFloatExtra("smoothness", currentSmoothness).coerceIn(0f, 1f)
+            currentSmoothness = newSmoothness
+            animation?.setLerpStrength(currentSmoothness)
+        }
+
+        if (intent.hasExtra("sensitivity")) {
+            val newSensitivity = intent.getFloatExtra("sensitivity", currentSensitivity).coerceIn(0f, 1f)
+            currentSensitivity = newSensitivity
+            animation?.setSensitivity(currentSensitivity)
+        }
+
+        if (intent.hasExtra("saturationBoost")) {
+            val newSaturationBoost = intent.getFloatExtra("saturationBoost", currentSaturationBoost).coerceIn(0f, 1f)
+            if (newSaturationBoost != currentSaturationBoost) {
+                currentSaturationBoost = newSaturationBoost
+                currentAnimation?.setSaturationBoost(currentSaturationBoost)
+            }
+        }
+
+        if (intent.hasExtra("useCustomSampling")) {
+            val newUseCustomSampling = intent.getBooleanExtra("useCustomSampling", currentUseCustomSampling)
+            if (newUseCustomSampling != currentUseCustomSampling) {
+                currentUseCustomSampling = newUseCustomSampling
+                restartAnimationForCurrentState(force = true)
+            }
+        }
+
+        if (intent.hasExtra("useSingleColor")) {
+            val newUseSingleColor = intent.getBooleanExtra("useSingleColor", currentUseSingleColor)
+            if (newUseSingleColor != currentUseSingleColor) {
+                currentUseSingleColor = newUseSingleColor
+                restartAnimationForCurrentState(force = true)
+            }
+        }
+
+        if (intent.hasExtra("breatheWhenCharging")) {
+            val newBreatheWhenCharging = intent.getBooleanExtra(
+                "breatheWhenCharging",
+                currentBreatheWhenCharging
+            )
+            if (newBreatheWhenCharging != currentBreatheWhenCharging) {
+                currentBreatheWhenCharging = newBreatheWhenCharging
+                animation?.setBreatheWhenCharging(currentBreatheWhenCharging)
+            }
+        }
+
+        if (intent.hasExtra("indicateChargingSpeed")) {
+            val newIndicateChargingSpeed = intent.getBooleanExtra(
+                "indicateChargingSpeed",
+                currentIndicateChargingSpeed
+            )
+            if (newIndicateChargingSpeed != currentIndicateChargingSpeed) {
+                currentIndicateChargingSpeed = newIndicateChargingSpeed
+                animation?.setIndicateChargingSpeed(currentIndicateChargingSpeed)
+            }
+        }
+
+        if (intent.hasExtra("flashWhenReady")) {
+            val newFlashWhenReady = intent.getBooleanExtra(
+                "flashWhenReady",
+                currentFlashWhenReady
+            )
+            if (newFlashWhenReady != currentFlashWhenReady) {
+                currentFlashWhenReady = newFlashWhenReady
+                animation?.setFlashWhenReady(currentFlashWhenReady)
+            }
+        }
+
+        if (
+            intent.hasExtra(EXTRA_BATTERY_LOW_COLOR_OVERRIDE) ||
+            intent.hasExtra(EXTRA_BATTERY_MID_COLOR_OVERRIDE) ||
+            intent.hasExtra(EXTRA_BATTERY_HIGH_COLOR_OVERRIDE) ||
+            intent.hasExtra(EXTRA_CPU_COOL_COLOR_OVERRIDE) ||
+            intent.hasExtra(EXTRA_CPU_WARM_COLOR_OVERRIDE) ||
+            intent.hasExtra(EXTRA_CPU_HOT_COLOR_OVERRIDE)
+        ) {
+            var paletteChanged = false
+
+            val newBatteryLow = parseOptionalColor(intent, EXTRA_BATTERY_LOW_COLOR_OVERRIDE)
+            val newBatteryMid = parseOptionalColor(intent, EXTRA_BATTERY_MID_COLOR_OVERRIDE)
+            val newBatteryHigh = parseOptionalColor(intent, EXTRA_BATTERY_HIGH_COLOR_OVERRIDE)
+            val newCpuCool = parseOptionalColor(intent, EXTRA_CPU_COOL_COLOR_OVERRIDE)
+            val newCpuWarm = parseOptionalColor(intent, EXTRA_CPU_WARM_COLOR_OVERRIDE)
+            val newCpuHot = parseOptionalColor(intent, EXTRA_CPU_HOT_COLOR_OVERRIDE)
+
+            if (newBatteryLow != currentBatteryLowColorOverride) {
+                currentBatteryLowColorOverride = newBatteryLow
+                paletteChanged = true
+            }
+            if (newBatteryMid != currentBatteryMidColorOverride) {
+                currentBatteryMidColorOverride = newBatteryMid
+                paletteChanged = true
+            }
+            if (newBatteryHigh != currentBatteryHighColorOverride) {
+                currentBatteryHighColorOverride = newBatteryHigh
+                paletteChanged = true
+            }
+            if (newCpuCool != currentCpuCoolColorOverride) {
+                currentCpuCoolColorOverride = newCpuCool
+                paletteChanged = true
+            }
+            if (newCpuWarm != currentCpuWarmColorOverride) {
+                currentCpuWarmColorOverride = newCpuWarm
+                paletteChanged = true
+            }
+            if (newCpuHot != currentCpuHotColorOverride) {
+                currentCpuHotColorOverride = newCpuHot
+                paletteChanged = true
+            }
+
+            if (paletteChanged) {
+                restartAnimationForCurrentState(force = true)
+            }
+        }
+
+        if (intent.hasExtra(EXTRA_BATTERY_OVERRIDE_WHEN_PLUGGED)) {
+            val newBatteryOverrideWhenPlugged = intent.getBooleanExtra(
+                EXTRA_BATTERY_OVERRIDE_WHEN_PLUGGED,
+                currentBatteryOverrideWhenPlugged
+            )
+            if (newBatteryOverrideWhenPlugged != currentBatteryOverrideWhenPlugged) {
+                currentBatteryOverrideWhenPlugged = newBatteryOverrideWhenPlugged
+                refreshBatteryStateSnapshot()
+                restartAnimationForCurrentState()
+                updateForegroundNotification()
+            }
+        }
+
+        if (intent.hasExtra(EXTRA_LOW_BATTERY_ALERT_ENABLED)) {
+            val enabled = intent.getBooleanExtra(
+                EXTRA_LOW_BATTERY_ALERT_ENABLED,
+                currentLowBatteryAlertEnabled
+            )
+            if (enabled != currentLowBatteryAlertEnabled) {
+                currentLowBatteryAlertEnabled = enabled
+                if (refreshBatteryStateSnapshot()) {
+                    restartAnimationForCurrentState(force = true)
+                }
+            }
+        }
+
+        if (intent.hasExtra(EXTRA_LOW_BATTERY_ALERT_THRESHOLD)) {
+            val newThreshold = intent.getIntExtra(
+                EXTRA_LOW_BATTERY_ALERT_THRESHOLD,
+                currentLowBatteryAlertThreshold
+            ).coerceIn(1, 100)
+            if (newThreshold != currentLowBatteryAlertThreshold) {
+                currentLowBatteryAlertThreshold = newThreshold
+                if (refreshBatteryStateSnapshot()) {
+                    restartAnimationForCurrentState(force = true)
+                }
+            }
+        }
+
+        if (intent.hasExtra(EXTRA_DISABLE_LOW_BATTERY_ALERT_WHILE_CHARGING)) {
+            val disabledWhileCharging = intent.getBooleanExtra(
+                EXTRA_DISABLE_LOW_BATTERY_ALERT_WHILE_CHARGING,
+                currentDisableLowBatteryAlertWhileCharging
+            )
+            if (disabledWhileCharging != currentDisableLowBatteryAlertWhileCharging) {
+                currentDisableLowBatteryAlertWhileCharging = disabledWhileCharging
+                if (refreshBatteryStateSnapshot()) {
+                    restartAnimationForCurrentState(force = true)
+                }
+            }
+        }
+
+        if (intent.hasExtra(EXTRA_PERSISTENT_NOTIFICATION)) {
+            val newPersistentNotification = intent.getBooleanExtra(
+                EXTRA_PERSISTENT_NOTIFICATION,
+                currentPersistentNotification
+            )
+            if (newPersistentNotification != currentPersistentNotification) {
+                currentPersistentNotification = newPersistentNotification
+                updateForegroundNotification()
+            }
+        }
+    }
+
+    private fun restartAnimationForCurrentState(force: Boolean = false) {
+        if (!isRunning || isStopping.get()) {
+            Log.d(TAG, "restartAnimationForCurrentState: skipping — isRunning=$isRunning, isStopping=${isStopping.get()}")
+            return
+        }
+
+        if (isAppProfileSuppressed &&
+            !isLowBatteryAlertActive &&
+            !(currentBatteryOverrideWhenPlugged && isDevicePluggedIn)
+        ) {
+            Log.d(TAG, "restartAnimationForCurrentState: app profile suppressed → stopping animation")
+            stopCurrentAnimation()
+            return
+        }
+
+        val effectiveType = resolveEffectiveAnimationType()
+        val effectiveColor = if (isLowBatteryAlertActive) Color.RED else currentColor
+        val effectiveRightColor = if (isLowBatteryAlertActive) Color.RED else currentRightColor
+        Log.d(TAG, "restartAnimationForCurrentState: force=$force, effectiveType=$effectiveType, activeAnimationType=$activeAnimationType")
+        if (!force && effectiveType == activeAnimationType) {
+            Log.d(TAG, "restartAnimationForCurrentState: same type & not forced, skipping")
+            return
+        }
+
+        if (isTransitioning.getAndSet(true)) {
+            pendingTransitionRunnable?.let(handler::removeCallbacks)
+            pendingTransitionRunnable = Runnable {
+                processAnimationChange(
+                    effectiveType,
+                    effectiveColor,
+                    effectiveRightColor,
+                    currentBrightness,
+                    currentSpeed,
+                    currentSmoothness,
+                    currentSensitivity,
+                    currentProfile,
+                    lastProjectionResultCode,
+                    lastProjectionData
+                )
+            }
+            handler.postDelayed(pendingTransitionRunnable!!, TRANSITION_RETRY_DELAY_MS)
+        } else {
+            processAnimationChange(
+                effectiveType,
+                effectiveColor,
+                effectiveRightColor,
+                currentBrightness,
+                currentSpeed,
+                currentSmoothness,
+                currentSensitivity,
+                currentProfile,
+                lastProjectionResultCode,
+                lastProjectionData
+            )
+        }
+    }
+
+    private fun resolveEffectiveAnimationType(): LedAnimationType {
+        if (isLowBatteryAlertActive) {
+            return LedAnimationType.STROBE
+        }
+        // An active external override (a DuoFrost plugin / third-party app
+        // command via ACTION_DISPLAY) is an explicit, prioritised request and
+        // takes precedence over everything passive: the charge-when-plugged
+        // indicator, app-profile switching, and the user's standing preset.
+        // This mirrors the documented contract ("app-profile switching is
+        // paused while an override is active") — the charge indicator is held
+        // back the same way until the override is cleared/expires.
+        if (activeExternalOverride != null) {
+            return currentAnimationType
+        }
+        return if (
+            currentBatteryOverrideWhenPlugged &&
+            isDevicePluggedIn &&
+            currentAnimationType != LedAnimationType.BATTERY_INDICATOR
+        ) {
+            LedAnimationType.BATTERY_INDICATOR
+        } else {
+            currentAnimationType
+        }
+    }
+
+    private fun registerBatteryStateReceiver() {
+        if (batteryReceiverRegistered) return
+        var stickyIntent: Intent? = null
+        val registered = runCatching {
+            registerReceiver(
+                batteryStateReceiver,
+                IntentFilter(Intent.ACTION_BATTERY_CHANGED)
+            ).also { stickyIntent = it }
+        }.isSuccess
+        batteryReceiverRegistered = registered
+        stickyIntent?.let {
+            updatePluggedState(it)
+            updateBatteryAlertState(it)
+        }
+    }
+
+    private fun unregisterBatteryStateReceiver() {
+        if (!batteryReceiverRegistered) return
+        runCatching { unregisterReceiver(batteryStateReceiver) }
+        batteryReceiverRegistered = false
+    }
+
+    private fun updatePluggedState(intent: Intent): Boolean {
+        val plugged = (intent.getIntExtra(BatteryManager.EXTRA_PLUGGED, 0) != 0)
+        if (plugged == isDevicePluggedIn) return false
+        isDevicePluggedIn = plugged
+        updateForegroundNotification()
+        return true
+    }
+
+    private fun updateBatteryAlertState(intent: Intent): Boolean {
+        val level = intent.getIntExtra(BatteryManager.EXTRA_LEVEL, -1)
+        val scale = intent.getIntExtra(BatteryManager.EXTRA_SCALE, 100)
+        if (level >= 0 && scale > 0) {
+            batteryLevelPercent = (level * 100 / scale).coerceIn(0, 100)
+        }
+        val active = currentLowBatteryAlertEnabled &&
+            batteryLevelPercent < currentLowBatteryAlertThreshold &&
+            !(currentDisableLowBatteryAlertWhileCharging && isDevicePluggedIn)
+        if (active == isLowBatteryAlertActive) return false
+        isLowBatteryAlertActive = active
+        updateForegroundNotification()
+        return true
+    }
+
+    private fun refreshBatteryStateSnapshot(): Boolean {
+        val stickyIntent = runCatching {
+            registerReceiver(null, IntentFilter(Intent.ACTION_BATTERY_CHANGED))
+        }.getOrNull()
+        if (stickyIntent == null) return false
+        updatePluggedState(stickyIntent)
+        return updateBatteryAlertState(stickyIntent)
+    }
+
+    private fun processAnimationChange(
+        animationType: LedAnimationType,
+        color: Int,
+        rightColor: Int,
+        brightness: Int,
+        speed: Float,
+        smoothness: Float,
+        sensitivity: Float,
+        profile: PerformanceProfile,
+        resultCode: Int,
+        data: Intent?
+    ) {
+        Log.d(TAG, "processAnimationChange: animationType=$animationType, needsMP=${needsMediaProjection(animationType)}, resultCode=$resultCode, data=${data != null}")
+        pendingTransitionRunnable?.let(handler::removeCallbacks)
+        pendingTransitionRunnable = null
+        pendingProjectionRunnable?.let(handler::removeCallbacks)
+        pendingProjectionRunnable = null
+
+        // Apply adaptive brightness scaling on top of the user-configured brightness level.
+        val resolvedBrightness = effectiveBrightness()
+
+        stopCurrentAnimation()
+
+        if (needsMediaProjection(animationType) && resultCode == Activity.RESULT_OK && data != null) {
+            pendingTransitionRunnable = Runnable {
+                try {
+                    if (isRunning && !isStopping.get()) {
+                        clearMediaProjection()
+
+                        pendingProjectionRunnable = Runnable {
+                            try {
+                                if (isRunning && !isStopping.get()) {
+                                    replaceMediaProjection(resultCode, data)
+                                    startAnimation(animationType, color, rightColor, resolvedBrightness, speed, smoothness, sensitivity, profile, currentSaturationBoost)
+                                }
+                            } catch (e: Exception) {
+                                e.printStackTrace()
+                                cleanupAndStop()
+                            } finally {
+                                pendingProjectionRunnable = null
+                                isTransitioning.set(false)
+                            }
+                        }
+                        handler.postDelayed(pendingProjectionRunnable!!, PROJECTION_RESTART_DELAY_MS)
+                    } else {
+                        isTransitioning.set(false)
+                    }
+                } catch (e: Exception) {
+                    e.printStackTrace()
+                    isTransitioning.set(false)
+                    cleanupAndStop()
+                } finally {
+                    pendingTransitionRunnable = null
+                }
+            }
+            handler.postDelayed(pendingTransitionRunnable!!, TRANSITION_START_DELAY_MS)
+        } else {
+            pendingTransitionRunnable = Runnable {
+                if (isRunning && !isStopping.get()) {
+                    startAnimation(animationType, color, rightColor, resolvedBrightness, speed, smoothness, sensitivity, profile, currentSaturationBoost)
+                }
+                isTransitioning.set(false)
+                pendingTransitionRunnable = null
+            }
+            handler.postDelayed(pendingTransitionRunnable!!, TRANSITION_START_DELAY_MS)
+        }
+    }
+
+    private fun stopCurrentAnimation() {
+        Log.d(TAG, "stopCurrentAnimation: currentAnimation=${currentAnimation != null}, activeAnimationType=$activeAnimationType")
+        try {
+            currentAnimation?.stop()
+        } catch (e: Exception) {
+            e.printStackTrace()
+        } finally {
+            currentAnimation = null
+            activeAnimationType = null
+        }
+    }
+
+    private fun clearMediaProjection() {
+        synchronized(mediaProjectionLock) {
+            runCatching { mediaProjection?.stop() }
+            mediaProjection = null
+        }
+    }
+
+    private fun replaceMediaProjection(resultCode: Int, data: Intent) {
+        synchronized(mediaProjectionLock) {
+            runCatching { mediaProjection?.stop() }
+            try {
+                mediaProjection = mediaProjectionManager.getMediaProjection(resultCode, data)
+                Log.d(TAG, "replaceMediaProjection: created new projection, isNull=${mediaProjection == null}")
+            } catch (e: Exception) {
+                Log.e(TAG, "replaceMediaProjection: FAILED to create projection", e)
+                mediaProjection = null
+            }
+        }
+    }
+
+    private fun checkAutoProfileSwitch() {
+        if (!isRunning || isTransitioning.get() || isStopping.get()) {
+            Log.d(TAG, "checkAutoProfileSwitch: skipping — isRunning=$isRunning, isTransitioning=${isTransitioning.get()}, isStopping=${isStopping.get()}")
+            return
+        }
+
+        if (activeExternalOverride != null) {
+            Log.d(TAG, "checkAutoProfileSwitch: external override active, skipping")
+            return
+        }
+
+        if (isLowBatteryAlertActive) {
+            return
+        }
+
+        val switchResult = appProfileManager.checkForSwitch(this)
+        if (switchResult == null) {
+            Log.d(TAG, "checkAutoProfileSwitch: no switch needed (null result)")
+            return
+        }
+
+        Log.d(TAG, "checkAutoProfileSwitch: switchResult presetName='${switchResult.presetName}', preset animType=${switchResult.preset?.animationType}")
+
+        // Keep the UI in sync by tracking which preset is active when auto-switch is enabled.
+        prefs.edit().putString(PREF_KEY_LAST_PRESET, switchResult.presetName.orEmpty()).apply()
+
+        // While the plugged-in battery override is active, keep tracking foreground-app
+        // changes but do not apply the preset switch until the override is lifted.
+        if (currentBatteryOverrideWhenPlugged && isDevicePluggedIn) {
+            Log.d(TAG, "checkAutoProfileSwitch: battery override active, NOT applying switch")
+            return
+        }
+
+        val preset = switchResult.preset
+        if (preset == null) {
+            Log.d(TAG, "checkAutoProfileSwitch: preset is null → suppressing animation")
+            isAppProfileSuppressed = true
+            stopCurrentAnimation()
+            return
+        }
+
+        val needsMP = needsMediaProjection(preset.animationType)
+        val hasProjectionData = lastProjectionResultCode == Activity.RESULT_OK && lastProjectionData != null
+        Log.d(TAG, "checkAutoProfileSwitch: needsMP=$needsMP, hasProjectionData=$hasProjectionData, lastProjectionResultCode=$lastProjectionResultCode, lastProjectionData=${lastProjectionData != null}")
+
+        if (needsMP && !hasProjectionData) {
+            Log.d(TAG, "checkAutoProfileSwitch: needs MP but no projection data → showing prompt")
+            val triggerPackage = appProfileManager.getForegroundPackage(this)
+            if (!triggerPackage.isNullOrBlank() && switchResult.presetName != null) {
+                appProfileManager.setPendingProjectionToken(triggerPackage, switchResult.presetName)
+            }
+            if (!appProfileManager.isPendingProjectionNotified()) {
+                showProjectionPromptNotification()
+                appProfileManager.markPendingProjectionNotified()
+            }
+            return
+        }
+
+        // If we successfully apply a preset that needed MP, clear any pending token.
+        if (needsMP) {
+            Log.d(TAG, "checkAutoProfileSwitch: clearing pending projection token (MP preset being applied)")
+            appProfileManager.clearPendingProjectionToken()
+            dismissProjectionPromptNotification()
+        }
+
+        isAppProfileSuppressed = false
+
+        Log.d(TAG, "checkAutoProfileSwitch: APPLYING preset '${switchResult.presetName}' — animationType=${preset.animationType}, color=${preset.color}")
+        currentAnimationType = preset.animationType
+        currentProfile = preset.performanceProfile
+        currentColor = preset.color
+        currentRightColor = preset.rightColor
+        currentFadeEndColor = preset.fadeEndColor
+        currentFadeEndRightColor = preset.fadeEndRightColor
+        currentBrightness = preset.brightness
+        currentSpeed = preset.speed
+        currentSmoothness = preset.smoothness
+        currentSensitivity = preset.sensitivity
+        currentSaturationBoost = preset.saturationBoost
+        currentUseCustomSampling = preset.useCustomSampling
+        currentUseSingleColor = preset.useSingleColor
+        currentBreatheWhenCharging = preset.breatheWhenCharging
+        currentIndicateChargingSpeed = preset.indicateChargingSpeed
+        currentFlashWhenReady = preset.flashWhenReady
+        currentBatteryLowColorOverride = preset.batteryLowColorOverride
+        currentBatteryMidColorOverride = preset.batteryMidColorOverride
+        currentBatteryHighColorOverride = preset.batteryHighColorOverride
+        currentCpuCoolColorOverride = preset.cpuCoolColorOverride
+        currentCpuWarmColorOverride = preset.cpuWarmColorOverride
+        currentCpuHotColorOverride = preset.cpuHotColorOverride
+        restartAnimationForCurrentState(force = true)
+    }
+
+    private fun parseOptionalColor(intent: Intent, key: String): Int? {
+        if (!intent.hasExtra(key)) return null
+        val value = intent.getIntExtra(key, COLOR_OVERRIDE_UNSET)
+        return value.takeUnless { it == COLOR_OVERRIDE_UNSET }
+    }
+
+    private fun isActivityRunning(): Boolean {
+        return runCatching {
+            val activityManager = getSystemService(Context.ACTIVITY_SERVICE) as ActivityManager
+            val tasks = activityManager.appTasks
+            for (task in tasks) {
+                val componentName = task.taskInfo.baseActivity
+                if (componentName?.packageName == packageName) {
+                    return@runCatching true
+                }
+            }
+            false
+        }.getOrDefault(false)
+    }
+
+    override fun onTaskRemoved(rootIntent: Intent?) {
+        super.onTaskRemoved(rootIntent)
+        if (!allowBackgroundRun) {
+            cleanupAndStop()
+        }
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        handler.removeCallbacks(activityCheckRunnable)
+        clearPendingCallbacks()
+        unregisterBatteryStateReceiver()
+        unmountScreenBrightnessObserver()
+        cleanupAndStop()
+    }
+
+    private fun clearPendingCallbacks() {
+        pendingTransitionRunnable?.let(handler::removeCallbacks)
+        pendingTransitionRunnable = null
+        pendingProjectionRunnable?.let(handler::removeCallbacks)
+        pendingProjectionRunnable = null
+        pendingShutdownRunnable?.let(handler::removeCallbacks)
+        pendingShutdownRunnable = null
+        externalExpiryRunnable?.let(handler::removeCallbacks)
+        externalExpiryRunnable = null
+        crossfadeRunnable?.let(handler::removeCallbacks)
+        crossfadeRunnable = null
+    }
+
+    private fun cleanupAndStop() {
+        if (isStopping.getAndSet(true)) return
+        Log.d(TAG, "cleanupAndStop: STOPPING SERVICE")
+
+        try {
+            handler.removeCallbacks(activityCheckRunnable)
+            clearPendingCallbacks()
+            isRunning = false
+            DuoFrostTileService.refreshFrom(this)
+            allowBackgroundRun = false
+            isTransitioning.set(false)
+            activeAnimationType = null
+            isAppProfileSuppressed = false
+            activeExternalOverride = null
+            savedStateBeforeExternalOverride = null
+            currentLivePolicy = null
+            stableLeftColor = 0
+            stableRightColor = 0
+            mirrorMode = false
+            mirrorRunningDisplayId = Display.INVALID_DISPLAY
+            releasePipboyWakeLock()
+
+            stopCurrentAnimation()
+
+            pendingShutdownRunnable = Runnable {
+                try {
+                    clearMediaProjection()
+                } catch (e: Exception) {
+                    e.printStackTrace()
+                }
+
+                try {
+                    ledController.setLedColor(0, 0, 0, 0, true, true, true, true)
+                    handler.postDelayed({
+                        runCatching { ledController.shutdown() }
+                        stopForeground(STOP_FOREGROUND_REMOVE)
+                        stopSelf()
+                    }, LED_OFF_SETTLE_DELAY_MS)
+                } catch (e: Exception) {
+                    e.printStackTrace()
+                    stopForeground(STOP_FOREGROUND_REMOVE)
+                    stopSelf()
+                } finally {
+                    pendingShutdownRunnable = null
+                }
+            }
+            handler.post(pendingShutdownRunnable!!)
+        } catch (e: Exception) {
+            e.printStackTrace()
+            try {
+                ledController.shutdown()
+            } catch (e2: Exception) {
+                e2.printStackTrace()
+            }
+            stopForeground(STOP_FOREGROUND_REMOVE)
+            stopSelf()
+        }
+    }
+
+    override fun onBind(intent: Intent?): IBinder? = null
+
+    private fun createNotificationChannel() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val channel =
+                NotificationChannel(CHANNEL_ID, "LED Service", NotificationManager.IMPORTANCE_LOW)
+            val manager = getSystemService(NotificationManager::class.java)
+            manager.createNotificationChannel(channel)
+        }
+    }
+
+    private fun createNotification(): Notification {
+        val stopIntent = Intent(this, LEDService::class.java).apply { action = ACTION_STOP }
+        val stopPendingIntent =
+            PendingIntent.getService(
+                this,
+                1,
+                stopIntent,
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+            )
+
+        val mainIntent = Intent(this, MainActivity::class.java).apply {
+            flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
+        }
+        val mainPendingIntent =
+            PendingIntent.getActivity(this, 0, mainIntent, PendingIntent.FLAG_IMMUTABLE)
+
+        return Notification.Builder(this, CHANNEL_ID)
+            .setContentTitle("DUOFROST is open")
+            .setContentText("Tap to tune")
+            .setSubText(resolveNotificationSubText())
+            .setSmallIcon(R.drawable.ic_notification_small)
+            .setLargeIcon(BitmapFactory.decodeResource(resources, R.mipmap.ic_launcher_foreground))
+            .setContentIntent(mainPendingIntent)
+            .addAction(android.R.drawable.ic_delete, "Stop", stopPendingIntent)
+            .setOnlyAlertOnce(true)
+            .setOngoing(currentPersistentNotification)
+            .build()
+    }
+
+    private fun resolveNotificationSubText(): String {
+        return if (isDevicePluggedIn && currentBatteryOverrideWhenPlugged) {
+            "Profiles are overridden when charging"
+        } else {
+            "Following profile presets"
+        }
+    }
+
+    private fun updateForegroundNotification() {
+        if (!isRunning) return
+        val manager = getSystemService(NotificationManager::class.java)
+        runCatching {
+            manager.notify(NOTIFICATION_ID, createNotification())
+        }
+    }
+
+    @Suppress("DEPRECATION")
+    private fun getDisplayMetrics(displayId: Int): DisplayMetrics {
+        val metrics = DisplayMetrics()
+        val dm = getSystemService(DisplayManager::class.java)
+        val display = dm.getDisplay(displayId) ?: dm.getDisplay(Display.DEFAULT_DISPLAY)
+        if (display != null) {
+            display.getMetrics(metrics)
+        } else {
+            getSystemService(WindowManager::class.java).defaultDisplay.getMetrics(metrics)
+        }
+        return metrics
+    }
+
+    private fun startAnimation(
+        type: LedAnimationType,
+        color: Int,
+        rightColor: Int = color,
+        brightness: Int,
+        speed: Float,
+        smoothness: Float,
+        sensitivity: Float,
+        profile: PerformanceProfile,
+        saturationBoost: Float
+    ) {
+        try {
+            Log.d(TAG, "startAnimation: type=$type, mediaProjection=${synchronized(mediaProjectionLock) { mediaProjection != null }}")
+            val animation = createAnimation(type, color, rightColor, profile, saturationBoost)
+            currentAnimation = animation
+
+            if (animation == null) {
+                Log.w(TAG, "startAnimation: createAnimation returned null for type=$type")
+                activeAnimationType = null
+                return
+            }
+
+            animation.setTargetBrightness(brightness)
+            animation.setSpeed(speed)
+            animation.setLerpStrength(smoothness)
+            animation.setSensitivity(sensitivity)
+            animation.setBreatheWhenCharging(currentBreatheWhenCharging)
+            animation.setIndicateChargingSpeed(currentIndicateChargingSpeed)
+            animation.setFlashWhenReady(currentFlashWhenReady)
+            // Phase-align deterministic effects (PIPBOY) to the caller's clock
+            // so their seeded flicker reproduces the source's exact state.
+            if (animation is PipBoyAnimation && currentPhaseSeconds > 0.0) {
+                animation.setPhaseOrigin(currentPhaseSeconds)
+            }
+            if (animation is PipBoyAnimation) {
+                animation.setFlickering(currentFlickering)
+                if (currentBurstWallMs > 0L) animation.setBurst(currentBurstWallMs)
+            }
+            animation.start()
+            activeAnimationType = type
+            if (mirrorMode && type == LedAnimationType.AMBIENT) {
+                mirrorRunningDisplayId = currentAmbientDisplayId
+            }
+            Log.d(TAG, "startAnimation: STARTED type=$type, activeAnimationType=$activeAnimationType")
+        } catch (e: Exception) {
+            Log.e(TAG, "startAnimation: EXCEPTION for type=$type", e)
+            e.printStackTrace()
+            activeAnimationType = null
+            cleanupAndStop()
+        }
+    }
+
+    private fun handleSupplyProjection(intent: Intent) {
+        Log.d(TAG, "handleSupplyProjection: isRunning=$isRunning, isStopping=${isStopping.get()}")
+        if (!isRunning || isStopping.get()) return
+
+        val resultCode = intent.getIntExtra("resultCode", Activity.RESULT_CANCELED)
+        val data: Intent? = intent.getParcelableExtra("data")
+        Log.d(TAG, "handleSupplyProjection: resultCode=$resultCode, data=${data != null}")
+        if (resultCode != Activity.RESULT_OK || data == null) return
+
+        // Only store the projection token; do NOT create the MediaProjection now.
+        // processAnimationChange will create it on-demand the first time an
+        // MP-requiring animation actually starts, avoiding exhausting the
+        // single-use consent token before it is needed.
+        lastProjectionResultCode = resultCode
+        lastProjectionData = data
+        Log.d(TAG, "handleSupplyProjection: stored projection token")
+
+        appProfileManager.clearPendingProjectionToken()
+        dismissProjectionPromptNotification()
+
+        // Force the next periodic check to re-evaluate, so that when the
+        // user navigates back to the mapped app the MP-requiring preset
+        // is actually applied (the dedup cache previously returned null
+        // because the preset name matched even though MP was missing).
+        appProfileManager.forceNextResolution()
+        Log.d(TAG, "handleSupplyProjection: forced next resolution, waiting for user to navigate back to mapped app")
+    }
+
+    /**
+     * Fallout "mirror bottom screen" toggle. When the companion's PIPBOY signal
+     * arrives with mirror ON and the accessibility service available, switch to
+     * AMBIENT-mirroring whichever display shows the Pip-Boy (per-display
+     * accessibility capture) and return AMBIENT; otherwise leave the effect
+     * untouched. Side effects (mirrorMode, currentAmbientDisplayId) are consumed
+     * by createAnimation + the keep-alive display-follow guard. MediaProjection
+     * can only mirror the default display, hence the accessibility requirement.
+     */
+    private fun resolveMirrorEffect(effect: LedAnimationType, callerPkg: String): LedAnimationType {
+        if (effect != LedAnimationType.PIPBOY ||
+            callerPkg != DuoFrostAccessibilityService.FALLOUT_PKG
+        ) return effect
+        val wantMirror = PluginPrefs.isMirrorScreen(
+            PluginPrefs.prefs(this), PluginPrefs.FALLOUT_PLUGIN_ID
+        ) && DuoFrostAccessibilityService.isEnabled(this)
+        mirrorMode = wantMirror
+        if (!wantMirror) return effect
+        currentAmbientDisplayId = DuoFrostAccessibilityService.falloutDisplayId
+        return LedAnimationType.AMBIENT
+    }
+
+    private fun handleExternalDisplay(intent: Intent) {
+        if (!isRunning || isStopping.get()) return
+
+        val callerPkg = intent.getStringExtra(EXTRA_EXTERNAL_CALLER_PACKAGE) ?: return
+        val effectName = intent.getStringExtra(EXTRA_EXTERNAL_EFFECT) ?: return
+        var effect = runCatching { LedAnimationType.valueOf(effectName) }.getOrNull() ?: return
+
+        effect = resolveMirrorEffect(effect, callerPkg)
+
+        val newPriority = intent.getIntExtra(EXTRA_EXTERNAL_PRIORITY, 50)
+        val current = activeExternalOverride
+        if (current != null && current.callerPackage != callerPkg && current.priority > newPriority) {
+            Log.d(TAG, "handleExternalDisplay: preempted — existing override from ${current.callerPackage} priority ${current.priority} > $newPriority from $callerPkg")
+            return
+        }
+
+        // Generic live-feed policy for this effect (plugin-declared): transforms the
+        // incoming colour (stabilize) and governs brightness (effectiveBrightness).
+        // Resolved at most once per override — forEffect reads + parses the prefs
+        // JSON, and the feed is per-frame, so we must NOT repeat it every heartbeat.
+        // Reuse the cached policy while the same effect stays active; re-resolve only
+        // on a fresh or changed override.
+        if (current == null || current.effect != effect) {
+            currentLivePolicy = LivePolicyStore.forEffect(prefs, effect.name)
+        }
+        val policy = currentLivePolicy
+        val rawColor = intent.getIntExtra(EXTRA_EXTERNAL_COLOR, currentColor)
+        val rawRightColor = intent.getIntExtra(EXTRA_EXTERNAL_COLOR_RIGHT, rawColor)
+        val color = if (policy?.colorStabilize == true) stabilizeColor(rawColor, leftStick = true, policy.duckSeverity) else rawColor
+        val rightColor = if (policy?.colorStabilize == true) stabilizeColor(rawRightColor, leftStick = false, policy.duckSeverity) else rawRightColor
+        val intensity = intent.getIntExtra(EXTRA_EXTERNAL_INTENSITY, currentBrightness).coerceIn(0, 255)
+        val speed = intent.getFloatExtra(EXTRA_EXTERNAL_SPEED, currentSpeed).coerceIn(0f, 1f)
+        val smoothness = intent.getFloatExtra(EXTRA_EXTERNAL_SMOOTHNESS, currentSmoothness).coerceIn(0f, 1f)
+        val sensitivity = intent.getFloatExtra(EXTRA_EXTERNAL_SENSITIVITY, currentSensitivity).coerceIn(0f, 1f)
+
+        // Renew the lease on every command from the owner.
+        externalOverrideLastSeenMs = System.currentTimeMillis()
+
+        // Keep-alive / live-update fast path: the same caller is renewing its
+        // already-running override of the same effect (heartbeat, or a colour
+        // tweak). Nudge the live animation's colour/brightness via setters —
+        // no restart, so the flicker never hitches. Phase was aligned once at
+        // start; both sides then advance on real time. A new caller or an
+        // effect change falls through to the full snapshot + restart path.
+        if (current != null && current.callerPackage == callerPkg &&
+            current.effect == effect && activeAnimationType == effect &&
+            currentAnimation != null &&
+            // In mirror mode, a Pip-Boy move to the other display must restart
+            // the capture — don't keep-alive the stale display.
+            !(mirrorMode && mirrorRunningDisplayId != currentAmbientDisplayId)
+        ) {
+            currentColor = color
+            currentRightColor = rightColor
+            currentBrightness = intensity
+            currentAnimation?.let { anim ->
+                anim.setTargetColor(color)
+                anim.setTargetRightColor(rightColor)
+                anim.setTargetBrightness(effectiveBrightness())   // honours the live-feed brightness policy
+                // Drift correction: re-anchor a deterministic effect (PIPBOY) to
+                // the caller's fresh clock on each heartbeat — keeps the seeded
+                // flicker/vscan in phase without a restart.
+                val phase = intent.getFloatExtra(EXTRA_EXTERNAL_PHASE_SECONDS, 0f).toDouble()
+                if (anim is PipBoyAnimation && phase > 0.0) anim.reanchor(phase)
+                // Mirror flicker on/off + burst flashes — event-driven, since the
+                // screen's schedule (game triggers + multi-instance) isn't replayable.
+                if (anim is PipBoyAnimation) {
+                    anim.setFlickering(intent.getBooleanExtra(EXTRA_EXTERNAL_FLICKERING, false))
+                    val burstWall = intent.getLongExtra(EXTRA_EXTERNAL_BURST_WALL_MS, 0L)
+                    if (burstWall > 0L) anim.setBurst(burstWall)
+                }
+            }
+            refreshPipboyWakeLock()   // renew while PIPBOY stays active
+            return
+        }
+
+        val terminator: Terminator = when (intent.getStringExtra(EXTRA_EXTERNAL_TERMINATOR)) {
+            TERMINATOR_DURATION -> Terminator.Duration(
+                intent.getLongExtra(EXTRA_EXTERNAL_DURATION_MS, 0L)
+            )
+            TERMINATOR_EXPLICIT_CLEAR -> Terminator.UntilExplicitClear
+            else -> Terminator.UntilNextCommand
+        }
+
+        // Snapshot the pre-override state only on the first transition in —
+        // re-commands from the same or higher-priority caller replay onto the
+        // already-captured snapshot.
+        if (current == null) {
+            savedStateBeforeExternalOverride = ExternalOverrideSnapshot(
+                animationType = currentAnimationType,
+                color = currentColor,
+                rightColor = currentRightColor,
+                brightness = currentBrightness,
+                speed = currentSpeed,
+                smoothness = currentSmoothness,
+                sensitivity = currentSensitivity,
+                isAppProfileSuppressed = isAppProfileSuppressed,
+            )
+        }
+
+        // A fresh override may land mid-crossfade (effect reactivated during the
+        // revert dip) — cancel the fade and restore full LED scale so it renders
+        // at full brightness rather than wherever the dip left it.
+        if (crossfadeRunnable != null) {
+            crossfadeRunnable?.let(handler::removeCallbacks)
+            crossfadeRunnable = null
+            ledController.setMasterScale(1f)
+        }
+
+        activeExternalOverride = ExternalOverrideState(
+            callerPackage = callerPkg,
+            effect = effect,
+            color = color,
+            colorRight = rightColor,
+            intensity = intensity,
+            speed = speed,
+            smoothness = smoothness,
+            sensitivity = sensitivity,
+            terminator = terminator,
+            priority = newPriority,
+            startedAtMs = System.currentTimeMillis(),
+        )
+
+        currentAnimationType = effect
+        currentColor = color
+        currentRightColor = rightColor
+        currentBrightness = intensity
+        currentSpeed = speed
+        currentSmoothness = smoothness
+        currentSensitivity = sensitivity
+        currentPhaseSeconds = intent.getFloatExtra(EXTRA_EXTERNAL_PHASE_SECONDS, 0f).toDouble()
+        currentFlickering = intent.getBooleanExtra(EXTRA_EXTERNAL_FLICKERING, false)
+        currentBurstWallMs = intent.getLongExtra(EXTRA_EXTERNAL_BURST_WALL_MS, 0L)
+        isAppProfileSuppressed = false
+
+        externalExpiryRunnable?.let(handler::removeCallbacks)
+        externalExpiryRunnable = null
+        if (terminator is Terminator.Duration) {
+            val expiry = Runnable {
+                externalExpiryRunnable = null
+                revertExternalOverride()
+            }
+            externalExpiryRunnable = expiry
+            handler.postDelayed(expiry, terminator.millis)
+        }
+
+        refreshPipboyWakeLock()   // acquire if this override is PIPBOY
+        if (isLowBatteryAlertActive && activeAnimationType == LedAnimationType.STROBE) {
+            return
+        }
+        restartAnimationForCurrentState(force = true)
+    }
+
+    /**
+     * Acquire/renew the PIPBOY wake-lock when a PIPBOY override is active, so the
+     * CPU stays available between events and the first action after an idle spell
+     * isn't delayed by power-down. Re-acquiring with a timeout renews it; called
+     * on each heartbeat. No-op for non-PIPBOY effects.
+     */
+    private fun refreshPipboyWakeLock() {
+        if (activeExternalOverride?.effect != LedAnimationType.PIPBOY) {
+            releasePipboyWakeLock()
+            return
+        }
+        val wl = pipboyWakeLock ?: run {
+            val pm = getSystemService(Context.POWER_SERVICE) as? PowerManager ?: return
+            pm.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "bifrost:pipboy")
+                .also { it.setReferenceCounted(false); pipboyWakeLock = it }
+        }
+        runCatching { wl.acquire(PIPBOY_WAKELOCK_TIMEOUT_MS) }
+            .onFailure { Log.w(TAG, "refreshPipboyWakeLock: acquire failed", it) }
+    }
+
+    private fun releasePipboyWakeLock() {
+        pipboyWakeLock?.let { if (it.isHeld) runCatching { it.release() } }
+    }
+
+    private fun handleExternalClear(callerPkg: String?) {
+        val current = activeExternalOverride ?: return
+        if (callerPkg != null && current.callerPackage != callerPkg) {
+            Log.d(TAG, "handleExternalClear: ignoring — override owned by ${current.callerPackage}, clear from $callerPkg")
+            return
+        }
+        revertExternalOverride()
+    }
+
+    /**
+     * Transient trigger — a brief in-place modulation of the running effect
+     * (no restart, no override change). Only the PIPBOY effect consumes it;
+     * for any other animation it's a harmless no-op.
+     */
+    private fun handleExternalPulse(kind: String?) {
+        val anim = currentAnimation as? PipBoyAnimation ?: return
+        if (kind == "STATIC") anim.triggerStatic() else anim.triggerPulse()
+    }
+
+    private fun revertExternalOverride() {
+        externalExpiryRunnable?.let(handler::removeCallbacks)
+        externalExpiryRunnable = null
+        val snapshot = savedStateBeforeExternalOverride
+        activeExternalOverride = null
+        savedStateBeforeExternalOverride = null
+        currentLivePolicy = null
+        stableLeftColor = 0
+        stableRightColor = 0
+        mirrorMode = false
+        mirrorRunningDisplayId = Display.INVALID_DISPLAY
+        releasePipboyWakeLock()
+
+        // When stopping there's nothing to fade into — apply immediately and
+        // make sure the LED scale isn't left dimmed.
+        if (!isRunning || isStopping.get()) {
+            crossfadeRunnable?.let(handler::removeCallbacks)
+            crossfadeRunnable = null
+            ledController.setMasterScale(1f)
+            applyRevertResolution(snapshot)
+            return
+        }
+
+        // Mask the hard cut: the outgoing effect keeps rendering while we dim it
+        // to black, swap to the re-resolved animation under cover of black, then
+        // fade the incoming up. applyRevertResolution runs at the black midpoint.
+        startCrossfadeRevert { applyRevertResolution(snapshot) }
+    }
+
+    /**
+     * Resolve and start the animation that should run now the override is gone.
+     * Restores persistent prefs from the snapshot, then re-resolves by CURRENT
+     * priority — conditions may have changed during the override (most
+     * importantly charging), so the active animation is chosen fresh from live
+     * conditions rather than restoring a stale charging-era picture.
+     */
+    private fun applyRevertResolution(snapshot: ExternalOverrideSnapshot?) {
+        if (snapshot != null) {
+            currentAnimationType = snapshot.animationType
+            currentColor = snapshot.color
+            currentRightColor = snapshot.rightColor
+            currentBrightness = snapshot.brightness
+            currentSpeed = snapshot.speed
+            currentSmoothness = snapshot.smoothness
+            currentSensitivity = snapshot.sensitivity
+            isAppProfileSuppressed = snapshot.isAppProfileSuppressed
+        }
+
+        if (!isRunning || isStopping.get()) return
+
+        val chargingNow = currentBatteryOverrideWhenPlugged && isDevicePluggedIn
+        when {
+            // 1. Charging now → battery indicator reclaims priority (whether or
+            //    not it was charging when the override started).
+            chargingNow -> restartAnimationForCurrentState(force = true)
+
+            // 2. App-profile switching on → re-resolve against the CURRENT
+            //    foreground app, not whatever was foreground at takeover.
+            appProfileManager.isEnabled -> {
+                appProfileManager.forceNextResolution()
+                checkAutoProfileSwitch()
+                // checkAutoProfileSwitch starts the resolved preset itself; the
+                // fallback covers the "suppressed / nothing resolved" gap, and —
+                // crucially — runs even though the override animation is still
+                // non-null, so we never get stuck on the relinquished effect.
+                if (!isAppProfileSuppressed &&
+                    (currentAnimation == null || activeAnimationType == LedAnimationType.PIPBOY)) {
+                    restartAnimationForCurrentState(force = true)
+                }
+            }
+
+            // 3. Otherwise → the last known manual preset (from the snapshot).
+            else -> restartAnimationForCurrentState(force = true)
+        }
+    }
+
+    /**
+     * Dip-to-black crossfade around the override→revert swap. Ramps the LED
+     * master scale 1→0 (outgoing dims), invokes [applyIncoming] at black to swap
+     * the animation, then ramps 0→1 (incoming fades up). Self-driven on the
+     * handler so it works regardless of the incoming animation's render rate,
+     * and bounded by the fixed fade durations.
+     */
+    private fun startCrossfadeRevert(applyIncoming: () -> Unit) {
+        crossfadeRunnable?.let(handler::removeCallbacks)
+        val startMs = SystemClock.elapsedRealtime()
+        var swapped = false
+        val runnable = object : Runnable {
+            override fun run() {
+                if (!isRunning || isStopping.get()) {
+                    if (!swapped) applyIncoming()
+                    ledController.setMasterScale(1f)
+                    crossfadeRunnable = null
+                    return
+                }
+                val elapsed = SystemClock.elapsedRealtime() - startMs
+                when {
+                    // Phase 1 — dim the outgoing effect to black.
+                    elapsed < CROSSFADE_OUT_MS -> {
+                        ledController.setMasterScale(Crossfade.scaleAt(elapsed, CROSSFADE_OUT_MS, CROSSFADE_IN_MS))
+                        handler.postDelayed(this, CROSSFADE_TICK_MS)
+                    }
+                    // Midpoint — swap the animation while the LEDs are black.
+                    !swapped -> {
+                        swapped = true
+                        ledController.setMasterScale(0f)
+                        ledController.resetFadeBaseline()
+                        applyIncoming()
+                        handler.postDelayed(this, CROSSFADE_TICK_MS)
+                    }
+                    // Phase 2 — fade the incoming animation up from black.
+                    !Crossfade.isComplete(elapsed, CROSSFADE_OUT_MS, CROSSFADE_IN_MS) -> {
+                        ledController.setMasterScale(Crossfade.scaleAt(elapsed, CROSSFADE_OUT_MS, CROSSFADE_IN_MS))
+                        handler.postDelayed(this, CROSSFADE_TICK_MS)
+                    }
+                    else -> {
+                        ledController.setMasterScale(1f)
+                        crossfadeRunnable = null
+                    }
+                }
+            }
+        }
+        crossfadeRunnable = runnable
+        handler.post(runnable)
+    }
+
+    private fun showProjectionPromptNotification() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+            ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS)
+            != PackageManager.PERMISSION_GRANTED
+        ) {
+            return
+        }
+
+        createProjectionPromptNotificationChannel()
+
+        val openAppIntent = Intent(this, MainActivity::class.java).apply {
+            putExtra(MainActivity.EXTRA_GRANT_PROJECTION_FOR_APP_PROFILE, true)
+            flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
+        }
+        val pendingIntent = PendingIntent.getActivity(
+            this,
+            PROJECTION_PROMPT_NOTIFICATION_ID,
+            openAppIntent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+
+        val notification = NotificationCompat.Builder(this, PROJECTION_PROMPT_CHANNEL_ID)
+            .setSmallIcon(R.drawable.ic_notification_small)
+            .setLargeIcon(BitmapFactory.decodeResource(resources, R.mipmap.ic_launcher_foreground))
+            .setContentTitle("Screen capture permission needed")
+            .setContentText("Tap to grant permission so DuoFrost can run the assigned animation.")
+            .setContentIntent(pendingIntent)
+            .setAutoCancel(true)
+            .setPriority(NotificationCompat.PRIORITY_HIGH)
+            .build()
+
+        NotificationManagerCompat.from(this).notify(PROJECTION_PROMPT_NOTIFICATION_ID, notification)
+    }
+
+    private fun dismissProjectionPromptNotification() {
+        NotificationManagerCompat.from(this).cancel(PROJECTION_PROMPT_NOTIFICATION_ID)
+    }
+
+    private fun createProjectionPromptNotificationChannel() {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return
+        val manager = getSystemService(NotificationManager::class.java)
+        val channel = NotificationChannel(
+            PROJECTION_PROMPT_CHANNEL_ID,
+            "App profile permission prompt",
+            NotificationManager.IMPORTANCE_HIGH
+        )
+        channel.enableVibration(true)
+        channel.enableLights(true)
+        manager.createNotificationChannel(channel)
+    }
+
+    private fun needsMediaProjection(type: LedAnimationType): Boolean {
+        if (type == LedAnimationType.AMBIENT) {
+            return prefs.getBoolean(PREF_AMBILIGHT_USE_MEDIA_PROJECTION, DEFAULT_AMBILIGHT_USE_MEDIA_PROJECTION)
+        }
+        return type == LedAnimationType.AUDIO_REACTIVE ||
+                type == LedAnimationType.AMBIAURORA
+    }
+
+    private fun createAnimation(
+        type: LedAnimationType,
+        color: Int,
+        rightColor: Int = color,
+        profile: PerformanceProfile,
+        saturationBoost: Float
+    ): LedAnimation? {
+        return when (type) {
+            LedAnimationType.AMBIENT -> {
+                // Mirror mode forces the accessibility capture path: MediaProjection
+                // can only mirror the default display, but mirror mode targets
+                // whichever (possibly secondary) display shows the Pip-Boy.
+                val useMP = !mirrorMode && prefs.getBoolean(PREF_AMBILIGHT_USE_MEDIA_PROJECTION, DEFAULT_AMBILIGHT_USE_MEDIA_PROJECTION)
+                val displayMetrics = getDisplayMetrics(currentAmbientDisplayId)
+                AmbientAnimation(
+                    ledController,
+                    if (useMP) synchronized(mediaProjectionLock) { mediaProjection } else null,
+                    displayMetrics,
+                    profile,
+                    currentUseCustomSampling,
+                    currentUseSingleColor,
+                    saturationBoost,
+                    currentAmbientDisplayId
+                )
+            }
+            LedAnimationType.AUDIO_REACTIVE -> {
+                val projection = synchronized(mediaProjectionLock) { mediaProjection } ?: return null
+                val displayMetrics = getDisplayMetrics(currentAmbientDisplayId)
+                AudioReactiveAnimation(
+                    ledController,
+                    projection,
+                    displayMetrics,
+                    color,
+                    rightColor,
+                    profile
+                )
+            }
+            LedAnimationType.AMBIAURORA -> {
+                val projection = synchronized(mediaProjectionLock) { mediaProjection } ?: return null
+                val displayMetrics = getDisplayMetrics(currentAmbientDisplayId)
+                AmbiAuroraAnimation(
+                    ledController,
+                    projection,
+                    displayMetrics,
+                    profile,
+                    currentUseCustomSampling,
+                    currentUseSingleColor,
+                    saturationBoost
+                )
+            }
+            LedAnimationType.BATTERY_INDICATOR -> BatteryIndicatorAnimation(
+                ledController,
+                this,
+                currentBreatheWhenCharging,
+                currentIndicateChargingSpeed,
+                currentFlashWhenReady,
+                currentBatteryLowColorOverride,
+                currentBatteryMidColorOverride,
+                currentBatteryHighColorOverride
+            )
+            LedAnimationType.CPU_TEMPERATURE -> CpuTemperatureAnimation(
+                ledController,
+                coolColorOverride = currentCpuCoolColorOverride,
+                warmColorOverride = currentCpuWarmColorOverride,
+                hotColorOverride = currentCpuHotColorOverride
+            )
+            LedAnimationType.STATIC -> StaticAnimation(ledController, color, rightColor)
+            LedAnimationType.BREATH -> BreathAnimation(ledController, color, rightColor)
+            LedAnimationType.RAINBOW -> RainbowAnimation(ledController)
+            LedAnimationType.PULSE -> PulseAnimation(ledController, color, rightColor)
+            LedAnimationType.STROBE -> StrobeAnimation(
+                ledController,
+                color,
+                rightColor,
+                if (isLowBatteryAlertActive) LOW_BATTERY_ALERT_INTERVAL_MS else null
+            )
+            LedAnimationType.SPARKLE -> SparkleAnimation(ledController, color, rightColor)
+            LedAnimationType.FADE_TRANSITION -> FadeTransitionAnimation(
+                ledController,
+                color,
+                rightColor,
+                currentFadeEndColor,
+                currentFadeEndRightColor
+            )
+            LedAnimationType.RAVE -> RaveAnimation(ledController)
+            LedAnimationType.CHASE -> ChaseAnimation(ledController, color, rightColor)
+            LedAnimationType.PIPBOY -> PipBoyAnimation(ledController, color, rightColor)
+        }
+    }
+}

@@ -395,7 +395,7 @@
                                 android:id="@+id/lowBatteryAlertSeekBar"
                                 android:layout_width="match_parent"
                                 android:layout_height="wrap_content"
-                                style="@style/BifrostSeekBar" />
+                                style="@style/DuoFrostSeekBar" />
                         </LinearLayout>
                     </LinearLayout>
 
@@ -465,7 +465,7 @@
                             <TextView
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
-                                android:text="Keep Bifrost notification pinned while Heimdall is active"
+                                android:text="Keep DuoFrost notification pinned while Heimdall is active"
                                 android:textColor="@color/bifrost_text_secondary"
                                 android:textSize="11sp"
                                 android:layout_marginTop="2dp" />
@@ -630,7 +630,7 @@
                             <TextView
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
-                                android:text="Open Bifrost on bottom screen by default"
+                                android:text="Open DuoFrost on bottom screen by default"
                                 android:textColor="@color/bifrost_text_secondary"
                                 android:textSize="11sp"
                                 android:layout_marginTop="2dp" />
@@ -996,7 +996,7 @@
                         android:id="@+id/brightnessSeekBar"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        style="@style/BifrostSeekBar" />
+                        style="@style/DuoFrostSeekBar" />
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
 
@@ -1043,7 +1043,7 @@
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:layout_marginBottom="@dimen/bifrost_spacing_md"
-                        style="@style/BifrostSeekBar" />
+                        style="@style/DuoFrostSeekBar" />
 
                     <TextView
                         android:id="@+id/smoothnessLabel"
@@ -1060,7 +1060,7 @@
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:layout_marginBottom="@dimen/bifrost_spacing_md"
-                        style="@style/BifrostSeekBar" />
+                        style="@style/DuoFrostSeekBar" />
 
                     <TextView
                         android:id="@+id/sensitivityLabel"
@@ -1077,7 +1077,7 @@
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:layout_marginBottom="@dimen/bifrost_spacing_md"
-                        style="@style/BifrostSeekBar" />
+                        style="@style/DuoFrostSeekBar" />
 
                     <TextView
                         android:id="@+id/saturationBoostLabel"
@@ -1094,7 +1094,7 @@
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:layout_marginBottom="@dimen/bifrost_spacing_md"
-                        style="@style/BifrostSeekBar" />
+                        style="@style/DuoFrostSeekBar" />
 
                     <LinearLayout
                         android:layout_width="match_parent"
@@ -1638,7 +1638,7 @@
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
                                 android:layout_marginTop="2dp"
-                                android:text="Toggle animated color treatment for the Bifrost logo/title"
+                                android:text="Toggle animated color treatment for the DuoFrost logo/title"
                                 android:textColor="@color/bifrost_text_secondary"
                                 android:textSize="11sp" />
                         </LinearLayout>
@@ -1653,6 +1653,12 @@
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
 
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/creditsButton"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="16dp"
+                android:text="@string/credits_title" />
         </LinearLayout>
     </ScrollView>
 
@@ -1803,12 +1809,13 @@
 
                     <SeekBar
                         android:id="@+id/liveWallpaperFpsSeekBar"
-                        style="@style/BifrostSeekBar"
+                        style="@style/DuoFrostSeekBar"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:layout_marginTop="4dp" />
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
+
         </LinearLayout>
     </ScrollView>
 </LinearLayout>

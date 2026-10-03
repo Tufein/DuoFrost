@@ -33,5 +33,5 @@ upstream commit `1baddf1` (1.3.1). Original authorship and license are retained.
 5. Switch between mapped app profiles while capturing. Check that old capture
    callbacks do not overwrite the current profile's colors.
 
-A debug APK uses `com.moonbench.bifrost.debug` and can be installed alongside the
+A debug APK uses `io.github.tufein.duofrost.debug` and can be installed alongside the
 original app. Run only one LED controller at a time during device testing.
