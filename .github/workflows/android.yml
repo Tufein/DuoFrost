@@ -19,6 +19,9 @@ jobs:
           distribution: temurin
           java-version: '17'
       - uses: android-actions/setup-android@v3
+        with:
+          # The legacy `tools` package was removed from Google's SDK repository.
+          packages: 'platform-tools platforms;android-36 build-tools;35.0.0'
       - uses: gradle/actions/setup-gradle@v4
       - name: Run regression tests and build debug APK
         run: bash gradlew --no-daemon :app:testDebugUnitTest :app:assembleDebug
