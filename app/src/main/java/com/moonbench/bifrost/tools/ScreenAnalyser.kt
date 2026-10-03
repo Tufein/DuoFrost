@@ -22,12 +22,7 @@ import kotlin.math.sqrt
 
 private const val DEFAULT_CAPTURE_WIDTH = 2
 private const val DEFAULT_CAPTURE_HEIGHT = 1
-private const val SINGLE_COLOR_CAPTURE_SIZE = 1
-private const val CUSTOM_SAMPLING_WIDTH = 32
 private const val IMAGE_READER_MAX_IMAGES = 2
-
-private const val SATURATION_BOOST_MULTIPLIER = 2.5f
-private const val SATURATION_BOOST_BASE = 1.0f
 
 private const val BRIGHTNESS_FACTOR = 10.0
 private const val BRIGHTNESS_POWER = 2.0
@@ -49,9 +44,6 @@ private const val BRIGHTNESS_RED_COEFF = 0.299
 private const val BRIGHTNESS_GREEN_COEFF = 0.587
 private const val BRIGHTNESS_BLUE_COEFF = 0.114
 
-private const val HUE_CYCLE = 6f
-private const val HUE_STEP = 60f
-
 private const val SCREENSHOT_MIN_INTERVAL_MS = 100L
 
 data class ScreenColors(
@@ -70,7 +62,7 @@ class ScreenAnalyzer(
     private val displayId: Int = Display.DEFAULT_DISPLAY,
     private val onColorsAnalyzed: (ScreenColors) -> Unit
 ) {
-    var topPixelPercentage: Float = initialTopPixelPercentage
+    var topPixelPercentage: Float = initialTopPixelPercentage.coerceIn(0.05f, 1f)
         set(value) {
             field = value.coerceIn(0.05f, 1f)
         }
@@ -86,6 +78,7 @@ class ScreenAnalyzer(
     private var handler: Handler? = null
     private var projectionCallback: MediaProjection.Callback? = null
     @Volatile private var isRunning: Boolean = false
+    @Volatile private var captureGeneration = 0L
 
     // Accessibility path only
     private var captureInFlight: Boolean = false
@@ -95,49 +88,53 @@ class ScreenAnalyzer(
 
     fun start() {
         if (isRunning) return
+        captureGeneration++
         isRunning = true
 
-        if (useSingleColor) {
-            captureWidth = SINGLE_COLOR_CAPTURE_SIZE
-            captureHeight = SINGLE_COLOR_CAPTURE_SIZE
-        } else if (useCustomSampling) {
-            captureWidth = CUSTOM_SAMPLING_WIDTH
-            val aspectRatio = displayMetrics.heightPixels.toFloat() / displayMetrics.widthPixels.toFloat()
-            captureHeight = (captureWidth * aspectRatio).toInt()
-                .coerceAtLeast(DEFAULT_CAPTURE_HEIGHT)
-                .coerceAtMost(CUSTOM_SAMPLING_WIDTH)
-        } else {
-            captureWidth = DEFAULT_CAPTURE_WIDTH
-            captureHeight = DEFAULT_CAPTURE_HEIGHT
-        }
+        val dimensions = ScreenSampling.dimensions(
+            useCustomSampling, useSingleColor,
+            displayMetrics.widthPixels, displayMetrics.heightPixels
+        )
+        captureWidth = dimensions.first
+        captureHeight = dimensions.second
+        lastProcessedTime = 0L
 
         handlerThread = HandlerThread("ScreenCapture").apply { start() }
         handler = Handler(handlerThread!!.looper)
 
-        if (mediaProjection != null) {
-            startVirtualDisplayCapture()
-        } else {
-            screenshotCapabilityBlocked = false
-            blockedUntilElapsedRealtime = 0L
-            screenshotFailureCount = 0
-            scheduleNextCapture(0L)
+        try {
+            if (mediaProjection != null) {
+                startVirtualDisplayCapture()
+            } else {
+                screenshotCapabilityBlocked = false
+                blockedUntilElapsedRealtime = 0L
+                screenshotFailureCount = 0
+                scheduleNextCapture(0L)
+            }
+        } catch (e: Exception) {
+            stop()
+            throw e
         }
     }
 
     fun stop() {
         if (!isRunning) return
         isRunning = false
+        captureGeneration++
         // Detach the frame listener before releasing the reader so an in-flight
         // capture callback on the handler thread can't touch a closed reader.
         runCatching { imageReader?.setOnImageAvailableListener(null, null) }
-        virtualDisplay?.release()
+        runCatching { virtualDisplay?.release() }
         virtualDisplay = null
-        imageReader?.close()
+        runCatching { imageReader?.close() }
         imageReader = null
+        // Drain already-delivered screenshot callbacks so their buffers are closed.
         handlerThread?.quitSafely()
         handlerThread = null
         handler = null
-        projectionCallback?.let { mediaProjection?.unregisterCallback(it) }
+        projectionCallback?.let { callback ->
+            runCatching { mediaProjection?.unregisterCallback(callback) }
+        }
         projectionCallback = null
         captureInFlight = false
         lastEmittedColors = null
@@ -146,7 +143,9 @@ class ScreenAnalyzer(
     // ── VirtualDisplay path (MediaProjection, ~60 fps) ────────────────────────
 
     private fun startVirtualDisplayCapture() {
-        val ir = ImageReader.newInstance(captureWidth, captureHeight, PixelFormat.RGBA_8888, 2)
+        val generation = captureGeneration
+        val ir = ImageReader.newInstance(captureWidth, captureHeight, PixelFormat.RGBA_8888, IMAGE_READER_MAX_IMAGES)
+        imageReader = ir
         ir.setOnImageAvailableListener({ reader ->
             // stop() can close the reader / stop the projection on another thread
             // between callbacks; acquireLatestImage() or buffer access then throws
@@ -154,7 +153,7 @@ class ScreenAnalyzer(
             try {
                 val image = reader.acquireLatestImage() ?: return@setOnImageAvailableListener
                 try {
-                    if (!isRunning) return@setOnImageAvailableListener
+                    if (!isRunning || generation != captureGeneration) return@setOnImageAvailableListener
                     val now = SystemClock.elapsedRealtime()
                     val minInterval = if (performanceProfile == PerformanceProfile.RAGNAROK) 16L
                                       else performanceProfile.intervalMs.coerceAtLeast(16L)
@@ -168,9 +167,10 @@ class ScreenAnalyzer(
                 if (isRunning) android.util.Log.w("ScreenAnalyser", "capture frame dropped: ${t.message}")
             }
         }, handler)
-        imageReader = ir
         projectionCallback = object : MediaProjection.Callback() {
-            override fun onStop() { stop() }
+            override fun onStop() {
+                if (generation == captureGeneration) stop()
+            }
         }
         mediaProjection!!.registerCallback(projectionCallback!!, handler)
         virtualDisplay = mediaProjection.createVirtualDisplay(
@@ -248,40 +248,54 @@ class ScreenAnalyzer(
             screenshotCapabilityBlocked = false
         }
 
+        val generation = captureGeneration
+        val captureHandler = handler ?: return
         captureInFlight = true
         try {
             service.takeScreenshot(
                 displayId,
-                Executor { cmd -> handler?.post(cmd) },
+                Executor { cmd ->
+                    // A stopped handler rejects posts. Still deliver the stale callback
+                    // so its hardware buffer can be closed, without touching a new run.
+                    if (!captureHandler.post(cmd)) cmd.run()
+                },
                 object : AccessibilityService.TakeScreenshotCallback {
                     override fun onSuccess(screenshot: AccessibilityService.ScreenshotResult) {
-                        val hwBitmap = Bitmap.wrapHardwareBuffer(screenshot.hardwareBuffer, screenshot.colorSpace)
-                        val scaledHw = hwBitmap?.let { Bitmap.createScaledBitmap(it, captureWidth, captureHeight, true) }
-                        hwBitmap?.recycle()
-                        screenshot.hardwareBuffer.close()
-
-                        val bitmap = when {
-                            scaledHw == null -> null
-                            scaledHw.config == Bitmap.Config.HARDWARE -> {
-                                val soft = scaledHw.copy(Bitmap.Config.ARGB_8888, false)
-                                scaledHw.recycle()
-                                soft
+                        var hwBitmap: Bitmap? = null
+                        var scaledBitmap: Bitmap? = null
+                        var bitmap: Bitmap? = null
+                        try {
+                            if (!isRunning || generation != captureGeneration) return
+                            hwBitmap = Bitmap.wrapHardwareBuffer(screenshot.hardwareBuffer, screenshot.colorSpace)
+                            scaledBitmap = hwBitmap?.let {
+                                Bitmap.createScaledBitmap(it, captureWidth, captureHeight, true)
                             }
-                            else -> scaledHw
+                            bitmap = scaledBitmap?.let {
+                                if (it.config == Bitmap.Config.HARDWARE) it.copy(Bitmap.Config.ARGB_8888, false)
+                                else it
+                            }
+                            bitmap?.let {
+                                if (isRunning && generation == captureGeneration) processBitmap(it)
+                            }
+                            if (generation == captureGeneration) screenshotFailureCount = 0
+                        } catch (e: Exception) {
+                            android.util.Log.w("ScreenAnalyser", "Screenshot processing failed", e)
+                        } finally {
+                            // Scaling may return its input; recycle each distinct bitmap once.
+                            bitmap?.recycle()
+                            if (scaledBitmap !== bitmap) scaledBitmap?.recycle()
+                            if (hwBitmap !== scaledBitmap && hwBitmap !== bitmap) hwBitmap?.recycle()
+                            screenshot.hardwareBuffer.close()
+                            if (generation == captureGeneration) {
+                                lastProcessedTime = SystemClock.elapsedRealtime()
+                                captureInFlight = false
+                                if (isRunning) scheduleNextCapture(SCREENSHOT_MIN_INTERVAL_MS)
+                            }
                         }
-
-                        screenshotFailureCount = 0
-                        lastProcessedTime = SystemClock.elapsedRealtime()
-                        captureInFlight = false
-
-                        if (bitmap != null && isRunning) {
-                            processBitmap(bitmap)
-                            bitmap.recycle()
-                        }
-                        if (isRunning) scheduleNextCapture(0L)
                     }
 
                     override fun onFailure(errorCode: Int) {
+                        if (!isRunning || generation != captureGeneration) return
                         captureInFlight = false
                         if (errorCode == AccessibilityService.ERROR_TAKE_SCREENSHOT_INTERVAL_TIME_SHORT) {
                             scheduleNextCapture(SCREENSHOT_MIN_INTERVAL_MS); return
@@ -478,48 +492,6 @@ class ScreenAnalyzer(
         return weight
     }
 
-    private fun applySaturationBoost(color: Int): Int {
-        val mappedBoost = SATURATION_BOOST_BASE + (saturationBoost * SATURATION_BOOST_MULTIPLIER)
-
-        if (mappedBoost == SATURATION_BOOST_BASE) return color
-
-        val r = Color.red(color) / RGB_NORMALIZE.toFloat()
-        val g = Color.green(color) / RGB_NORMALIZE.toFloat()
-        val b = Color.blue(color) / RGB_NORMALIZE.toFloat()
-
-        val max = maxOf(r, g, b)
-        val min = minOf(r, g, b)
-        val delta = max - min
-
-        val v = max
-        val s = if (max == 0f) 0f else delta / max
-
-        val sBoosted = (s * mappedBoost).coerceIn(0f, 1f)
-
-        val h = when {
-            delta == 0f -> 0f
-            max == r -> HUE_STEP * (((g - b) / delta) % HUE_CYCLE)
-            max == g -> HUE_STEP * (((b - r) / delta) + 2f)
-            else -> HUE_STEP * (((r - g) / delta) + 4f)
-        }
-
-        val c = v * sBoosted
-        val x = c * (1f - kotlin.math.abs((h / HUE_STEP) % 2f - 1f))
-        val m = v - c
-
-        val (rPrime, gPrime, bPrime) = when {
-            h < HUE_STEP -> Triple(c, x, 0f)
-            h < HUE_STEP * 2 -> Triple(x, c, 0f)
-            h < HUE_STEP * 3 -> Triple(0f, c, x)
-            h < HUE_STEP * 4 -> Triple(0f, x, c)
-            h < HUE_STEP * 5 -> Triple(x, 0f, c)
-            else -> Triple(c, 0f, x)
-        }
-
-        val rFinal = ((rPrime + m) * RGB_NORMALIZE).toInt().coerceIn(0, RGB_MAX)
-        val gFinal = ((gPrime + m) * RGB_NORMALIZE).toInt().coerceIn(0, RGB_MAX)
-        val bFinal = ((bPrime + m) * RGB_NORMALIZE).toInt().coerceIn(0, RGB_MAX)
-
-        return Color.rgb(rFinal, gFinal, bFinal)
-    }
+    private fun applySaturationBoost(color: Int): Int =
+        ScreenSampling.boostSaturation(color, saturationBoost)
 }
