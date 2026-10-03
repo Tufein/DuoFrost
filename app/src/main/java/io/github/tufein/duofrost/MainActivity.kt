@@ -23,6 +23,7 @@ import android.os.Build
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
+import android.os.PowerManager
 import android.provider.Settings
 import android.text.SpannableString
 import android.text.Spanned
@@ -56,7 +57,9 @@ import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import android.util.Log
 import android.widget.ScrollView
+import java.util.UUID
 import androidx.core.content.ContextCompat
+import androidx.core.app.NotificationManagerCompat
 import androidx.core.view.WindowCompat
 import com.google.android.material.button.MaterialButton
 import com.google.android.material.bottomsheet.BottomSheetBehavior
@@ -75,6 +78,10 @@ import io.github.tufein.duofrost.services.HeimdallStartupManager
 import io.github.tufein.duofrost.services.LEDService
 import io.github.tufein.duofrost.services.LiveWallpaperSettingsManager
 import io.github.tufein.duofrost.services.ServiceController
+import io.github.tufein.duofrost.services.ServiceRecoveryStore
+import io.github.tufein.duofrost.services.BackgroundDiagnostics
+import io.github.tufein.duofrost.schedule.ScheduleApplier
+import io.github.tufein.duofrost.schedule.ScheduleStore
 import io.github.tufein.duofrost.services.VideoLiveWallpaperService
 import io.github.tufein.duofrost.tools.CrashReporter
 import io.github.tufein.duofrost.tools.DeviceInfo
@@ -101,6 +108,8 @@ class MainActivity : AppCompatActivity() {
 
     private lateinit var serviceToggle: SwitchMaterial
     private lateinit var autoStartupSwitch: SwitchMaterial
+    private lateinit var keepRunningSwitch: SwitchMaterial
+    private lateinit var backgroundStatusText: TextView
     private lateinit var pluggedBatteryOverrideSwitch: SwitchMaterial
     private lateinit var persistentNotificationSwitch: SwitchMaterial
     private lateinit var adaptiveBrightnessSwitch: SwitchMaterial
@@ -230,6 +239,7 @@ class MainActivity : AppCompatActivity() {
     companion object {
         var mediaProjectionResultCode: Int? = null
         var mediaProjectionData: Intent? = null
+        private var mediaProjectionTokenId: String? = null
         private const val DEBOUNCE_DELAY = 500L
         private const val SERVICE_RESTART_DELAY = 400L
         private const val SETTINGS_OPEN_DURATION_MS = 300L
@@ -319,6 +329,8 @@ class MainActivity : AppCompatActivity() {
     private var selectedAdaptiveBrightness: Boolean = false
     private var selectedBatterySaverBrightness: Boolean = false
     private var isAwaitingPermissionResult = false
+    private var isSyncingServiceToggle = false
+    private var pendingTileStartIntent: Intent? = null
     private var isUpdatingFromPreset = false
     private var isGrantingProjectionForAppProfile = false
     private var rainbowDrawable: AnimatedRainbowDrawable? = null
@@ -442,6 +454,7 @@ class MainActivity : AppCompatActivity() {
                     serviceController.startDebounced { createLedServiceIntent() }
                 }
             } else {
+                pendingTileStartIntent = null
                 isAwaitingPermissionResult = false
                 serviceToggle.isChecked = false
                 Toast.makeText(
@@ -457,6 +470,7 @@ class MainActivity : AppCompatActivity() {
             if (result.resultCode == RESULT_OK && result.data != null) {
                 mediaProjectionResultCode = result.resultCode
                 mediaProjectionData = result.data
+                mediaProjectionTokenId = UUID.randomUUID().toString()
 
                 if (isGrantingProjectionForAppProfile) {
                     isGrantingProjectionForAppProfile = false
@@ -468,14 +482,24 @@ class MainActivity : AppCompatActivity() {
                             action = LEDService.ACTION_SUPPLY_PROJECTION
                             putExtra("resultCode", mediaProjectionResultCode)
                             putExtra("data", mediaProjectionData)
+                            putExtra(LEDService.EXTRA_PROJECTION_TOKEN_ID, mediaProjectionTokenId)
                         }
                         startService(supplyIntent)
                     }
                 } else {
-                    serviceController.startDebounced { createLedServiceIntent() }
+                    val tileStart = pendingTileStartIntent
+                    pendingTileStartIntent = null
+                    serviceController.startDebounced {
+                        tileStart?.apply {
+                            putExtra("resultCode", mediaProjectionResultCode)
+                            putExtra("data", mediaProjectionData)
+                            putExtra(LEDService.EXTRA_PROJECTION_TOKEN_ID, mediaProjectionTokenId)
+                        } ?: createLedServiceIntent()
+                    }
                 }
             } else {
                 val wasAppProfileGrant = isGrantingProjectionForAppProfile
+                pendingTileStartIntent = null
                 isGrantingProjectionForAppProfile = false
                 if (!wasAppProfileGrant) {
                     isAwaitingPermissionResult = false
@@ -641,10 +665,26 @@ class MainActivity : AppCompatActivity() {
         if (intent?.getBooleanExtra(EXTRA_START_FROM_TILE, false) != true) return
         intent.removeExtra(EXTRA_START_FROM_TILE)
 
-        if (LEDService.isRunning) return
+        if (LEDService.isRunning) {
+            if (LEDService.isWaitingForCapturePermission) {
+                handleAppProfileProjectionIntent(Intent().apply {
+                    putExtra(EXTRA_GRANT_PROJECTION_FOR_APP_PROFILE, true)
+                })
+            }
+            return
+        }
         if (!checkNotificationPermission()) return
 
-        serviceToggle.isChecked = true
+        val startup = HeimdallStartupManager.buildStartupServiceIntent(this, prefs)
+        if (startup == null) {
+            serviceToggle.isChecked = true
+        } else if (HeimdallStartupManager.requiresProjectionConsent(startup, prefs)) {
+            pendingTileStartIntent = startup
+            requestScreenCapturePermission()
+        } else {
+            ContextCompat.startForegroundService(this, startup)
+            syncServiceToggle(true)
+        }
     }
 
     private fun handleAppProfileProjectionIntent(intent: Intent?) {
@@ -690,6 +730,8 @@ class MainActivity : AppCompatActivity() {
 
         serviceToggle = findViewById(R.id.serviceToggle)
         autoStartupSwitch = findViewById(R.id.autoStartupSwitch)
+        keepRunningSwitch = findViewById(R.id.keepRunningSwitch)
+        backgroundStatusText = findViewById(R.id.backgroundStatusText)
         pluggedBatteryOverrideSwitch = findViewById(R.id.pluggedBatteryOverrideSwitch)
         persistentNotificationSwitch = findViewById(R.id.persistentNotificationSwitch)
         adaptiveBrightnessSwitch = findViewById(R.id.adaptiveBrightnessSwitch)
@@ -790,6 +832,7 @@ class MainActivity : AppCompatActivity() {
         appProfileManager = AppProfileManager(prefs)
         setupAppProfileFeature()
         setupAutoStartupSwitch()
+        setupBackgroundControls()
         setupPluggedBatteryOverrideSwitch()
         setupPersistentNotificationSwitch()
         setupAdaptiveBrightnessSwitch()
@@ -826,7 +869,7 @@ class MainActivity : AppCompatActivity() {
         }
 
         serviceToggle.setOnCheckedChangeListener { _, isChecked ->
-            if (serviceController.isServiceTransitioning) return@setOnCheckedChangeListener
+            if (isSyncingServiceToggle || (isChecked && serviceController.isServiceTransitioning)) return@setOnCheckedChangeListener
 
             serviceController.cancelPendingOperations()
             isAwaitingPermissionResult = isChecked
@@ -1311,6 +1354,7 @@ class MainActivity : AppCompatActivity() {
 
     private fun openSettingsOverlay() {
         if (settingsOverlay.visibility == View.VISIBLE || isSettingsOverlayAnimating) return
+        refreshBackgroundStatus()
 
         isSettingsOverlayAnimating = true
         val startOffset = getSettingsSlideDistancePx()
@@ -2350,11 +2394,12 @@ class MainActivity : AppCompatActivity() {
 
         resumeStateSyncRunnable?.let(mainHandler::removeCallbacks)
         resumeStateSyncRunnable = Runnable {
+            refreshBackgroundStatus()
             if (isAwaitingPermissionResult) {
-                if (LEDService.isRunning) serviceToggle.isChecked = true
+                if (LEDService.isRunning) syncServiceToggle(true)
                 isAwaitingPermissionResult = false
             } else {
-                serviceToggle.isChecked = LEDService.isRunning
+                syncServiceToggle(LEDService.isRunning)
                 enableRainbowBackground(LEDService.isRunning)
             }
 
@@ -3024,11 +3069,88 @@ class MainActivity : AppCompatActivity() {
 
         autoStartupSwitch.setOnCheckedChangeListener { _, isChecked ->
             HeimdallStartupManager.setAutoStartEnabled(prefs, isChecked)
+        }
+    }
 
-            if (LEDService.isRunning && !serviceController.isServiceTransitioning) {
-                serviceController.restartDebounced { createLedServiceIntent() }
+    private fun setupBackgroundControls() {
+        keepRunningSwitch.isChecked = ServiceRecoveryStore.isKeepRunningEnabled(prefs)
+        keepRunningSwitch.setOnCheckedChangeListener { _, enabled ->
+            ServiceRecoveryStore.setKeepRunningEnabled(prefs, enabled)
+            if (LEDService.isRunning) {
+                startService(Intent(this, LEDService::class.java).apply {
+                    action = LEDService.ACTION_UPDATE_PARAMS
+                    putExtra(LEDService.EXTRA_ALLOW_BACKGROUND_RUN, enabled)
+                })
+            }
+            refreshBackgroundStatus()
+        }
+        findViewById<MaterialButton>(R.id.allowBackgroundLightingButton).setOnClickListener {
+            val powerManager = getSystemService(PowerManager::class.java)
+            val unrestricted = powerManager?.isIgnoringBatteryOptimizations(packageName) == true
+            val intent = if (unrestricted) {
+                Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:$packageName"))
+            } else {
+                Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS, Uri.parse("package:$packageName"))
+            }
+            if (runCatching { startActivity(intent) }.isFailure) {
+                openDuoFrostAppSettings()
             }
         }
+        findViewById<MaterialButton>(R.id.backgroundAppSettingsButton).setOnClickListener {
+            openDuoFrostAppSettings()
+        }
+        findViewById<MaterialButton>(R.id.resumeCaptureButton).setOnClickListener {
+            handleAppProfileProjectionIntent(Intent().apply {
+                putExtra(EXTRA_GRANT_PROJECTION_FOR_APP_PROFILE, true)
+            })
+        }
+        findViewById<MaterialButton>(R.id.shareBackgroundReportButton).setOnClickListener {
+            val share = Intent(Intent.ACTION_SEND).apply {
+                type = "text/plain"
+                putExtra(Intent.EXTRA_SUBJECT, getString(R.string.background_report_title))
+                putExtra(Intent.EXTRA_TEXT, BackgroundDiagnostics.buildReport(this@MainActivity))
+            }
+            if (runCatching { startActivity(Intent.createChooser(share, getString(R.string.background_report_title))) }.isFailure) {
+                Toast.makeText(this, R.string.background_report_unavailable, Toast.LENGTH_LONG).show()
+            }
+        }
+        refreshBackgroundStatus()
+    }
+
+    private fun syncServiceToggle(running: Boolean) {
+        isSyncingServiceToggle = true
+        try {
+            serviceToggle.isChecked = running
+        } finally {
+            isSyncingServiceToggle = false
+        }
+    }
+
+    private fun openDuoFrostAppSettings() {
+        val intent = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:$packageName"))
+        if (runCatching { startActivity(intent) }.isFailure) {
+            Toast.makeText(this, R.string.background_settings_unavailable, Toast.LENGTH_LONG).show()
+        }
+    }
+
+    private fun refreshBackgroundStatus() {
+        if (!::backgroundStatusText.isInitialized) return
+        val unrestricted = runCatching {
+            getSystemService(PowerManager::class.java)?.isIgnoringBatteryOptimizations(packageName) == true
+        }.getOrDefault(false)
+        val notifications = NotificationManagerCompat.from(this).areNotificationsEnabled()
+        backgroundStatusText.text = getString(
+            R.string.background_status,
+            getString(when {
+                LEDService.isWaitingForCapturePermission -> R.string.background_waiting_for_capture
+                LEDService.isRunning -> R.string.background_running
+                else -> R.string.background_stopped
+            }),
+            getString(if (unrestricted) R.string.background_unrestricted else R.string.background_optimized),
+            getString(if (notifications) R.string.background_notifications_on else R.string.background_notifications_off)
+        )
+        findViewById<MaterialButton>(R.id.resumeCaptureButton).visibility =
+            if (LEDService.isWaitingForCapturePermission) View.VISIBLE else View.GONE
     }
 
     private fun setupPluggedBatteryOverrideSwitch() {
@@ -3251,6 +3373,7 @@ class MainActivity : AppCompatActivity() {
             // Invalidate cached screen-capture grant so next start targets the new display
             mediaProjectionResultCode = null
             mediaProjectionData = null
+            mediaProjectionTokenId = null
             if (LEDService.isRunning && selectedAnimationType.needsMediaProjection) {
                 serviceController.restartDebounced(needsMediaProjectionCheck = true) { createLedServiceIntent() }
             }
@@ -3299,15 +3422,16 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun maybeAutoStartHeimdallOnLaunch() {
-        if (!HeimdallStartupManager.isAutoStartEnabled(prefs) || LEDService.isRunning) return
-        if (!checkNotificationPermission()) return
-        if (requiresProjectionToken(selectedAnimationType) &&
-            (mediaProjectionResultCode == null || mediaProjectionData == null)
-        ) {
+        if (ScheduleStore.isEnabled(prefs)) {
+            ScheduleApplier.apply(this)
             return
         }
-
-        serviceToggle.isChecked = true
+        if (!HeimdallStartupManager.isAutoStartEnabled(prefs) || LEDService.isRunning) return
+        if (!checkNotificationPermission()) return
+        val startupIntent = HeimdallStartupManager.buildStartupServiceIntent(this, prefs)
+            ?: createLedServiceIntent()
+        ContextCompat.startForegroundService(this, startupIntent)
+        syncServiceToggle(true)
     }
 
     private fun setupAppProfileFeature() {
@@ -4290,8 +4414,7 @@ class MainActivity : AppCompatActivity() {
             putExtra("ambientDisplayId", getAmbientTargetDisplayId())
             putExtra(
                 LEDService.EXTRA_ALLOW_BACKGROUND_RUN,
-                HeimdallStartupManager.isAutoStartEnabled(prefs) ||
-                    ExternalApiGate.isMasterEnabled(prefs)
+                ServiceRecoveryStore.isKeepRunningEnabled(prefs)
             )
             // When app profile mode is active, always include MP data if available,
             // regardless of the UI-selected animation type.  The actual animation is
@@ -4305,6 +4428,7 @@ class MainActivity : AppCompatActivity() {
             if (shouldIncludeMP) {
                 putExtra("resultCode", mediaProjectionResultCode)
                 putExtra("data", mediaProjectionData)
+                putExtra(LEDService.EXTRA_PROJECTION_TOKEN_ID, mediaProjectionTokenId)
             }
         }
     }

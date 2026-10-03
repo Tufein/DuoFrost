@@ -16,10 +16,12 @@ DuoFrost is an independent GPLv3 continuation of [BiFrost](https://github.com/Po
 - Optional scheduling, third-party LED control and a repository-owned plugin catalog.
 - Weekday/weekend schedules, with overnight rules following their starting day.
 - Optional LED dimming during Android Battery Saver and easy Quick Settings tile setup.
+- Background lighting after Clear all, safe service recovery, battery settings
+  shortcuts and a shareable background status report.
 
 ## Install
 
-Download `DuoFrost-1.1.0.apk` from the releases page, open it on your Thor and
+Download `DuoFrost-1.2.0.apk` from the releases page, open it on your Thor and
 follow the first-run guide. Enable only the features and permissions you need.
 For updates through Obtainium, use:
 
@@ -34,7 +36,32 @@ Ambient and audio effects need capture access. Screen/audio samples are processe
 locally; captured content is not recorded or uploaded by these lighting effects.
 Background lighting requires the foreground service to remain active.
 
-## New in 1.1.0
+## New in 1.2.0
+
+- **Keep running in background:** enabled by default in Settings → Behavior.
+  Closing DuoFrost through Recents or Clear all no longer stops its own LED
+  service. Automatic startup after boot is a separate setting.
+- **Service recovery:** Android can restore wanted lighting after process
+  interruption, including unsaved colors and settings. Stop keeps lighting off.
+  Capture needs fresh permission after a process restart; use **Resume
+  screen/audio capture** or the notification to grant it.
+- **Background controls:** check battery and notification status, request a
+  battery optimization exemption, and open the app's Android settings directly.
+- **Background report:** share build/device/power status and at most three
+  process exit records through Android's chooser. Nothing is sent automatically.
+- Schedules take precedence over boot auto-start; installing an update respects
+  an explicit Stop. Startup and the tile can fall back to the last configuration
+  when there is no saved preset.
+- Changing settings applies them within the service, avoiding an interrupted
+  stop/start sequence when you close the app during the change.
+
+Install over 1.0.0 or 1.1.0; the Android ID and signing certificate are unchanged.
+Allow background battery use on your Thor. If its firmware offers a Recents lock,
+you can also use that. Android Force stop requires opening the app again, and
+firmware-specific background kills cannot be guaranteed against. See the
+[device checklist](IMPROVEMENTS.md) and [verification](VERIFICATION.md).
+
+## Added in 1.1.0
 
 - **Battery Saver LED dimming:** enable it in Settings → Behavior to cap LED
   output at 25% while Android Battery Saver is active. Normal output returns

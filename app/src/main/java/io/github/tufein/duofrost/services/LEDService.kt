@@ -91,7 +91,6 @@ class LEDService : Service() {
         private const val TRANSITION_RETRY_DELAY_MS = 200L
         private const val TRANSITION_START_DELAY_MS = 100L
         private const val PROJECTION_RESTART_DELAY_MS = 150L
-        private const val LED_OFF_SETTLE_DELAY_MS = 120L
         private const val LOW_BATTERY_ALERT_INTERVAL_MS = 500L
 
         const val CHANNEL_ID = "LEDServiceChannel"
@@ -107,6 +106,7 @@ class LEDService : Service() {
         const val ACTION_EXTERNAL_PULSE = "io.github.tufein.duofrost.EXTERNAL_PULSE"
         const val EXTRA_EXTERNAL_PULSE_KIND = "external.pulseKind"
         const val EXTRA_ALLOW_BACKGROUND_RUN = "allowBackgroundRun"
+        const val EXTRA_PROJECTION_TOKEN_ID = "projectionTokenId"
         const val EXTRA_BATTERY_OVERRIDE_WHEN_PLUGGED = "batteryOverrideWhenPlugged"
         const val EXTRA_LOW_BATTERY_ALERT_ENABLED = "lowBatteryAlertEnabled"
         const val EXTRA_LOW_BATTERY_ALERT_THRESHOLD = "lowBatteryAlertThreshold"
@@ -159,9 +159,14 @@ class LEDService : Service() {
         const val PREF_AMBILIGHT_USE_MEDIA_PROJECTION = "ambilight_use_media_projection"
         const val DEFAULT_AMBILIGHT_USE_MEDIA_PROJECTION = true
         var isRunning = false
+        var isWaitingForCapturePermission = false
+            private set
     }
 
     private var mediaProjection: MediaProjection? = null
+    private var serviceProjectionCallback: MediaProjection.Callback? = null
+    private var pendingProjectionTokenId: String? = null
+    private var lastConsumedProjectionTokenId: String? = null
     private lateinit var mediaProjectionManager: MediaProjectionManager
     private lateinit var ledController: LedController
     private var currentAnimation: LedAnimation? = null
@@ -208,6 +213,8 @@ class LEDService : Service() {
     private var isBatterySaverActive: Boolean = false
     private var powerSaveReceiverRegistered: Boolean = false
     private var allowBackgroundRun: Boolean = false
+    private var keepRunning: Boolean = true
+    private var waitingForProjectionConsent: Boolean = false
     private var currentAmbientDisplayId: Int = Display.DEFAULT_DISPLAY
 
     // Fallout "mirror bottom screen" mode: when on, the companion's PIPBOY signal
@@ -226,7 +233,6 @@ class LEDService : Service() {
     private var batteryReceiverRegistered: Boolean = false
     private var pendingTransitionRunnable: Runnable? = null
     private var pendingProjectionRunnable: Runnable? = null
-    private var pendingShutdownRunnable: Runnable? = null
     private var isAppProfileSuppressed: Boolean = false
 
     private var activeExternalOverride: ExternalOverrideState? = null
@@ -463,29 +469,37 @@ class LEDService : Service() {
         createNotificationChannel()
         mediaProjectionManager = getSystemService(MediaProjectionManager::class.java)
         ledController = LedController()
+        keepRunning = ServiceRecoveryStore.isKeepRunningEnabled(prefs)
+        allowBackgroundRun = keepRunning
         currentBatterySaverBrightness = prefs.getBoolean(PREF_BATTERY_SAVER_BRIGHTNESS, false)
         registerPowerSaveStateReceiver()
         applyBatterySaverBrightness()
         registerBatteryStateReceiver()
         refreshBatteryStateSnapshot()
         mountScreenBrightnessObserver()
-        handler.post(activityCheckRunnable)
     }
 
-    override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+    override fun onStartCommand(incomingIntent: Intent?, flags: Int, startId: Int): Int {
+        val intent = incomingIntent ?: ServiceRecoveryStore.restoreIntent(this, prefs)
         if (intent == null) {
+            ServiceRecoveryStore.markStopped(this)
             stopSelf()
             return START_NOT_STICKY
         }
 
-        if (intent.action == ACTION_STOP) {
+        if (intent.action == ACTION_STOP || intent.action == ACTION_KILL) {
             cleanupAndStop()
+            return START_NOT_STICKY
+        }
+        if (isStopping.get()) return START_NOT_STICKY
+        if (intent.action != null && !isRunning) {
+            stopSelf()
             return START_NOT_STICKY
         }
 
         if (intent.action == ACTION_UPDATE_PARAMS) {
             handleUpdateParams(intent)
-            return START_NOT_STICKY
+            return restartMode()
         }
 
         if (intent.action == ACTION_FORCE_APP_PROFILE_RESOLUTION) {
@@ -493,30 +507,31 @@ class LEDService : Service() {
             if (isRunning) {
                 checkAutoProfileSwitch()
             }
-            return START_NOT_STICKY
+            return restartMode()
         }
 
         if (intent.action == ACTION_SUPPLY_PROJECTION) {
             handleSupplyProjection(intent)
-            return START_NOT_STICKY
+            return restartMode()
         }
 
         if (intent.action == ACTION_EXTERNAL_DISPLAY) {
             handleExternalDisplay(intent)
-            return START_NOT_STICKY
+            return restartMode()
         }
 
         if (intent.action == ACTION_EXTERNAL_CLEAR) {
             handleExternalClear(intent.getStringExtra(EXTRA_EXTERNAL_CALLER_PACKAGE))
-            return START_NOT_STICKY
+            return restartMode()
         }
 
         if (intent.action == ACTION_EXTERNAL_PULSE) {
             handleExternalPulse(intent.getStringExtra(EXTRA_EXTERNAL_PULSE_KIND))
-            return START_NOT_STICKY
+            return restartMode()
         }
 
-        allowBackgroundRun = intent.getBooleanExtra(EXTRA_ALLOW_BACKGROUND_RUN, allowBackgroundRun)
+        keepRunning = ServiceRecoveryStore.isKeepRunningEnabled(prefs)
+        allowBackgroundRun = intent.getBooleanExtra(EXTRA_ALLOW_BACKGROUND_RUN, keepRunning)
         currentBatteryOverrideWhenPlugged = intent.getBooleanExtra(
             EXTRA_BATTERY_OVERRIDE_WHEN_PLUGGED,
             currentBatteryOverrideWhenPlugged
@@ -547,33 +562,35 @@ class LEDService : Service() {
         )
         applyBatterySaverBrightness()
 
-        val notification = createNotification()
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            val willUseProjection = intent.hasExtra("data") ||
-                lastProjectionData != null ||
-                synchronized(mediaProjectionLock) { mediaProjection != null }
-
-            when {
-                willUseProjection -> startForeground(
-                    NOTIFICATION_ID,
-                    notification,
-                    ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PROJECTION
-                )
-
-                Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE -> startForeground(
-                    NOTIFICATION_ID,
-                    notification,
-                    ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE
-                )
-
-                else -> startForeground(NOTIFICATION_ID, notification)
-            }
-        } else {
-            startForeground(NOTIFICATION_ID, notification)
-        }
+        acceptProjectionConsent(intent)
+        val hasProjectionConsent = lastProjectionData != null ||
+            synchronized(mediaProjectionLock) { mediaProjection != null }
+        promoteToForeground(hasProjectionConsent)
 
         isRunning = true
+        ServiceRecoveryStore.recordStarted(this, intent)
         DuoFrostTileService.refreshFrom(this)
+        // Arm after the start command: an onCreate callback can run before
+        // isRunning becomes true and otherwise terminate the watchdog forever.
+        handler.removeCallbacks(activityCheckRunnable)
+        handler.postDelayed(activityCheckRunnable, ACTIVITY_CHECK_INTERVAL_MS)
+        // A full user configuration replaces a temporary external override,
+        // matching the previous stop/start behavior without a service gap.
+        clearPendingCallbacks()
+        activeExternalOverride = null
+        savedStateBeforeExternalOverride = null
+        currentLivePolicy = null
+        mirrorMode = false
+        mirrorRunningDisplayId = Display.INVALID_DISPLAY
+        currentPhaseSeconds = 0.0
+        currentFlickering = false
+        currentBurstWallMs = 0L
+        stableLeftColor = 0
+        stableRightColor = 0
+        ledController.setMasterScale(1f)
+        releasePipboyWakeLock()
+        isTransitioning.set(false)
+        appProfileManager.forceNextResolution()
 
         val animationTypeName = intent.getStringExtra("animationType")
         val animationType = animationTypeName?.let {
@@ -613,22 +630,6 @@ class LEDService : Service() {
         currentCpuHotColorOverride = parseOptionalColor(intent, EXTRA_CPU_HOT_COLOR_OVERRIDE)
         currentAmbientDisplayId = intent.getIntExtra("ambientDisplayId", Display.DEFAULT_DISPLAY)
 
-        // Protect existing projection data when app-profile mode is active
-        // and the intent was built for a non-MP animation (won't have real MP extras).
-        if (intent.hasExtra("resultCode")) {
-            lastProjectionResultCode = intent.getIntExtra("resultCode", Activity.RESULT_OK)
-        }
-        if (intent.hasExtra("data")) {
-            val intentData: Intent? = intent.getParcelableExtra("data")
-            if (intentData != null || !appProfileManager.isEnabled) {
-                lastProjectionData = intentData
-            }
-            Log.d(TAG, "onStartCommand: intentData=${intentData != null}, kept lastProjectionData=${lastProjectionData != null}")
-        } else {
-            Log.d(TAG, "onStartCommand: no 'data' extra in intent, lastProjectionData preserved=${lastProjectionData != null}")
-        }
-        Log.d(TAG, "onStartCommand: lastProjectionResultCode=$lastProjectionResultCode, lastProjectionData=${lastProjectionData != null}")
-
         currentAnimationType = animationType
         currentProfile = profile
         currentColor = color
@@ -654,13 +655,71 @@ class LEDService : Service() {
             restartAnimationForCurrentState(force = true)
         }
 
-        return START_NOT_STICKY
+        return restartMode()
+    }
+
+    // Every parameter or external command must preserve the running service's
+    // restart policy; START_NOT_STICKY on a later update would undo its start.
+    private fun restartMode(): Int {
+        return if (isRunning && !isStopping.get() && keepRunning &&
+            ServiceRecoveryStore.isDesiredRunning(this)
+        ) START_STICKY else START_NOT_STICKY
+    }
+
+    private fun acceptProjectionConsent(intent: Intent): Boolean {
+        val resultCode = intent.getIntExtra("resultCode", Activity.RESULT_CANCELED)
+        val data = intent.getParcelableExtra<Intent>("data") ?: return false
+        val tokenId = intent.getStringExtra(EXTRA_PROJECTION_TOKEN_ID)?.takeIf { it.length in 1..128 }
+        if (resultCode != Activity.RESULT_OK ||
+            (tokenId != null && tokenId == lastConsumedProjectionTokenId)
+        ) return false
+        lastProjectionResultCode = resultCode
+        lastProjectionData = data
+        pendingProjectionTokenId = tokenId
+        return true
+    }
+
+    private fun promoteToForeground(hasProjectionConsent: Boolean) {
+        try {
+            startForegroundForState(hasProjectionConsent)
+        } catch (e: SecurityException) {
+            if (!hasProjectionConsent) throw e
+            Log.w(TAG, "Capture consent is no longer valid; requesting a new session", e)
+            lastProjectionData = null
+            pendingProjectionTokenId = null
+            clearMediaProjection()
+            startForegroundForState(false)
+        }
+    }
+
+    private fun startForegroundForState(hasProjectionConsent: Boolean) {
+        val notification = createNotification()
+        when {
+            hasProjectionConsent -> startForeground(
+                NOTIFICATION_ID,
+                notification,
+                ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PROJECTION
+            )
+            Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE -> startForeground(
+                NOTIFICATION_ID,
+                notification,
+                ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE
+            )
+            else -> startForeground(NOTIFICATION_ID, notification)
+        }
     }
 
     private fun handleUpdateParams(intent: Intent) {
         if (!isRunning) {
             stopSelf()
             return
+        }
+        ServiceRecoveryStore.mergeUpdate(this, intent)
+        keepRunning = ServiceRecoveryStore.isKeepRunningEnabled(prefs)
+        var globalParameterCount = 0
+        if (intent.hasExtra(EXTRA_ALLOW_BACKGROUND_RUN)) {
+            allowBackgroundRun = intent.getBooleanExtra(EXTRA_ALLOW_BACKGROUND_RUN, keepRunning)
+            globalParameterCount++
         }
         if (intent.hasExtra(EXTRA_BATTERY_SAVER_BRIGHTNESS)) {
             val enabled = intent.getBooleanExtra(
@@ -673,8 +732,9 @@ class LEDService : Service() {
             }
             // A global output-limit change must not replace external colors or
             // unsuppress a stopped app profile. Process it before color resets.
-            if (intent.extras?.size() == 1) return
+            globalParameterCount++
         }
+        if (intent.extras?.size() == globalParameterCount) return
         Log.d(TAG, "handleUpdateParams: received update, appProfileEnabled=${appProfileManager.isEnabled}")
         isAppProfileSuppressed = false
         val animation = currentAnimation
@@ -924,6 +984,12 @@ class LEDService : Service() {
         }
 
         val effectiveType = resolveEffectiveAnimationType()
+        if (needsMediaProjection(effectiveType) && lastProjectionData == null &&
+            synchronized(mediaProjectionLock) { mediaProjection == null }
+        ) {
+            awaitProjectionConsent()
+            return
+        }
         val effectiveColor = if (isLowBatteryAlertActive) Color.RED else currentColor
         val effectiveRightColor = if (isLowBatteryAlertActive) Color.RED else currentRightColor
         Log.d(TAG, "restartAnimationForCurrentState: force=$force, effectiveType=$effectiveType, activeAnimationType=$activeAnimationType")
@@ -1067,21 +1133,30 @@ class LEDService : Service() {
 
         stopCurrentAnimation()
 
-        if (needsMediaProjection(animationType) && resultCode == Activity.RESULT_OK && data != null) {
+        val requiresCapture = needsMediaProjection(animationType)
+        // A released virtual display cannot be recreated with the same Android
+        // 14+ consent. Keep the LED service alive while asking for a new session.
+        if (requiresCapture && (resultCode != Activity.RESULT_OK || data == null)) {
+            awaitProjectionConsent()
+            return
+        }
+        clearMediaProjection()
+        if (requiresCapture && data != null) {
             pendingTransitionRunnable = Runnable {
                 try {
                     if (isRunning && !isStopping.get()) {
-                        clearMediaProjection()
-
                         pendingProjectionRunnable = Runnable {
                             try {
                                 if (isRunning && !isStopping.get()) {
-                                    replaceMediaProjection(resultCode, data)
-                                    startAnimation(animationType, color, rightColor, resolvedBrightness, speed, smoothness, sensitivity, profile, currentSaturationBoost)
+                                    if (replaceMediaProjection(resultCode, data)) {
+                                        startAnimation(animationType, color, rightColor, resolvedBrightness, speed, smoothness, sensitivity, profile, currentSaturationBoost)
+                                    } else {
+                                        awaitProjectionConsent()
+                                    }
                                 }
                             } catch (e: Exception) {
-                                e.printStackTrace()
-                                cleanupAndStop()
+                                Log.w(TAG, "Capture could not be resumed", e)
+                                awaitProjectionConsent()
                             } finally {
                                 pendingProjectionRunnable = null
                                 isTransitioning.set(false)
@@ -1092,9 +1167,8 @@ class LEDService : Service() {
                         isTransitioning.set(false)
                     }
                 } catch (e: Exception) {
-                    e.printStackTrace()
-                    isTransitioning.set(false)
-                    cleanupAndStop()
+                    Log.w(TAG, "Capture transition failed", e)
+                    awaitProjectionConsent()
                 } finally {
                     pendingTransitionRunnable = null
                 }
@@ -1124,22 +1198,68 @@ class LEDService : Service() {
         }
     }
 
-    private fun clearMediaProjection() {
-        synchronized(mediaProjectionLock) {
-            runCatching { mediaProjection?.stop() }
-            mediaProjection = null
+    private fun awaitProjectionConsent() {
+        pendingTransitionRunnable?.let(handler::removeCallbacks)
+        pendingTransitionRunnable = null
+        pendingProjectionRunnable?.let(handler::removeCallbacks)
+        pendingProjectionRunnable = null
+        isTransitioning.set(false)
+        stopCurrentAnimation()
+        clearMediaProjection()
+        runCatching { ledController.setLedColor(0, 0, 0, 0, true, true, true, true) }
+        promoteToForeground(false)
+        if (!waitingForProjectionConsent) {
+            waitingForProjectionConsent = true
+            isWaitingForCapturePermission = true
+            updateForegroundNotification()
+            showProjectionPromptNotification()
         }
     }
 
-    private fun replaceMediaProjection(resultCode: Int, data: Intent) {
+    private fun clearProjectionWait() {
+        waitingForProjectionConsent = false
+        isWaitingForCapturePermission = false
+        dismissProjectionPromptNotification()
+        updateForegroundNotification()
+    }
+
+    private fun clearMediaProjection() {
         synchronized(mediaProjectionLock) {
-            runCatching { mediaProjection?.stop() }
+            val previous = mediaProjection
+            mediaProjection = null
+            serviceProjectionCallback?.let { callback ->
+                runCatching { previous?.unregisterCallback(callback) }
+            }
+            serviceProjectionCallback = null
+            runCatching { previous?.stop() }
+        }
+    }
+
+    private fun replaceMediaProjection(resultCode: Int, data: Intent): Boolean {
+        synchronized(mediaProjectionLock) {
+            lastConsumedProjectionTokenId = pendingProjectionTokenId
+            pendingProjectionTokenId = null
+            lastProjectionData = null
+            lastProjectionResultCode = Activity.RESULT_CANCELED
             try {
-                mediaProjection = mediaProjectionManager.getMediaProjection(resultCode, data)
-                Log.d(TAG, "replaceMediaProjection: created new projection, isNull=${mediaProjection == null}")
+                promoteToForeground(true)
+                val projection = mediaProjectionManager.getMediaProjection(resultCode, data) ?: return false
+                mediaProjection = projection
+                val callback = object : MediaProjection.Callback() {
+                    override fun onStop() {
+                        if (mediaProjection === projection && isRunning && !isStopping.get()) {
+                            clearMediaProjection()
+                            if (needsMediaProjection(resolveEffectiveAnimationType())) awaitProjectionConsent()
+                        }
+                    }
+                }
+                serviceProjectionCallback = callback
+                projection.registerCallback(callback, handler)
+                return true
             } catch (e: Exception) {
                 Log.e(TAG, "replaceMediaProjection: FAILED to create projection", e)
-                mediaProjection = null
+                clearMediaProjection()
+                return false
             }
         }
     }
@@ -1199,11 +1319,10 @@ class LEDService : Service() {
                 showProjectionPromptNotification()
                 appProfileManager.markPendingProjectionNotified()
             }
-            return
         }
 
         // If we successfully apply a preset that needed MP, clear any pending token.
-        if (needsMP) {
+        if (needsMP && hasProjectionData) {
             Log.d(TAG, "checkAutoProfileSwitch: clearing pending projection token (MP preset being applied)")
             appProfileManager.clearPendingProjectionToken()
             dismissProjectionPromptNotification()
@@ -1271,7 +1390,20 @@ class LEDService : Service() {
         unregisterBatteryStateReceiver()
         unregisterPowerSaveStateReceiver()
         unmountScreenBrightnessObserver()
-        cleanupAndStop()
+        // Destruction alone can be a system reclaim. Keep the desired-running
+        // snapshot so START_STICKY can restore it; explicit stops clear it first.
+        isStopping.set(true)
+        isRunning = false
+        isWaitingForCapturePermission = false
+        dismissProjectionPromptNotification()
+        handler.removeCallbacksAndMessages(null)
+        DuoFrostTileService.refreshFrom(this)
+        releasePipboyWakeLock()
+        stopCurrentAnimation()
+        clearMediaProjection()
+        runCatching { ledController.setLedColor(0, 0, 0, 0, true, true, true, true) }
+        runCatching { ledController.shutdown() }
+        stopForeground(STOP_FOREGROUND_REMOVE)
     }
 
     private fun clearPendingCallbacks() {
@@ -1279,8 +1411,6 @@ class LEDService : Service() {
         pendingTransitionRunnable = null
         pendingProjectionRunnable?.let(handler::removeCallbacks)
         pendingProjectionRunnable = null
-        pendingShutdownRunnable?.let(handler::removeCallbacks)
-        pendingShutdownRunnable = null
         externalExpiryRunnable?.let(handler::removeCallbacks)
         externalExpiryRunnable = null
         crossfadeRunnable?.let(handler::removeCallbacks)
@@ -1289,61 +1419,31 @@ class LEDService : Service() {
 
     private fun cleanupAndStop() {
         if (isStopping.getAndSet(true)) return
+        ServiceRecoveryStore.markStopped(this)
         Log.d(TAG, "cleanupAndStop: STOPPING SERVICE")
-
-        try {
-            handler.removeCallbacks(activityCheckRunnable)
-            clearPendingCallbacks()
-            isRunning = false
-            DuoFrostTileService.refreshFrom(this)
-            allowBackgroundRun = false
-            isTransitioning.set(false)
-            activeAnimationType = null
-            isAppProfileSuppressed = false
-            activeExternalOverride = null
-            savedStateBeforeExternalOverride = null
-            currentLivePolicy = null
-            stableLeftColor = 0
-            stableRightColor = 0
-            mirrorMode = false
-            mirrorRunningDisplayId = Display.INVALID_DISPLAY
-            releasePipboyWakeLock()
-
-            stopCurrentAnimation()
-
-            pendingShutdownRunnable = Runnable {
-                try {
-                    clearMediaProjection()
-                } catch (e: Exception) {
-                    e.printStackTrace()
-                }
-
-                try {
-                    ledController.setLedColor(0, 0, 0, 0, true, true, true, true)
-                    handler.postDelayed({
-                        runCatching { ledController.shutdown() }
-                        stopForeground(STOP_FOREGROUND_REMOVE)
-                        stopSelf()
-                    }, LED_OFF_SETTLE_DELAY_MS)
-                } catch (e: Exception) {
-                    e.printStackTrace()
-                    stopForeground(STOP_FOREGROUND_REMOVE)
-                    stopSelf()
-                } finally {
-                    pendingShutdownRunnable = null
-                }
-            }
-            handler.post(pendingShutdownRunnable!!)
-        } catch (e: Exception) {
-            e.printStackTrace()
-            try {
-                ledController.shutdown()
-            } catch (e2: Exception) {
-                e2.printStackTrace()
-            }
-            stopForeground(STOP_FOREGROUND_REMOVE)
-            stopSelf()
-        }
+        handler.removeCallbacksAndMessages(null)
+        clearPendingCallbacks()
+        isRunning = false
+        isWaitingForCapturePermission = false
+        waitingForProjectionConsent = false
+        dismissProjectionPromptNotification()
+        DuoFrostTileService.refreshFrom(this)
+        allowBackgroundRun = false
+        isTransitioning.set(false)
+        activeExternalOverride = null
+        savedStateBeforeExternalOverride = null
+        currentLivePolicy = null
+        mirrorMode = false
+        mirrorRunningDisplayId = Display.INVALID_DISPLAY
+        releasePipboyWakeLock()
+        stopCurrentAnimation()
+        clearMediaProjection()
+        // The binder receives the off command immediately. No delayed shutdown
+        // callback may later interrupt a newly started service instance.
+        runCatching { ledController.setLedColor(0, 0, 0, 0, true, true, true, true) }
+        runCatching { ledController.shutdown() }
+        stopForeground(STOP_FOREGROUND_REMOVE)
+        stopSelf()
     }
 
     override fun onBind(intent: Intent?): IBinder? = null
@@ -1369,13 +1469,14 @@ class LEDService : Service() {
 
         val mainIntent = Intent(this, MainActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
+            if (waitingForProjectionConsent) putExtra(MainActivity.EXTRA_GRANT_PROJECTION_FOR_APP_PROFILE, true)
         }
         val mainPendingIntent =
-            PendingIntent.getActivity(this, 0, mainIntent, PendingIntent.FLAG_IMMUTABLE)
+            PendingIntent.getActivity(this, 0, mainIntent, PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
 
         return Notification.Builder(this, CHANNEL_ID)
-            .setContentTitle("DUOFROST is open")
-            .setContentText("Tap to tune")
+            .setContentTitle("DuoFrost is active")
+            .setContentText(if (waitingForProjectionConsent) "Open DuoFrost to resume screen capture" else "LED control is running in the background")
             .setSubText(resolveNotificationSubText())
             .setSmallIcon(R.drawable.ic_notification_small)
             .setLargeIcon(BitmapFactory.decodeResource(resources, R.mipmap.ic_launcher_foreground))
@@ -1387,7 +1488,9 @@ class LEDService : Service() {
     }
 
     private fun resolveNotificationSubText(): String {
-        return if (isDevicePluggedIn && currentBatteryOverrideWhenPlugged) {
+        return if (waitingForProjectionConsent) {
+            "Screen capture permission needed"
+        } else if (isDevicePluggedIn && currentBatteryOverrideWhenPlugged) {
             "Profiles are overridden when charging"
         } else {
             "Following profile presets"
@@ -1455,6 +1558,7 @@ class LEDService : Service() {
             }
             animation.start()
             activeAnimationType = type
+            clearProjectionWait()
             if (mirrorMode && type == LedAnimationType.AMBIENT) {
                 mirrorRunningDisplayId = currentAmbientDisplayId
             }
@@ -1463,7 +1567,7 @@ class LEDService : Service() {
             Log.e(TAG, "startAnimation: EXCEPTION for type=$type", e)
             e.printStackTrace()
             activeAnimationType = null
-            cleanupAndStop()
+            if (needsMediaProjection(type)) awaitProjectionConsent() else cleanupAndStop()
         }
     }
 
@@ -1471,17 +1575,14 @@ class LEDService : Service() {
         Log.d(TAG, "handleSupplyProjection: isRunning=$isRunning, isStopping=${isStopping.get()}")
         if (!isRunning || isStopping.get()) return
 
-        val resultCode = intent.getIntExtra("resultCode", Activity.RESULT_CANCELED)
-        val data: Intent? = intent.getParcelableExtra("data")
-        Log.d(TAG, "handleSupplyProjection: resultCode=$resultCode, data=${data != null}")
-        if (resultCode != Activity.RESULT_OK || data == null) return
+        if (!acceptProjectionConsent(intent)) return
 
         // Only store the projection token; do NOT create the MediaProjection now.
         // processAnimationChange will create it on-demand the first time an
         // MP-requiring animation actually starts, avoiding exhausting the
         // single-use consent token before it is needed.
-        lastProjectionResultCode = resultCode
-        lastProjectionData = data
+        clearProjectionWait()
+        promoteToForeground(hasProjectionConsent = true)
         Log.d(TAG, "handleSupplyProjection: stored projection token")
 
         appProfileManager.clearPendingProjectionToken()
@@ -1492,6 +1593,10 @@ class LEDService : Service() {
         // is actually applied (the dedup cache previously returned null
         // because the preset name matched even though MP was missing).
         appProfileManager.forceNextResolution()
+        if (!appProfileManager.isEnabled) {
+            restartAnimationForCurrentState(force = true)
+        }
+        updateForegroundNotification()
         Log.d(TAG, "handleSupplyProjection: forced next resolution, waiting for user to navigate back to mapped app")
     }
 
@@ -1869,7 +1974,7 @@ class LEDService : Service() {
             .setPriority(NotificationCompat.PRIORITY_HIGH)
             .build()
 
-        NotificationManagerCompat.from(this).notify(PROJECTION_PROMPT_NOTIFICATION_ID, notification)
+        runCatching { NotificationManagerCompat.from(this).notify(PROJECTION_PROMPT_NOTIFICATION_ID, notification) }
     }
 
     private fun dismissProjectionPromptNotification() {
@@ -1891,7 +1996,7 @@ class LEDService : Service() {
 
     private fun needsMediaProjection(type: LedAnimationType): Boolean {
         if (type == LedAnimationType.AMBIENT) {
-            return prefs.getBoolean(PREF_AMBILIGHT_USE_MEDIA_PROJECTION, DEFAULT_AMBILIGHT_USE_MEDIA_PROJECTION)
+            return !mirrorMode && prefs.getBoolean(PREF_AMBILIGHT_USE_MEDIA_PROJECTION, DEFAULT_AMBILIGHT_USE_MEDIA_PROJECTION)
         }
         return type == LedAnimationType.AUDIO_REACTIVE ||
                 type == LedAnimationType.AMBIAURORA

@@ -7,6 +7,8 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+    <!-- User-requested exemption for continuous background LED control. -->
+    <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
     <uses-permission android:name="android.permission.SET_WALLPAPER" />
     <!-- Keep the LED pipeline warm while a PIPBOY override is active so the
          first action after idle isn't delayed by CPU power-down. -->
@@ -75,6 +77,7 @@
         <service
             android:name=".services.LEDService"
             android:foregroundServiceType="mediaProjection|specialUse"
+            android:stopWithTask="false"
             android:exported="false">
             <property
                 android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"

@@ -6,6 +6,7 @@ import android.util.Log
 import androidx.core.content.ContextCompat
 import io.github.tufein.duofrost.services.HeimdallStartupManager
 import io.github.tufein.duofrost.services.LEDService
+import io.github.tufein.duofrost.services.ServiceRecoveryStore
 import java.time.ZonedDateTime
 
 object ScheduleApplier {
@@ -22,6 +23,13 @@ object ScheduleApplier {
         }
 
         val rules = ScheduleStore.load(prefs)
+        // Rearm before acting: a rejected background foreground-service start
+        // must not disable every later schedule transition.
+        try {
+            ScheduleAlarms.scheduleNext(context, rules, now)
+        } catch (e: RuntimeException) {
+            Log.w(TAG, "Unable to schedule next rule boundary", e)
+        }
         when (val action = ScheduleEvaluator.ruleInForce(rules, now.toLocalDateTime())?.action ?: ScheduleAction.TurnOff) {
             is ScheduleAction.PlayPreset -> {
                 val intent = HeimdallStartupManager.buildServiceIntentForPreset(
@@ -32,17 +40,21 @@ object ScheduleApplier {
                 if (intent == null) {
                     Log.w(TAG, "schedule references unknown preset '${action.presetName}'")
                 } else {
-                    ContextCompat.startForegroundService(context, intent)
+                    try {
+                        ContextCompat.startForegroundService(context, intent)
+                    } catch (e: RuntimeException) {
+                        Log.w(TAG, "Scheduled background service start was rejected", e)
+                    }
                 }
             }
 
             ScheduleAction.TurnOff -> {
+                ServiceRecoveryStore.markStopped(context)
                 if (LEDService.isRunning) {
                     context.stopService(Intent(context, LEDService::class.java))
                 }
             }
         }
 
-        ScheduleAlarms.scheduleNext(context, rules, now)
     }
 }

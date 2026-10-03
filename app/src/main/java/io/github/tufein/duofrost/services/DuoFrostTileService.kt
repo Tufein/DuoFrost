@@ -9,7 +9,6 @@ import android.service.quicksettings.Tile
 import android.service.quicksettings.TileService
 import androidx.core.content.ContextCompat
 import io.github.tufein.duofrost.MainActivity
-import io.github.tufein.duofrost.animations.LedAnimationType
 
 class DuoFrostTileService : TileService() {
 
@@ -32,6 +31,7 @@ class DuoFrostTileService : TileService() {
     override fun onClick() {
         super.onClick()
         if (LEDService.isRunning) {
+            ServiceRecoveryStore.markStopped(this)
             stopService(Intent(this, LEDService::class.java))
             renderState(forcedRunning = false)
             return
@@ -45,27 +45,13 @@ class DuoFrostTileService : TileService() {
             return
         }
 
-        if (needsForegroundConsent(serviceIntent, prefs)) {
+        if (HeimdallStartupManager.requiresProjectionConsent(serviceIntent, prefs)) {
             openApp()
             return
         }
 
         ContextCompat.startForegroundService(this, serviceIntent)
         renderState(forcedRunning = true)
-    }
-
-    private fun needsForegroundConsent(
-        serviceIntent: Intent,
-        prefs: android.content.SharedPreferences
-    ): Boolean {
-        val type = serviceIntent.getStringExtra("animationType")
-            ?.let { name -> LedAnimationType.fromStoredName(name) }
-            ?: return false
-
-        if (type.needsMediaProjection) return true
-
-        return type == LedAnimationType.AMBIENT &&
-            prefs.getBoolean(LEDService.PREF_AMBILIGHT_USE_MEDIA_PROJECTION, LEDService.DEFAULT_AMBILIGHT_USE_MEDIA_PROJECTION)
     }
 
     private fun openApp(startOnArrival: Boolean = true) {

@@ -3,6 +3,7 @@ package io.github.tufein.duofrost.services
 import android.content.Intent
 import android.os.Handler
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.content.ContextCompat
 
 class ServiceController(
     private val activity: AppCompatActivity,
@@ -65,20 +66,15 @@ class ServiceController(
     }
 
     fun stopDebounced() {
-        if (isOperationInProgress) return
+        cancelPendingOperations()
         beginOperationWindow()
-        val token = operationToken
-
-        pendingServiceOperation = Runnable {
-            if (token != operationToken) return@Runnable
-            try {
-                activity.stopService(Intent(activity, LEDService::class.java))
-            } finally {
-                finishOperationWindowWithGraceDelay()
-            }
+        // A requested Stop must survive onPause cancelling pending UI work.
+        ServiceRecoveryStore.markStopped(activity)
+        try {
+            activity.stopService(Intent(activity, LEDService::class.java))
+        } finally {
+            finishOperationWindowWithGraceDelay()
         }
-
-        handler.postDelayed(pendingServiceOperation!!, 100)
     }
 
     fun restartDebounced(needsMediaProjectionCheck: Boolean = false, createIntent: () -> Intent) {
@@ -94,12 +90,11 @@ class ServiceController(
         pendingServiceOperation = Runnable {
             if (token != operationToken) return@Runnable
             try {
-                activity.stopService(Intent(activity, LEDService::class.java))
-                handler.postDelayed({
-                    if (token != operationToken) return@postDelayed
-                    activity.startService(createIntent())
-                    finishOperationWindowWithGraceDelay()
-                }, restartDelay)
+                // LEDService already applies a full configuration in place.
+                // Avoid a stopped-service gap that onPause could cancel before
+                // the second half of a stop/start restart was delivered.
+                ContextCompat.startForegroundService(activity.applicationContext, createIntent())
+                finishOperationWindowWithGraceDelay()
             } catch (e: Exception) {
                 isOperationInProgress = false
                 isServiceTransitioning = false

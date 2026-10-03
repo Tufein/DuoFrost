@@ -31,3 +31,19 @@ This document contains instructions for autonomous coding agents.
     transition can change the active rule. Never schedule an instant in the past.
 14. Global output-limit toggles must send only their own parameter and apply
     before animation reset paths, preserving external colors and suppressed profiles.
+15. Background continuation is independent of boot auto-start. Every command
+    leaving LEDs running must retain START_STICKY when recovery is enabled;
+    null restart intents need a durable, validated base configuration.
+16. Store wanted-running state separately from exported preferences. Persist
+    explicit Stop before shutting down; onDestroy alone is not user intent.
+    Never persist capture parcels/tokens or external leases for service recovery.
+17. Android 14+ capture consent is single-use. Restore as specialUse and request
+    fresh consent; boot must never start a mediaProjection session. Expired or
+    revoked capture must not crash the lighting service or replay a saved token.
+18. Keep configuration changes within the service. A stop/delayed-start sequence
+    can be interrupted by activity onPause, leaving lighting stopped permanently.
+    State-only UI updates must not trigger user Start/Stop callbacks.
+19. Apply schedules before boot auto-start, preserve explicit Stop on updates,
+    and rearm schedule alarms before attempting a potentially rejected service start.
+20. Background diagnostics are bounded, user-triggered metadata only. Do not add
+    polling, restart alarms or permanent wake locks to bypass system Stop/Force stop.

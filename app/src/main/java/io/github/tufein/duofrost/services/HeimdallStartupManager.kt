@@ -4,9 +4,12 @@ import android.content.Context
 import android.content.Intent
 import android.content.SharedPreferences
 import android.graphics.Color
+import android.hardware.display.DisplayManager
+import android.view.Display
 import io.github.tufein.duofrost.animations.FadeTransitionAnimation
 import io.github.tufein.duofrost.animations.LedAnimationType
 import io.github.tufein.duofrost.tools.PerformanceProfile
+import io.github.tufein.duofrost.tools.DeviceInfo
 import org.json.JSONArray
 import org.json.JSONObject
 
@@ -14,12 +17,11 @@ object HeimdallStartupManager {
     private const val PREF_KEY_AUTO_START_HEIMDALL = "auto_start_heimdall"
     private const val PREF_KEY_PRESETS = "presets_json"
     private const val PREF_KEY_LAST_PRESET = "last_preset_name"
-    private const val PREF_KEY_BATTERY_OVERRIDE_WHEN_PLUGGED = "battery_override_when_plugged"
-    private const val PREF_KEY_LOW_BATTERY_ALERT_ENABLED = "low_battery_alert_enabled"
-    private const val PREF_KEY_LOW_BATTERY_ALERT_THRESHOLD = "low_battery_alert_threshold"
-    private const val PREF_KEY_DISABLE_LOW_BATTERY_ALERT_WHILE_CHARGING = "disable_low_battery_alert_while_charging"
-    private const val PREF_KEY_PERSISTENT_NOTIFICATION = "persistent_notification_enabled"
     private const val PREF_KEY_APP_PROFILE_ENABLED = "auto_switch_enabled"
+    private val PALETTE_KEYS = listOf(
+        "batteryLowColorOverride", "batteryMidColorOverride", "batteryHighColorOverride",
+        "cpuCoolColorOverride", "cpuWarmColorOverride", "cpuHotColorOverride"
+    )
 
     fun isAutoStartEnabled(prefs: SharedPreferences): Boolean {
         return prefs.getBoolean(PREF_KEY_AUTO_START_HEIMDALL, false)
@@ -60,12 +62,20 @@ object HeimdallStartupManager {
 
     fun buildStartupDecision(context: Context, prefs: SharedPreferences): StartupDecision {
         val preset = loadStartupPreset(prefs)
-            ?: return StartupDecision(
-                serviceIntent = null,
-                skipReason = StartupSkipReason.NO_PRESET_AVAILABLE
-            )
+        if (preset == null) {
+            val last = ServiceRecoveryStore.buildLastConfigurationIntent(context, prefs)
+            return StartupDecision(last, if (last == null) StartupSkipReason.NO_PRESET_AVAILABLE else null)
+        }
 
         return StartupDecision(serviceIntent = buildServiceIntent(context, prefs, preset))
+    }
+
+    fun requiresProjectionConsent(intent: Intent, prefs: SharedPreferences): Boolean {
+        val type = LedAnimationType.fromStoredName(intent.getStringExtra("animationType")) ?: return false
+        return type.needsMediaProjection ||
+            (type == LedAnimationType.AMBIENT && prefs.getBoolean(
+                LEDService.PREF_AMBILIGHT_USE_MEDIA_PROJECTION, LEDService.DEFAULT_AMBILIGHT_USE_MEDIA_PROJECTION
+            ))
     }
 
     private fun buildServiceIntent(
@@ -90,37 +100,19 @@ object HeimdallStartupManager {
             putExtra("breatheWhenCharging", preset.breatheWhenCharging)
             putExtra("indicateChargingSpeed", preset.indicateChargingSpeed)
             putExtra("flashWhenReady", preset.flashWhenReady)
-            putExtra(
-                LEDService.EXTRA_BATTERY_OVERRIDE_WHEN_PLUGGED,
-                prefs.getBoolean(PREF_KEY_BATTERY_OVERRIDE_WHEN_PLUGGED, false)
-            )
-            val storedLowBatteryThreshold = prefs.getInt(PREF_KEY_LOW_BATTERY_ALERT_THRESHOLD, 0)
-            putExtra(
-                LEDService.EXTRA_LOW_BATTERY_ALERT_ENABLED,
-                if (prefs.contains(PREF_KEY_LOW_BATTERY_ALERT_ENABLED)) {
-                    prefs.getBoolean(PREF_KEY_LOW_BATTERY_ALERT_ENABLED, false)
-                } else {
-                    storedLowBatteryThreshold > 0
-                }
-            )
-            putExtra(
-                LEDService.EXTRA_LOW_BATTERY_ALERT_THRESHOLD,
-                storedLowBatteryThreshold.takeIf { it in 1..100 } ?: 20
-            )
-            putExtra(
-                LEDService.EXTRA_DISABLE_LOW_BATTERY_ALERT_WHILE_CHARGING,
-                prefs.getBoolean(PREF_KEY_DISABLE_LOW_BATTERY_ALERT_WHILE_CHARGING, false)
-            )
-            putExtra(
-                LEDService.EXTRA_PERSISTENT_NOTIFICATION,
-                prefs.getBoolean(PREF_KEY_PERSISTENT_NOTIFICATION, true)
-            )
-            putExtra(
-                LEDService.EXTRA_BATTERY_SAVER_BRIGHTNESS,
-                prefs.getBoolean(LEDService.PREF_BATTERY_SAVER_BRIGHTNESS, false)
-            )
-            putExtra(LEDService.EXTRA_ALLOW_BACKGROUND_RUN, true)
+            preset.palette.forEach { (key, color) -> putExtra(key, color) }
+            putExtra("ambientDisplayId", resolveAmbientDisplay(context, prefs))
+            ServiceRecoveryStore.applyCurrentGlobalSettings(this, prefs)
         }
+    }
+
+    private fun resolveAmbientDisplay(context: Context, prefs: SharedPreferences): Int {
+        if (!DeviceInfo.isAynThor || !prefs.getBoolean("thor_ambient_bottom_screen", false)) {
+            return Display.DEFAULT_DISPLAY
+        }
+        return context.getSystemService(DisplayManager::class.java)?.displays
+            ?.map { it.displayId }?.filter { it != Display.DEFAULT_DISPLAY }?.minOrNull()
+            ?: Display.DEFAULT_DISPLAY
     }
 
     private fun loadStartupPreset(prefs: SharedPreferences): StartupPreset? {
@@ -161,7 +153,10 @@ object HeimdallStartupManager {
             }
         }
 
-        return array.optJSONObject(0)
+        for (i in 0 until array.length()) {
+            array.optJSONObject(i)?.let { return it }
+        }
+        return null
     }
 
     private fun parsePreset(obj: JSONObject): StartupPreset {
@@ -184,18 +179,23 @@ object HeimdallStartupManager {
             rightColor = obj.optInt("rightColor", color),
             fadeEndColor = obj.optInt("fadeEndColor", FadeTransitionAnimation.DEFAULT_END_COLOR),
             fadeEndRightColor = obj.optInt("fadeEndRightColor", obj.optInt("fadeEndColor", FadeTransitionAnimation.DEFAULT_END_COLOR)),
-            brightness = obj.optInt("brightness", 255),
-            speed = obj.optDouble("speed", 0.5).toFloat(),
-            smoothness = obj.optDouble("smoothness", 0.5).toFloat(),
-            sensitivity = obj.optDouble("sensitivity", 0.5).toFloat(),
-            saturationBoost = obj.optDouble("saturationBoost", 0.0).toFloat(),
+            brightness = obj.optInt("brightness", 255).coerceIn(0, 255),
+            speed = ratio(obj, "speed", 0.5f),
+            smoothness = ratio(obj, "smoothness", 0.5f),
+            sensitivity = ratio(obj, "sensitivity", 0.5f),
+            saturationBoost = ratio(obj, "saturationBoost", 0f),
             useCustomSampling = obj.optBoolean("useCustomSampling", false),
             useSingleColor = obj.optBoolean("useSingleColor", false),
             breatheWhenCharging = obj.optBoolean("breatheWhenCharging", false),
             indicateChargingSpeed = obj.optBoolean("indicateChargingSpeed", false),
-            flashWhenReady = obj.optBoolean("flashWhenReady", false)
+            flashWhenReady = obj.optBoolean("flashWhenReady", false),
+            palette = PALETTE_KEYS.filter { obj.has(it) && !obj.isNull(it) }.associateWith { obj.optInt(it) }
         )
     }
+
+    private fun ratio(obj: JSONObject, key: String, fallback: Float): Float =
+        obj.optDouble(key, fallback.toDouble()).toFloat().takeIf { it.isFinite() }
+            ?.coerceIn(0f, 1f) ?: fallback
 
     private data class StartupPreset(
         val animationType: LedAnimationType,
@@ -213,6 +213,7 @@ object HeimdallStartupManager {
         val useSingleColor: Boolean,
         val breatheWhenCharging: Boolean,
         val indicateChargingSpeed: Boolean,
-        val flashWhenReady: Boolean
+        val flashWhenReady: Boolean,
+        val palette: Map<String, Int>
     )
 }
