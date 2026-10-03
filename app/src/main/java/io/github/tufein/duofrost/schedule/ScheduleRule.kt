@@ -1,6 +1,8 @@
 package io.github.tufein.duofrost.schedule
 
+import org.json.JSONArray
 import org.json.JSONObject
+import java.time.DayOfWeek
 import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.MonthDay
@@ -75,7 +77,8 @@ data class ScheduleRule(
     val startMinuteOfDay: Int,
     val endMinuteOfDay: Int,
     val dateWindow: DateWindow?,
-    val action: ScheduleAction
+    val action: ScheduleAction,
+    val daysOfWeek: Set<DayOfWeek> = ALL_DAYS
 ) {
 
     fun coversTime(minuteOfDay: Int): Boolean {
@@ -91,7 +94,6 @@ data class ScheduleRule(
         if (!enabled) return false
         val window = dateWindow
         val effectiveDate = if (
-            window != null &&
             startMinuteOfDay > endMinuteOfDay &&
             moment.hour * 60 + moment.minute < endMinuteOfDay
         ) {
@@ -99,6 +101,7 @@ data class ScheduleRule(
         } else {
             moment.toLocalDate()
         }
+        if (effectiveDate.dayOfWeek !in daysOfWeek) return false
         if (window != null && !window.contains(effectiveDate)) return false
         return coversTime(moment.hour * 60 + moment.minute)
     }
@@ -111,9 +114,12 @@ data class ScheduleRule(
         put("endMinuteOfDay", endMinuteOfDay)
         dateWindow?.let { put("dateWindow", it.serialise()) }
         put("action", action.serialise())
+        put("daysOfWeek", JSONArray(daysOfWeek.sortedBy { it.value }.map { it.value }))
     }
 
     companion object {
+        val ALL_DAYS: Set<DayOfWeek> = DayOfWeek.values().toSet()
+
         fun parse(obj: JSONObject?): ScheduleRule? {
             if (obj == null) return null
             val id = obj.optString("id").takeIf { it.isNotBlank() } ?: return null
@@ -121,6 +127,21 @@ data class ScheduleRule(
             val start = obj.optInt("startMinuteOfDay", -1)
             val end = obj.optInt("endMinuteOfDay", -1)
             if (start !in 0..1439 || end !in 0..1439) return null
+            val days = if (!obj.has("daysOfWeek")) {
+                ALL_DAYS
+            } else {
+                val array = obj.optJSONArray("daysOfWeek") ?: return null
+                if (array.length() !in 1..7) return null
+                val parsed = mutableSetOf<DayOfWeek>()
+                for (i in 0 until array.length()) {
+                    val value = array.opt(i)
+                    if (value !is Number || value.toDouble() != value.toInt().toDouble()) return null
+                    val day = value.toInt()
+                    if (day !in 1..7) return null
+                    parsed += DayOfWeek.of(day)
+                }
+                parsed.toSet()
+            }
             return ScheduleRule(
                 id = id,
                 label = obj.optString("label", ""),
@@ -128,7 +149,8 @@ data class ScheduleRule(
                 startMinuteOfDay = start,
                 endMinuteOfDay = end,
                 dateWindow = DateWindow.parse(obj.optJSONObject("dateWindow")),
-                action = action
+                action = action,
+                daysOfWeek = days
             )
         }
     }

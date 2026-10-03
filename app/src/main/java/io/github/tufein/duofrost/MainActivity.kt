@@ -5,6 +5,7 @@ import android.animation.AnimatorListenerAdapter
 import android.animation.ValueAnimator
 import android.Manifest
 import android.app.ActivityOptions
+import android.app.StatusBarManager
 import android.app.WallpaperManager
 import android.content.ComponentName
 import android.content.SharedPreferences
@@ -14,6 +15,7 @@ import android.content.pm.PackageManager
 import android.graphics.Color
 import android.graphics.drawable.GradientDrawable
 import android.graphics.drawable.ColorDrawable
+import android.graphics.drawable.Icon
 import android.hardware.display.DisplayManager
 import android.media.projection.MediaProjectionManager
 import android.net.Uri
@@ -68,6 +70,7 @@ import io.github.tufein.duofrost.animations.LedAnimationType
 import io.github.tufein.duofrost.external.ExternalApiGate
 import io.github.tufein.duofrost.services.AppProfileManager
 import io.github.tufein.duofrost.services.DuoFrostAccessibilityService
+import io.github.tufein.duofrost.services.DuoFrostTileService
 import io.github.tufein.duofrost.services.HeimdallStartupManager
 import io.github.tufein.duofrost.services.LEDService
 import io.github.tufein.duofrost.services.LiveWallpaperSettingsManager
@@ -101,6 +104,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var pluggedBatteryOverrideSwitch: SwitchMaterial
     private lateinit var persistentNotificationSwitch: SwitchMaterial
     private lateinit var adaptiveBrightnessSwitch: SwitchMaterial
+    private lateinit var batterySaverBrightnessSwitch: SwitchMaterial
     private lateinit var lowBatteryAlertSwitch: SwitchMaterial
     private lateinit var lowBatteryAlertOptionsContainer: View
     private lateinit var lowBatteryChargingOptionRow: View
@@ -313,6 +317,7 @@ class MainActivity : AppCompatActivity() {
     private var selectedDisableLowBatteryAlertWhileCharging: Boolean = false
     private var selectedPersistentNotification: Boolean = true
     private var selectedAdaptiveBrightness: Boolean = false
+    private var selectedBatterySaverBrightness: Boolean = false
     private var isAwaitingPermissionResult = false
     private var isUpdatingFromPreset = false
     private var isGrantingProjectionForAppProfile = false
@@ -688,6 +693,7 @@ class MainActivity : AppCompatActivity() {
         pluggedBatteryOverrideSwitch = findViewById(R.id.pluggedBatteryOverrideSwitch)
         persistentNotificationSwitch = findViewById(R.id.persistentNotificationSwitch)
         adaptiveBrightnessSwitch = findViewById(R.id.adaptiveBrightnessSwitch)
+        batterySaverBrightnessSwitch = findViewById(R.id.batterySaverBrightnessSwitch)
         lowBatteryAlertSwitch = findViewById(R.id.lowBatteryAlertSwitch)
         lowBatteryAlertOptionsContainer = findViewById(R.id.lowBatteryAlertOptionsContainer)
         lowBatteryChargingOptionRow = findViewById(R.id.lowBatteryChargingOptionRow)
@@ -787,11 +793,13 @@ class MainActivity : AppCompatActivity() {
         setupPluggedBatteryOverrideSwitch()
         setupPersistentNotificationSwitch()
         setupAdaptiveBrightnessSwitch()
+        setupBatterySaverBrightnessSwitch()
         setupLowBatteryAlertSwitch()
         setupLowBatteryAlertSeekBar()
         setupDisableLowBatteryAlertWhileChargingSwitch()
         setupExternalApiSwitch()
         setupPluginStore()
+        setupQuickSettingsTileButton()
         setupThorScreenPreference()
         setupSettingsTabs()
         setupThemeFeature()
@@ -3067,6 +3075,24 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    private fun setupBatterySaverBrightnessSwitch() {
+        selectedBatterySaverBrightness = prefs.getBoolean(
+            LEDService.PREF_BATTERY_SAVER_BRIGHTNESS,
+            false
+        )
+        batterySaverBrightnessSwitch.isChecked = selectedBatterySaverBrightness
+        batterySaverBrightnessSwitch.setOnCheckedChangeListener { _, isChecked ->
+            selectedBatterySaverBrightness = isChecked
+            prefs.edit().putBoolean(LEDService.PREF_BATTERY_SAVER_BRIGHTNESS, isChecked).apply()
+            if (LEDService.isRunning) {
+                startService(Intent(this, LEDService::class.java).apply {
+                    action = LEDService.ACTION_UPDATE_PARAMS
+                    putExtra(LEDService.EXTRA_BATTERY_SAVER_BRIGHTNESS, isChecked)
+                })
+            }
+        }
+    }
+
     private fun setupLowBatteryAlertSwitch() {
         val storedThreshold = prefs.getInt(PREF_LOW_BATTERY_ALERT_THRESHOLD, 0)
         selectedLowBatteryAlertThreshold = storedThreshold.takeIf { it in 1..100 } ?: 20
@@ -3167,6 +3193,39 @@ class MainActivity : AppCompatActivity() {
         }
         findViewById<View>(R.id.scheduleButton)?.setOnClickListener {
             startActivity(Intent(this, ScheduleActivity::class.java))
+        }
+    }
+
+    private fun setupQuickSettingsTileButton() {
+        val button = findViewById<MaterialButton>(R.id.addQuickSettingsTileButton)
+        button.setOnClickListener {
+            val statusBar = getSystemService(StatusBarManager::class.java)
+            if (statusBar == null) {
+                Toast.makeText(this, R.string.quick_settings_tile_manual, Toast.LENGTH_LONG).show()
+                return@setOnClickListener
+            }
+            button.isEnabled = false
+            try {
+                statusBar.requestAddTileService(
+                    ComponentName(this, DuoFrostTileService::class.java),
+                    getString(R.string.app_name),
+                    Icon.createWithResource(this, R.drawable.ic_notification_small),
+                    mainExecutor
+                ) { result ->
+                    if (isFinishing || isDestroyed) return@requestAddTileService
+                    button.isEnabled = true
+                    val message = when (result) {
+                        StatusBarManager.TILE_ADD_REQUEST_RESULT_TILE_ADDED -> R.string.quick_settings_tile_added
+                        StatusBarManager.TILE_ADD_REQUEST_RESULT_TILE_ALREADY_ADDED -> R.string.quick_settings_tile_already_added
+                        StatusBarManager.TILE_ADD_REQUEST_RESULT_TILE_NOT_ADDED -> R.string.quick_settings_tile_not_added
+                        else -> R.string.quick_settings_tile_manual
+                    }
+                    Toast.makeText(this, message, Toast.LENGTH_LONG).show()
+                }
+            } catch (_: RuntimeException) {
+                button.isEnabled = true
+                Toast.makeText(this, R.string.quick_settings_tile_manual, Toast.LENGTH_LONG).show()
+            }
         }
     }
 
@@ -4227,6 +4286,7 @@ class MainActivity : AppCompatActivity() {
                 LEDService.EXTRA_ADAPTIVE_BRIGHTNESS,
                 selectedAdaptiveBrightness
             )
+            putExtra(LEDService.EXTRA_BATTERY_SAVER_BRIGHTNESS, selectedBatterySaverBrightness)
             putExtra("ambientDisplayId", getAmbientTargetDisplayId())
             putExtra(
                 LEDService.EXTRA_ALLOW_BACKGROUND_RUN,
@@ -4297,6 +4357,7 @@ class MainActivity : AppCompatActivity() {
                 LEDService.EXTRA_ADAPTIVE_BRIGHTNESS,
                 selectedAdaptiveBrightness
             )
+            putExtra(LEDService.EXTRA_BATTERY_SAVER_BRIGHTNESS, selectedBatterySaverBrightness)
         }
         startService(intent)
     }

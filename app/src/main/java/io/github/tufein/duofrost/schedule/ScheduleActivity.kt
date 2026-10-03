@@ -19,7 +19,10 @@ import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import org.json.JSONArray
+import java.time.DayOfWeek
 import java.time.MonthDay
+import java.time.format.TextStyle
+import java.util.Locale
 import java.util.UUID
 
 class ScheduleActivity : AppCompatActivity() {
@@ -57,7 +60,7 @@ class ScheduleActivity : AppCompatActivity() {
         })
         root.addView(TextView(this).apply {
             text = "Play a preset, or switch the LEDs off, between set hours — " +
-                "optionally only during part of the year. A rule limited to dates " +
+                "on chosen days, optionally only during part of the year. A rule limited to dates " +
                 "wins over an all-year rule; otherwise the first matching rule wins. " +
                 "While the schedule is on, any hour no rule covers is dark."
             textSize = 13f
@@ -164,7 +167,14 @@ class ScheduleActivity : AppCompatActivity() {
         val season = rule.dateWindow?.let {
             ", ${formatMonthDay(it.start)} → ${formatMonthDay(it.end)}"
         } ?: ""
-        return "$time$season · ${describeAction(rule.action)}"
+        val days = if (rule.daysOfWeek == ScheduleRule.ALL_DAYS) {
+            "Every day"
+        } else {
+            rule.daysOfWeek.sortedBy { it.value }.joinToString(", ") {
+                it.getDisplayName(TextStyle.SHORT, Locale.getDefault())
+            }
+        }
+        return "$days · $time$season · ${describeAction(rule.action)}"
     }
 
     private fun describeAction(action: ScheduleAction): String = when (action) {
@@ -193,11 +203,6 @@ class ScheduleActivity : AppCompatActivity() {
     private fun showRuleEditor(index: Int?) {
         val existing = index?.let { rules[it] }
         val presetNames = loadPresetNames()
-
-        if (presetNames.isEmpty()) {
-            Toast.makeText(this, "Save a preset first — a rule plays one.", Toast.LENGTH_LONG).show()
-            return
-        }
 
         var startMinute = existing?.startMinuteOfDay ?: 20 * 60
         var endMinute = existing?.endMinuteOfDay ?: 7 * 60
@@ -234,10 +239,24 @@ class ScheduleActivity : AppCompatActivity() {
         content.addView(endButton)
 
         content.addView(TextView(this).apply {
-            text = "An end earlier than the start runs through midnight."
+            text = "An end earlier than the start runs through midnight, " +
+                "using the day it starts. Equal times cover the whole day."
             textSize = 12f
             alpha = 0.7f
         })
+
+        content.addView(TextView(this).apply {
+            text = "Days"
+            setPadding(0, dp(12), 0, 0)
+        })
+        val selectedDays = existing?.daysOfWeek ?: ScheduleRule.ALL_DAYS
+        val dayCheckboxes = DayOfWeek.values().map { day ->
+            day to CheckBox(this).apply {
+                text = day.getDisplayName(TextStyle.FULL, Locale.getDefault())
+                isChecked = day in selectedDays
+                content.addView(this)
+            }
+        }
 
         val actionLabels = presetNames + OFF_LABEL
         val actionSpinner = Spinner(this).apply {
@@ -283,13 +302,22 @@ class ScheduleActivity : AppCompatActivity() {
             alpha = 0.7f
         })
 
-        AlertDialog.Builder(this)
+        val editorScroll = ScrollView(this).apply { addView(content) }
+        val dialog = AlertDialog.Builder(this)
             .setTitle(if (existing == null) "New rule" else "Edit rule")
-            .setView(content)
+            .setView(editorScroll)
             .setNegativeButton("Cancel", null)
-            .setPositiveButton("Save") { _, _ ->
+            .setPositiveButton("Save", null)
+            .create()
+        dialog.setOnShowListener {
+            dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener {
+                val days = dayCheckboxes.filter { it.second.isChecked }.map { it.first }.toSet()
+                if (days.isEmpty()) {
+                    Toast.makeText(this, "Choose at least one day.", Toast.LENGTH_SHORT).show()
+                    return@setOnClickListener
+                }
                 val chosen = actionLabels[actionSpinner.selectedItemPosition]
-                val action = if (chosen == OFF_LABEL) {
+                val action = if (actionSpinner.selectedItemPosition == presetNames.size) {
                     ScheduleAction.TurnOff
                 } else {
                     ScheduleAction.PlayPreset(chosen)
@@ -302,13 +330,16 @@ class ScheduleActivity : AppCompatActivity() {
                     startMinuteOfDay = startMinute,
                     endMinuteOfDay = endMinute,
                     dateWindow = window,
-                    action = action
+                    action = action,
+                    daysOfWeek = days
                 )
 
                 if (index == null) rules.add(rule) else rules[index] = rule
                 persist()
+                dialog.dismiss()
             }
-            .show()
+        }
+        dialog.show()
     }
 
     private fun pickTime(initialMinuteOfDay: Int, onPicked: (Int) -> Unit) {

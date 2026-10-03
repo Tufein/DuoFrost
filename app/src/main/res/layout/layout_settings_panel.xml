@@ -534,6 +534,46 @@
                             <TextView
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
+                                android:text="@string/battery_saver_brightness_label"
+                                android:textColor="@color/bifrost_text"
+                                android:textSize="12sp"
+                                android:letterSpacing="0.05"
+                                android:textStyle="bold" />
+
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="@string/battery_saver_brightness_description"
+                                android:textColor="@color/bifrost_text_secondary"
+                                android:textSize="11sp"
+                                android:layout_marginTop="2dp" />
+                        </LinearLayout>
+
+                        <com.google.android.material.switchmaterial.SwitchMaterial
+                            android:id="@+id/batterySaverBrightnessSwitch"
+                            android:contentDescription="@string/battery_saver_brightness_label"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            app:thumbTint="@color/switch_thumb_tint"
+                            app:trackTint="@color/switch_track_tint" />
+                    </LinearLayout>
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal"
+                        android:gravity="center_vertical"
+                        android:layout_marginTop="12dp">
+
+                        <LinearLayout
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:orientation="vertical">
+
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
                                 android:text="@string/external_api_switch_label"
                                 android:textAllCaps="true"
                                 android:textColor="@color/bifrost_text"
@@ -571,6 +611,13 @@
                         android:layout_height="wrap_content"
                         android:layout_marginTop="12dp"
                         android:text="Open Schedule" />
+
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/addQuickSettingsTileButton"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="12dp"
+                        android:text="@string/quick_settings_tile_add" />
 
 
                 </LinearLayout>

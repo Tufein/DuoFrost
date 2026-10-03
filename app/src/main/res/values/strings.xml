@@ -24,7 +24,7 @@
 
     <string name="beta_alert_title">DUOFROST BETA WARNING</string>
     <string name="beta_alert_subtitle">This app is currently in beta and may cause crashes or unstable behavior.</string>
-    <string name="beta_alert_body">This app is provided for free and you should not be charged for obtaining it. It is available for free on this GitHub repo: exemplegithubrepo</string>
+    <string name="beta_alert_body">DuoFrost is free software. Source code and releases are available at https://github.com/Tufein/DuoFrost.</string>
     <string name="alert_action_ok">OK</string>
 
     <string name="bifrost_alert_title_placeholder">Title</string>
@@ -84,4 +84,11 @@
     <string name="credits_license">GNU GPLv3 license</string>
     <string name="repository_url" translatable="false">https://github.com/Tufein/DuoFrost</string>
     <string name="credits_no_browser">Install a browser to open the repository.</string>
+    <string name="battery_saver_brightness_label">BATTERY SAVER LED DIMMING</string>
+    <string name="battery_saver_brightness_description">Limit LED output to 25% while Android Battery Saver is on. Normal brightness returns when it is off.</string>
+    <string name="quick_settings_tile_add">Add DuoFrost to Quick Settings</string>
+    <string name="quick_settings_tile_added">DuoFrost was added to Quick Settings. Use the tile to switch lighting on or off.</string>
+    <string name="quick_settings_tile_already_added">The DuoFrost tile is already in Quick Settings.</string>
+    <string name="quick_settings_tile_not_added">The tile was not added. You can try again whenever you like.</string>
+    <string name="quick_settings_tile_manual">Open Quick Settings, tap Edit and add the DuoFrost tile.</string>
 </resources>

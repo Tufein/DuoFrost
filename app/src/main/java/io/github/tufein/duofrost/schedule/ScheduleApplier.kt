@@ -6,14 +6,14 @@ import android.util.Log
 import androidx.core.content.ContextCompat
 import io.github.tufein.duofrost.services.HeimdallStartupManager
 import io.github.tufein.duofrost.services.LEDService
-import java.time.LocalDateTime
+import java.time.ZonedDateTime
 
 object ScheduleApplier {
 
     private const val TAG = "ScheduleApplier"
     private const val PREFS_NAME = "bifrost_prefs"
 
-    fun apply(context: Context, now: LocalDateTime = LocalDateTime.now()) {
+    fun apply(context: Context, now: ZonedDateTime = ZonedDateTime.now()) {
         val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
 
         if (!ScheduleStore.isEnabled(prefs)) {
@@ -22,7 +22,7 @@ object ScheduleApplier {
         }
 
         val rules = ScheduleStore.load(prefs)
-        when (val action = ScheduleEvaluator.ruleInForce(rules, now)?.action ?: ScheduleAction.TurnOff) {
+        when (val action = ScheduleEvaluator.ruleInForce(rules, now.toLocalDateTime())?.action ?: ScheduleAction.TurnOff) {
             is ScheduleAction.PlayPreset -> {
                 val intent = HeimdallStartupManager.buildServiceIntentForPreset(
                     context,

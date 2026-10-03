@@ -25,15 +25,10 @@ class LedController {
     // 1f in normal operation, so setLedColor is unaffected outside a fade.
     @Volatile private var masterScale: Float = 1f
 
-    // Last unscaled colour + zone mask, so a fade can re-emit the current frame
-    // even when the running animation writes slowly (or only once).
-    private var lastR = 0
-    private var lastG = 0
-    private var lastB = 0
-    private var lastLeftTop = false
-    private var lastLeftBottom = false
-    private var lastRightTop = false
-    private var lastRightBottom = false
+    // Cap RGB magnitude before the independent crossfade scale. The fourth
+    // hardware wire field cannot enforce this limit on the Thor.
+    @Volatile private var outputBrightnessLimit = 255
+    private val frameCache = LedFrameCache()
 
     init {
         pServerBinder = try {
@@ -63,11 +58,10 @@ class LedController {
         if (pServerBinder == null) return
 
         lock.withLock {
-            lastR = r; lastG = g; lastB = b
-            lastLeftTop = leftTop; lastLeftBottom = leftBottom
-            lastRightTop = rightTop; lastRightBottom = rightBottom
+            val color = (r shl 16) or (g shl 8) or b
+            frameCache.update(color, color, zoneMask(leftTop, leftBottom, rightTop, rightBottom))
+            emit(r, g, b, br, leftTop, leftBottom, rightTop, rightBottom)
         }
-        emit(r, g, b, br, leftTop, leftBottom, rightTop, rightBottom)
     }
 
     /** Apply masterScale to (r,g,b) and write the selected zones. */
@@ -76,9 +70,10 @@ class LedController {
         leftTop: Boolean, leftBottom: Boolean, rightTop: Boolean, rightBottom: Boolean
     ) {
         val s = masterScale
-        val sr = (r * s).roundToInt().coerceIn(0, 255)
-        val sg = (g * s).roundToInt().coerceIn(0, 255)
-        val sb = (b * s).roundToInt().coerceIn(0, 255)
+        val color = BatterySaverBrightness.limitRgb((r shl 16) or (g shl 8) or b, outputBrightnessLimit)
+        val sr = (((color ushr 16) and 255) * s).roundToInt().coerceIn(0, 255)
+        val sg = (((color ushr 8) and 255) * s).roundToInt().coerceIn(0, 255)
+        val sb = ((color and 255) * s).roundToInt().coerceIn(0, 255)
 
         val commandBuilder = StringBuilder(220)
         if (leftTop) {
@@ -112,8 +107,7 @@ class LedController {
      * the sticks differ. Halves the per-frame IPC and (since the writer process
      * runs a shell per command) the shell-forks on its little cores, which is the
      * residual stutter source under heavy load. Same masterScale + last-colour
-     * bookkeeping as setLedColor so crossfades still work (left = the re-emit
-     * baseline, matching the old "last call wins" behaviour).
+     * bookkeeping as setLedColor so crossfades retain each zone's own color.
      */
     fun setLedColorDual(
         leftR: Int, leftG: Int, leftB: Int,
@@ -129,11 +123,13 @@ class LedController {
         val rr = rightR.coerceIn(0, 255); val rg = rightG.coerceIn(0, 255); val rb = rightB.coerceIn(0, 255)
         val br = brightness.coerceIn(0, 255)
         lock.withLock {
-            lastR = lr; lastG = lg; lastB = lb
-            lastLeftTop = leftTop; lastLeftBottom = leftBottom
-            lastRightTop = rightTop; lastRightBottom = rightBottom
+            frameCache.update(
+                (lr shl 16) or (lg shl 8) or lb,
+                (rr shl 16) or (rg shl 8) or rb,
+                zoneMask(leftTop, leftBottom, rightTop, rightBottom)
+            )
+            emitDual(lr, lg, lb, rr, rg, rb, br, leftTop, leftBottom, rightTop, rightBottom)
         }
-        emitDual(lr, lg, lb, rr, rg, rb, br, leftTop, leftBottom, rightTop, rightBottom)
     }
 
     /** Build one &&-joined command covering all selected zones (left zones use the
@@ -143,12 +139,14 @@ class LedController {
         leftTop: Boolean, leftBottom: Boolean, rightTop: Boolean, rightBottom: Boolean
     ) {
         val s = masterScale
-        val slr = (lr * s).roundToInt().coerceIn(0, 255)
-        val slg = (lg * s).roundToInt().coerceIn(0, 255)
-        val slb = (lb * s).roundToInt().coerceIn(0, 255)
-        val srr = (rr * s).roundToInt().coerceIn(0, 255)
-        val srg = (rg * s).roundToInt().coerceIn(0, 255)
-        val srb = (rb * s).roundToInt().coerceIn(0, 255)
+        val left = BatterySaverBrightness.limitRgb((lr shl 16) or (lg shl 8) or lb, outputBrightnessLimit)
+        val right = BatterySaverBrightness.limitRgb((rr shl 16) or (rg shl 8) or rb, outputBrightnessLimit)
+        val slr = (((left ushr 16) and 255) * s).roundToInt().coerceIn(0, 255)
+        val slg = (((left ushr 8) and 255) * s).roundToInt().coerceIn(0, 255)
+        val slb = ((left and 255) * s).roundToInt().coerceIn(0, 255)
+        val srr = (((right ushr 16) and 255) * s).roundToInt().coerceIn(0, 255)
+        val srg = (((right ushr 8) and 255) * s).roundToInt().coerceIn(0, 255)
+        val srb = ((right and 255) * s).roundToInt().coerceIn(0, 255)
         val cmd = StringBuilder(220)
         if (leftTop) cmd.append("echo 1-").append(slr).append(':').append(slg).append(':').append(slb).append(':').append(br)
             .append(" > /sys/class/sn3112l/led/brightness")
@@ -168,14 +166,45 @@ class LedController {
      * how fast the underlying animation renders.
      */
     fun setMasterScale(scale: Float) {
-        masterScale = scale.coerceIn(0f, 1f)
-        val r: Int; val g: Int; val b: Int
-        val lt: Boolean; val lb: Boolean; val rt: Boolean; val rb: Boolean
         lock.withLock {
-            r = lastR; g = lastG; b = lastB
-            lt = lastLeftTop; lb = lastLeftBottom; rt = lastRightTop; rb = lastRightBottom
+            masterScale = scale.coerceIn(0f, 1f)
+            emitCachedFrame()
         }
-        if (lt || lb || rt || rb) emit(r, g, b, 255, lt, lb, rt, rb)
+    }
+
+    /** Apply a new limit immediately, preserving the animation and each zone. */
+    fun setOutputBrightnessLimit(brightness: Int) {
+        val limit = brightness.coerceIn(0, 255)
+        lock.withLock {
+            if (limit == outputBrightnessLimit) return
+            outputBrightnessLimit = limit
+            emitCachedFrame()
+        }
+    }
+
+    private fun zoneMask(leftTop: Boolean, leftBottom: Boolean, rightTop: Boolean, rightBottom: Boolean): Int {
+        return (if (leftTop) 1 else 0) or (if (leftBottom) 2 else 0) or
+            (if (rightTop) 4 else 0) or (if (rightBottom) 8 else 0)
+    }
+
+    // Caller holds lock: redraw the last raw color independently for all four
+    // zones, so a dual-color or partial-zone frame survives cap/fade changes.
+    private fun emitCachedFrame() {
+        if (pServerBinder == null || frameCache.zoneMask == 0) return
+        val command = StringBuilder(256)
+        val scale = masterScale
+        for (zone in 0..3) {
+            if ((frameCache.zoneMask and (1 shl zone)) == 0) continue
+            val color = BatterySaverBrightness.limitRgb(frameCache.colorAt(zone), outputBrightnessLimit)
+            val red = (((color ushr 16) and 255) * scale).roundToInt().coerceIn(0, 255)
+            val green = (((color ushr 8) and 255) * scale).roundToInt().coerceIn(0, 255)
+            val blue = ((color and 255) * scale).roundToInt().coerceIn(0, 255)
+            if (command.isNotEmpty()) command.append(" && ")
+            command.append("echo ").append(zone % 2 + 1).append('-')
+                .append(red).append(':').append(green).append(':').append(blue).append(":255")
+                .append(if (zone < 2) " > /sys/class/sn3112l/led/brightness" else " > /sys/class/sn3112r/led/brightness")
+        }
+        executeCommandDirect(command.toString())
     }
 
     /**
@@ -184,7 +213,7 @@ class LedController {
      * re-showing the outgoing colour before the incoming animation's first frame.
      */
     fun resetFadeBaseline() {
-        lock.withLock { lastR = 0; lastG = 0; lastB = 0 }
+        lock.withLock { frameCache.resetToBlack() }
     }
 
     fun setBrightness(brightness: Int) {

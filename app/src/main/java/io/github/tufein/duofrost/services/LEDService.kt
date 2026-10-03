@@ -61,6 +61,7 @@ import io.github.tufein.duofrost.animations.StaticAnimation
 import io.github.tufein.duofrost.animations.StrobeAnimation
 import io.github.tufein.duofrost.external.ExternalOverrideState
 import io.github.tufein.duofrost.external.Terminator
+import io.github.tufein.duofrost.tools.BatterySaverBrightness
 import io.github.tufein.duofrost.tools.Crossfade
 import io.github.tufein.duofrost.tools.LedController
 import io.github.tufein.duofrost.tools.PerformanceProfile
@@ -112,6 +113,8 @@ class LEDService : Service() {
         const val EXTRA_DISABLE_LOW_BATTERY_ALERT_WHILE_CHARGING = "disableLowBatteryAlertWhileCharging"
         const val EXTRA_PERSISTENT_NOTIFICATION = "persistentNotification"
         const val EXTRA_ADAPTIVE_BRIGHTNESS = "adaptiveBrightness"
+        const val PREF_BATTERY_SAVER_BRIGHTNESS = "battery_saver_brightness_enabled"
+        const val EXTRA_BATTERY_SAVER_BRIGHTNESS = "batterySaverBrightness"
 
         const val EXTRA_EXTERNAL_CALLER_PACKAGE = "external.callerPackage"
         const val EXTRA_EXTERNAL_EFFECT = "external.effect"
@@ -201,6 +204,9 @@ class LEDService : Service() {
     private var currentDisableLowBatteryAlertWhileCharging: Boolean = false
     private var currentPersistentNotification: Boolean = true
     private var currentAdaptiveBrightness: Boolean = false
+    private var currentBatterySaverBrightness: Boolean = false
+    private var isBatterySaverActive: Boolean = false
+    private var powerSaveReceiverRegistered: Boolean = false
     private var allowBackgroundRun: Boolean = false
     private var currentAmbientDisplayId: Int = Display.DEFAULT_DISPLAY
 
@@ -275,17 +281,22 @@ class LEDService : Service() {
         // policy + cap are sampled once (consistent, robust to field reassignment).
         val policy = currentLivePolicy
         val cap = policy?.brightnessCapPercent
-        if (policy != null && cap != null) {
+        val requestedBrightness = if (policy != null && cap != null) {
             val capScale = cap.coerceIn(0, 100) / 100f
             val srcScale = when (policy.brightnessSource) {
                 BrightnessSource.MAIN_SCREEN -> mainScreenLevelPercent() / 100f
                 BrightnessSource.BOTTOM_SCREEN -> bottomScreenLevelPercent() / 100f
                 else -> 1f
             }
-            return (255f * capScale * srcScale).roundToInt().coerceIn(0, 255)
+            (255f * capScale * srcScale).roundToInt().coerceIn(0, 255)
+        } else if (currentAdaptiveBrightness) {
+            (currentBrightness * screenBrightnessScale()).toInt().coerceIn(0, 255)
+        } else {
+            currentBrightness
         }
-        if (!currentAdaptiveBrightness) return currentBrightness
-        return (currentBrightness * screenBrightnessScale()).toInt().coerceIn(0, 255)
+        // Battery Saver caps the rendered RGB frame in LedController, where it
+        // also catches effects that intentionally overshoot their target level.
+        return requestedBrightness
     }
 
     /** Main system screen brightness as 0..100. */
@@ -365,6 +376,51 @@ class LEDService : Service() {
         }
     }
 
+    private val powerSaveStateReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context?, intent: Intent?) {
+            if (intent?.action != PowerManager.ACTION_POWER_SAVE_MODE_CHANGED) return
+            val active = readBatterySaverState()
+            if (active == isBatterySaverActive) return
+            isBatterySaverActive = active
+            if (!isStopping.get()) {
+                applyBatterySaverBrightness()
+            }
+        }
+    }
+
+    private fun readBatterySaverState(): Boolean {
+        return runCatching {
+            getSystemService(PowerManager::class.java)?.isPowerSaveMode ?: false
+        }.getOrDefault(isBatterySaverActive)
+    }
+
+    private fun registerPowerSaveStateReceiver() {
+        if (powerSaveReceiverRegistered) return
+        powerSaveReceiverRegistered = runCatching {
+            ContextCompat.registerReceiver(
+                this,
+                powerSaveStateReceiver,
+                IntentFilter(PowerManager.ACTION_POWER_SAVE_MODE_CHANGED),
+                ContextCompat.RECEIVER_NOT_EXPORTED
+            )
+        }.isSuccess
+        // Register before the snapshot so a power-mode change cannot be missed
+        // between the initial read and mounting the event-driven observer.
+        isBatterySaverActive = readBatterySaverState()
+    }
+
+    private fun unregisterPowerSaveStateReceiver() {
+        if (!powerSaveReceiverRegistered) return
+        runCatching { unregisterReceiver(powerSaveStateReceiver) }
+        powerSaveReceiverRegistered = false
+    }
+
+    private fun applyBatterySaverBrightness() {
+        ledController.setOutputBrightnessLimit(
+            BatterySaverBrightness.resolve(255, currentBatterySaverBrightness, isBatterySaverActive)
+        )
+    }
+
     private val prefs by lazy {
         getSharedPreferences("bifrost_prefs", MODE_PRIVATE)
     }
@@ -407,6 +463,9 @@ class LEDService : Service() {
         createNotificationChannel()
         mediaProjectionManager = getSystemService(MediaProjectionManager::class.java)
         ledController = LedController()
+        currentBatterySaverBrightness = prefs.getBoolean(PREF_BATTERY_SAVER_BRIGHTNESS, false)
+        registerPowerSaveStateReceiver()
+        applyBatterySaverBrightness()
         registerBatteryStateReceiver()
         refreshBatteryStateSnapshot()
         mountScreenBrightnessObserver()
@@ -482,6 +541,11 @@ class LEDService : Service() {
             EXTRA_ADAPTIVE_BRIGHTNESS,
             currentAdaptiveBrightness
         )
+        currentBatterySaverBrightness = intent.getBooleanExtra(
+            EXTRA_BATTERY_SAVER_BRIGHTNESS,
+            currentBatterySaverBrightness
+        )
+        applyBatterySaverBrightness()
 
         val notification = createNotification()
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
@@ -594,7 +658,23 @@ class LEDService : Service() {
     }
 
     private fun handleUpdateParams(intent: Intent) {
-        if (!isRunning) return
+        if (!isRunning) {
+            stopSelf()
+            return
+        }
+        if (intent.hasExtra(EXTRA_BATTERY_SAVER_BRIGHTNESS)) {
+            val enabled = intent.getBooleanExtra(
+                EXTRA_BATTERY_SAVER_BRIGHTNESS,
+                currentBatterySaverBrightness
+            )
+            if (enabled != currentBatterySaverBrightness) {
+                currentBatterySaverBrightness = enabled
+                applyBatterySaverBrightness()
+            }
+            // A global output-limit change must not replace external colors or
+            // unsuppress a stopped app profile. Process it before color resets.
+            if (intent.extras?.size() == 1) return
+        }
         Log.d(TAG, "handleUpdateParams: received update, appProfileEnabled=${appProfileManager.isEnabled}")
         isAppProfileSuppressed = false
         val animation = currentAnimation
@@ -1189,6 +1269,7 @@ class LEDService : Service() {
         handler.removeCallbacks(activityCheckRunnable)
         clearPendingCallbacks()
         unregisterBatteryStateReceiver()
+        unregisterPowerSaveStateReceiver()
         unmountScreenBrightnessObserver()
         cleanupAndStop()
     }

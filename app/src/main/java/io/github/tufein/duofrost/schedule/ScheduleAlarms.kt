@@ -5,8 +5,7 @@ import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
 import io.github.tufein.duofrost.receivers.ScheduleReceiver
-import java.time.LocalDateTime
-import java.time.ZoneId
+import java.time.ZonedDateTime
 
 object ScheduleAlarms {
 
@@ -15,7 +14,7 @@ object ScheduleAlarms {
     fun scheduleNext(
         context: Context,
         rules: List<ScheduleRule>,
-        now: LocalDateTime = LocalDateTime.now()
+        now: ZonedDateTime = ZonedDateTime.now()
     ) {
         val next = ScheduleEvaluator.nextBoundary(rules, now)
         if (next == null) {
@@ -23,7 +22,7 @@ object ScheduleAlarms {
             return
         }
 
-        val triggerAt = next.atZone(ZoneId.systemDefault()).toInstant().toEpochMilli()
+        val triggerAt = next.toInstant().toEpochMilli()
         alarmManager(context).setAndAllowWhileIdle(
             AlarmManager.RTC_WAKEUP,
             triggerAt,

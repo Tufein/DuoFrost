@@ -1,9 +1,27 @@
-# Capture stability improvements
+# DuoFrost improvements
 
 This is a modified GPLv3 version of Pollux-MoonBench/Bifrost, based on
 upstream commit `1baddf1` (1.3.1). Original authorship and license are retained.
 
-## Changes
+## New in 1.1.0
+
+- Optional Battery Saver dimming limits actual RGB output to 25%, including
+  bright effect bursts and third-party LED frames. It responds to Android's
+  Battery Saver broadcasts and adds no polling or wake lock.
+- Output limiting preserves hue and separate left/right colors. Changing the
+  limit redraws the current frame without restarting capture or changing presets.
+- Schedule rules can select weekdays and weekends. Overnight rules belong to
+  their starting day; all-day rules recheck at local midnight, including DST.
+- Schedule alarms retain the actual time-zone offset. Repeated wintertime hours
+  and skipped summertime hours select a strictly future alarm and recheck at the
+  clock transition, preventing immediate repeated alarms or delayed starts.
+- Older schedule data without weekdays still applies every day. Invalid weekday
+  selections are rejected, and the editor requires at least one selected day.
+- "LEDs off" schedule rules no longer require a saved preset.
+- Settings can request Android to add the DuoFrost Quick Settings on/off tile.
+- The first-run message now links to the DuoFrost repository.
+
+## Changes in 1.0.0
 
 - Ambient saturation boost preserves purple and pink hues. Previously Kotlin's
   negative remainder sent red-dominant purple colors into the red hue sector.
@@ -32,6 +50,14 @@ upstream commit `1baddf1` (1.3.1). Original authorship and license are retained.
    start again. Confirm recovery without a frozen capture loop.
 5. Switch between mapped app profiles while capturing. Check that old capture
    callbacks do not overwrite the current profile's colors.
+6. Enable **Battery Saver LED dimming**, activate Android Battery Saver and
+   check Static, PipBoy bursts and a third-party frame with different left/right
+   colors. Output should dim without changing hue, restarting capture or merging
+   stick colors; switch Battery Saver off to restore normal output.
+7. Create Friday-only 20:00–07:00 and weekend all-day rules. Check the Friday to
+   Saturday transition, midnight and any seasonal date restrictions.
+8. Add the Quick Settings tile through Settings. Check adding, cancelling,
+   requesting it a second time, and turning lighting on/off with the tile.
 
 A debug APK uses `io.github.tufein.duofrost.debug` and can be installed alongside the
 original app. Run only one LED controller at a time during device testing.

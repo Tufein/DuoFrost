@@ -115,6 +115,10 @@ object HeimdallStartupManager {
                 LEDService.EXTRA_PERSISTENT_NOTIFICATION,
                 prefs.getBoolean(PREF_KEY_PERSISTENT_NOTIFICATION, true)
             )
+            putExtra(
+                LEDService.EXTRA_BATTERY_SAVER_BRIGHTNESS,
+                prefs.getBoolean(LEDService.PREF_BATTERY_SAVER_BRIGHTNESS, false)
+            )
             putExtra(LEDService.EXTRA_ALLOW_BACKGROUND_RUN, true)
         }
     }

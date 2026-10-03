@@ -20,3 +20,14 @@ This document contains instructions for autonomous coding agents.
    discard capture callbacks from previous sessions. Run ScreenSamplingTest.
 10. When adding settings controls, check for duplicate IDs: the layout has
     multiple ScrollViews. Run the release build and its critical lint before publishing.
+11. Battery Saver limits must affect actual RGB output: Thor ignores the fourth
+    brightness wire field. Preserve hues, separate stick colors, crossfades and
+    capture sessions when limits change; keep power-state updates event-driven.
+12. Schedule weekdays use ISO Monday=1 through Sunday=7. Overnight rules belong
+    to their starting day, and legacy rules without weekdays mean every day.
+    Use local calendar midnights across DST, and reject empty weekday selections.
+13. Keep schedule alarm calculations zoned through to the absolute instant:
+    repeated times have two offsets, skipped times have none, and the clock
+    transition can change the active rule. Never schedule an instant in the past.
+14. Global output-limit toggles must send only their own parameter and apply
+    before animation reset paths, preserving external colors and suppressed profiles.

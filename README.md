@@ -14,10 +14,12 @@ DuoFrost is an independent GPLv3 continuation of [BiFrost](https://github.com/Po
 - App-specific profiles, charging/battery indicators and temperature effects.
 - Preset, theme and full-backup import/export.
 - Optional scheduling, third-party LED control and a repository-owned plugin catalog.
+- Weekday/weekend schedules, with overnight rules following their starting day.
+- Optional LED dimming during Android Battery Saver and easy Quick Settings tile setup.
 
 ## Install
 
-Download `DuoFrost-1.0.0.apk` from the releases page, open it on your Thor and
+Download `DuoFrost-1.1.0.apk` from the releases page, open it on your Thor and
 follow the first-run guide. Enable only the features and permissions you need.
 For updates through Obtainium, use:
 
@@ -31,6 +33,20 @@ them into DuoFrost. Legacy archive formats remain supported.
 Ambient and audio effects need capture access. Screen/audio samples are processed
 locally; captured content is not recorded or uploaded by these lighting effects.
 Background lighting requires the foreground service to remain active.
+
+## New in 1.1.0
+
+- **Battery Saver LED dimming:** enable it in Settings → Behavior to cap LED
+  output at 25% while Android Battery Saver is active. Normal output returns
+  automatically, without restarting screen capture. This option is off by default.
+- **Schedule weekdays:** choose Monday–Sunday for each rule. A Friday 20:00–07:00
+  rule continues into Saturday morning. Existing rules still run every day.
+- **Quick Settings:** tap **Add DuoFrost to Quick Settings** in Settings → Behavior
+  to add the existing on/off tile through Android's own prompt.
+- Rules that turn LEDs off can be created without saved presets.
+
+Version 1.1.0 uses the same signing key as 1.0.0 and updates it in place.
+The new controls and physical LED output still need on-device verification.
 
 ## First release
 
