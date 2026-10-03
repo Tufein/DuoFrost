@@ -2,9 +2,9 @@
 
 Verified on 2026-10-03. Based on BiFrost 1.3.1 (`1baddf1`), with original Git history retained.
 
-- JVM tests: **119 passed, 0 failures, 0 errors, 0 skipped**.
-- Includes 21 new regression tests for recovery decisions and configuration:
-  explicit Stop, background opt-out, boot/update scheduling priority, unsaved
+- JVM tests: **123 passed, 0 failures, 0 errors, 0 skipped**.
+- Includes 25 new regression tests for recovery decisions and configuration:
+  explicit Stop, background opt-out, app opening, boot/update scheduling priority, unsaved
   settings, independent stick colors, strict validation and exclusion of capture
   tokens and external leases. All previous 98 tests still pass.
 - Signed, optimized release APK: **build successful**.

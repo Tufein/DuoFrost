@@ -14,6 +14,8 @@ upstream commit `1baddf1` (1.3.1). Original authorship and license are retained.
   tokens, external leases, bursts and transient app-profile decisions are excluded.
 - Explicit Stop from the app, notification, tile or schedule persists the off
   state before shutdown. Activity state synchronization does not issue Stop.
+- Opening the app preserves an already running capture session and respects
+  a previous Stop when auto-start is disabled.
 - Configuration changes apply in place. There is no stopped-service interval
   whose restart can be cancelled by closing the activity.
 - Capture consent is consumed once. Missing, revoked or expired capture sessions

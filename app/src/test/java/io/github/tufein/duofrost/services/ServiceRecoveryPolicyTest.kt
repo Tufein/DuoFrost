@@ -6,6 +6,27 @@ import io.github.tufein.duofrost.services.ServiceRecoveryPolicy.Decision
 import io.github.tufein.duofrost.services.ServiceRecoveryPolicy.Signal
 
 class ServiceRecoveryPolicyTest {
+    @Test fun openingAppAfterStopKeepsLightingOffDespiteAnEnabledSchedule() {
+        assertEquals(Decision.NONE, ServiceRecoveryPolicy.decide(
+            Signal.APP_OPEN, false, false, true, true))
+    }
+
+    @Test fun openingAppCanRestoreAnInterruptedWantedSession() {
+        assertEquals(Decision.LAST_CONFIGURATION, ServiceRecoveryPolicy.decide(
+            Signal.APP_OPEN, false, true, true, false))
+    }
+
+    @Test fun openingAppWithAutoStartStillHonorsTheCurrentSchedule() {
+        assertEquals(Decision.SCHEDULE, ServiceRecoveryPolicy.decide(
+            Signal.APP_OPEN, true, false, true, true))
+        assertEquals(Decision.AUTO_START, ServiceRecoveryPolicy.decide(
+            Signal.APP_OPEN, true, false, false, false))
+    }
+
+    @Test fun openingAppDoesNotRestoreAStoppedBackgroundMode() {
+        assertEquals(Decision.NONE, ServiceRecoveryPolicy.decide(
+            Signal.APP_OPEN, false, true, false, false))
+    }
     @Test fun systemReclaimRestoresWantedLightingWithoutBootAutoStart() {
         assertEquals(Decision.LAST_CONFIGURATION, ServiceRecoveryPolicy.decide(
             Signal.STICKY_RESTART, false, true, true, false))

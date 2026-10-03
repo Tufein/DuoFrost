@@ -79,6 +79,7 @@ import io.github.tufein.duofrost.services.LEDService
 import io.github.tufein.duofrost.services.LiveWallpaperSettingsManager
 import io.github.tufein.duofrost.services.ServiceController
 import io.github.tufein.duofrost.services.ServiceRecoveryStore
+import io.github.tufein.duofrost.services.ServiceRecoveryPolicy
 import io.github.tufein.duofrost.services.BackgroundDiagnostics
 import io.github.tufein.duofrost.schedule.ScheduleApplier
 import io.github.tufein.duofrost.schedule.ScheduleStore
@@ -3422,13 +3423,23 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun maybeAutoStartHeimdallOnLaunch() {
-        if (ScheduleStore.isEnabled(prefs)) {
+        if (LEDService.isRunning) return
+        val decision = ServiceRecoveryPolicy.decide(
+            ServiceRecoveryPolicy.Signal.APP_OPEN,
+            autoStart = HeimdallStartupManager.isAutoStartEnabled(prefs),
+            desiredRunning = ServiceRecoveryStore.isDesiredRunning(this),
+            keepRunning = ServiceRecoveryStore.isKeepRunningEnabled(prefs),
+            scheduleEnabled = ScheduleStore.isEnabled(prefs)
+        )
+        if (decision == ServiceRecoveryPolicy.Decision.NONE) return
+        if (decision == ServiceRecoveryPolicy.Decision.SCHEDULE) {
             ScheduleApplier.apply(this)
             return
         }
-        if (!HeimdallStartupManager.isAutoStartEnabled(prefs) || LEDService.isRunning) return
         if (!checkNotificationPermission()) return
-        val startupIntent = HeimdallStartupManager.buildStartupServiceIntent(this, prefs)
+        val recovered = if (decision == ServiceRecoveryPolicy.Decision.LAST_CONFIGURATION)
+            ServiceRecoveryStore.buildLastConfigurationIntent(this, prefs) else null
+        val startupIntent = recovered ?: HeimdallStartupManager.buildStartupServiceIntent(this, prefs)
             ?: createLedServiceIntent()
         ContextCompat.startForegroundService(this, startupIntent)
         syncServiceToggle(true)
