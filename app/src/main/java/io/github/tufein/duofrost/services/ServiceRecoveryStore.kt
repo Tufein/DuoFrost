@@ -14,6 +14,7 @@ object ServiceRecoveryStore {
     private const val STATE_PREFS = "duofrost_service_state"
     private const val CONFIGURATION = "configuration"
     private const val DESIRED_RUNNING = "desired_running"
+    private const val MUTED = "output_muted"
     private const val TAG = "DuoFrostRecovery"
 
     private fun state(context: Context): SharedPreferences =
@@ -28,11 +29,18 @@ object ServiceRecoveryStore {
 
     fun isDesiredRunning(context: Context): Boolean = state(context).getBoolean(DESIRED_RUNNING, false)
 
+    fun isMuted(context: Context): Boolean = state(context).getBoolean(MUTED, false)
+
+    fun setMuted(context: Context, muted: Boolean) {
+        state(context).edit().putBoolean(MUTED, muted).commit()
+    }
+
     fun markStopped(context: Context) {
         val stored = state(context)
-        if (stored.getBoolean(DESIRED_RUNNING, false)) {
-            stored.edit().putBoolean(DESIRED_RUNNING, false).commit()
+        if (stored.getBoolean(DESIRED_RUNNING, false) || stored.getBoolean(MUTED, false)) {
+            stored.edit().putBoolean(DESIRED_RUNNING, false).remove(MUTED).commit()
         }
+        SleepTimerStore.cancel(context)
     }
 
     fun recordStarted(context: Context, intent: Intent) {
@@ -83,6 +91,7 @@ object ServiceRecoveryStore {
         prefs: SharedPreferences,
         now: ZonedDateTime = ZonedDateTime.now()
     ): Intent? {
+        if (SleepTimerStore.expireIfDue(context)) return null
         val decision = ServiceRecoveryPolicy.decide(
             ServiceRecoveryPolicy.Signal.STICKY_RESTART,
             autoStart = false,

@@ -3,7 +3,29 @@
 This is a modified GPLv3 version of Pollux-MoonBench/Bifrost, based on
 upstream commit `1baddf1` (1.3.1). Original authorship and license are retained.
 
-## New in 1.3.0
+## New in 1.5.0
+
+- Sleep timer with 15/30/60/120-minute choices and cancel. One elapsed-time
+  callback and one inexact user-requested stop alarm; no restart alarm or polling.
+  Timer restoration respects the original deadline, Stop clears it, and reboot
+  ends the previous session timer. An expired timer blocks sticky restoration.
+- Temporary RGB mute in Settings and the ongoing notification. The live effect,
+  capture session, colors and ceiling settings remain intact. Mute survives process
+  restoration within the running session; explicit Stop clears it.
+- A home widget with Start/Stop and a per-widget saved favorite. Configuration
+  can be skipped and reopened; renamed favorites follow their new names, deleted
+  presets offer a new choice. Widget views update only on relevant events.
+- Six diagnostic LED frames at at most 25% output. Normal frames continue to
+  update beneath the overlay; closing, timeout or service shutdown restores the
+  current raw frame and blacks any zones never written by the underlying effect.
+- Backups add an independent typed Settings category. Transferable behavior is
+  whitelisted; invalid types/ranges are rejected. Old archives without Settings
+  do not reset current behavior. Runtime/capture state and widget IDs are excluded.
+- Widget capture cancellation preserves existing lighting; permission requests
+  retain the requested preset instead of substituting the default UI settings.
+- Existing credits, signing identity, GPLv3 history and archive schema retained.
+
+## Added in 1.3.0
 
 - Global LED output ceiling from 0–100%, applied to actual RGB writes across
   all effects, app profiles and third-party output.
@@ -81,6 +103,31 @@ upstream commit `1baddf1` (1.3.1). Original authorship and license are retained.
 - GitHub Actions runs unit tests and builds a debug APK on pushes and pull requests.
 
 ## On-device verification still required
+
+For 1.5.0:
+
+1. Start Static and set a 15-minute timer. Close DuoFrost and other apps using
+   Clear all. Lighting should stop when the timer expires; reopening with boot
+   auto-start disabled must keep it stopped. Android can defer alarms in sleep.
+2. Cancel a timer, replace it with a later timer, then use explicit Stop and
+   start lighting again. The cancelled/old deadline must not stop the new session.
+   Process recovery keeps the original deadline; reboot ends the session timer.
+3. Mute/unmute from Settings and the notification during Ambient and a dual-color
+   effect. Colors and capture should resume without another permission request.
+   Check mute during process restoration and that explicit Stop clears mute.
+4. Add two widgets with different favorite presets. Use Start/Stop, change the
+   favorite, rename/delete a referenced preset and resize the widget. No periodic
+   refresh is needed. App-profile mode remains in charge when enabled.
+5. Select a capture preset from the widget. Grant consent and confirm the saved
+   preset starts. Cancel consent while another effect is running; it must continue.
+6. Open LED test during a two-color effect. Walk through all six frames, close it,
+   change apps and wait out a step timeout. Check restoration of both sticks and
+   all four zones, including previously unused zones. Mute/ceilings remain effective.
+7. Export a Settings-only backup, change ceilings/background settings and import
+   it. Presets and themes should stay intact. Import an older backup and confirm
+   it does not erase current behavior settings. Other service options apply next start.
+8. Check the background report's mute and timer fields. Timer expiry, widget Stop
+   and normal Stop must not schedule any automatic service restart.
 
 For 1.3.0, check the controls in **Settings → Behavior**:
 

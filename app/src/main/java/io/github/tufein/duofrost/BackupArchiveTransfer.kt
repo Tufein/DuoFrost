@@ -14,7 +14,7 @@ import java.util.zip.ZipOutputStream
 object BackupArchiveTransfer {
 
     private const val BACKUP_SCHEMA = "bifrost_full_backup"
-    private const val BACKUP_VERSION = 1
+    private const val BACKUP_VERSION = 2
     private const val PREF_FILE_NAME = "bifrost_prefs"
     private const val MANIFEST_ENTRY_NAME = "manifest.json"
     private const val PREFS_ENTRY_NAME = "prefs.json"
@@ -36,9 +36,10 @@ object BackupArchiveTransfer {
     data class CategoryOptions(
         val themes: Boolean = true,
         val profiles: Boolean = true,
-        val images: Boolean = true
+        val images: Boolean = true,
+        val settings: Boolean = true
     ) {
-        fun hasAtLeastOneCategory(): Boolean = themes || profiles || images
+        fun hasAtLeastOneCategory(): Boolean = themes || profiles || images || settings
     }
 
     data class ExportResult(
@@ -90,6 +91,7 @@ object BackupArchiveTransfer {
                 put("themes", options.themes)
                 put("profiles", options.profiles)
                 put("images", options.images)
+                put("settings", options.settings)
             })
         }
 
@@ -131,7 +133,7 @@ object BackupArchiveTransfer {
         )
 
         return ExportResult(
-            preferenceCount = prefs.all.size,
+            preferenceCount = prefsJson.getJSONArray("items").length(),
             iconCount = exportedIconCount,
             appliedOptions = options,
             warnings = warnings
@@ -264,6 +266,9 @@ object BackupArchiveTransfer {
         if (effectiveOptions.profiles) {
             PROFILE_PREF_KEYS.forEach { editor.remove(it) }
         }
+        if (effectiveOptions.settings) {
+            BehaviorSettingsBackup.keys.forEach { editor.remove(it) }
+        }
 
         var importedPrefCount = 0
         for (index in 0 until prefItems.length()) {
@@ -272,6 +277,14 @@ object BackupArchiveTransfer {
             val key = item.optString("key").takeIf { it.isNotBlank() } ?: continue
             if (!shouldIncludePreference(key, effectiveOptions)) continue
             val type = item.optString("type")
+            if (key in BehaviorSettingsBackup.keys) {
+                when (val value = BehaviorSettingsBackup.decode(key, type, item.opt("value"))) {
+                    is Boolean -> { editor.putBoolean(key, value); importedPrefCount++ }
+                    is Int -> { editor.putInt(key, value); importedPrefCount++ }
+                    else -> warnings += "Setting '$key' has an invalid type or value; keeping its default."
+                }
+                continue
+            }
 
             when (type) {
                 "boolean" -> {
@@ -364,6 +377,10 @@ object BackupArchiveTransfer {
             if (!shouldIncludePreference(key, options)) {
                 return@forEach
             }
+            if (key in BehaviorSettingsBackup.keys) {
+                val type = when (value) { is Boolean -> "boolean"; is Int -> "int"; else -> "" }
+                if (BehaviorSettingsBackup.decode(key, type, value) == null) return@forEach
+            }
 
             val item = JSONObject().apply { put("key", key) }
             when (value) {
@@ -415,22 +432,24 @@ object BackupArchiveTransfer {
 
     private fun shouldIncludePreference(key: String, options: CategoryOptions): Boolean {
         return (options.themes && key in THEME_PREF_KEYS) ||
-            (options.profiles && key in PROFILE_PREF_KEYS)
+            (options.profiles && key in PROFILE_PREF_KEYS) ||
+            (options.settings && key in BehaviorSettingsBackup.keys)
     }
 
-    private fun resolveEffectiveOptions(
+    internal fun resolveEffectiveOptions(
         manifest: JSONObject,
         requested: CategoryOptions
     ): CategoryOptions {
         val categories = manifest.optJSONObject("categories")
         if (categories == null) {
-            return requested
+            return requested.copy(settings = false)
         }
 
         return CategoryOptions(
             themes = requested.themes && categories.optBoolean("themes", true),
             profiles = requested.profiles && categories.optBoolean("profiles", true),
-            images = requested.images && categories.optBoolean("images", true)
+            images = requested.images && categories.optBoolean("images", true),
+            settings = requested.settings && categories.opt("settings") == true
         )
     }
 }

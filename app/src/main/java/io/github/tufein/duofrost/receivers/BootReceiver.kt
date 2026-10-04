@@ -11,6 +11,7 @@ import io.github.tufein.duofrost.schedule.ScheduleStore
 import io.github.tufein.duofrost.services.HeimdallStartupManager
 import io.github.tufein.duofrost.services.ServiceRecoveryPolicy
 import io.github.tufein.duofrost.services.ServiceRecoveryStore
+import io.github.tufein.duofrost.services.SleepTimerStore
 
 class BootReceiver : BroadcastReceiver() {
 
@@ -20,6 +21,14 @@ class BootReceiver : BroadcastReceiver() {
                 action == Intent.ACTION_MY_PACKAGE_REPLACED
 
         if (!isStartupSignal) return
+        if (action == Intent.ACTION_BOOT_COMPLETED) {
+            // A sleep timer belongs to the previous device session.
+            SleepTimerStore.expireIfDue(context)
+            SleepTimerStore.cancel(context)
+        } else {
+            SleepTimerStore.expireIfDue(context)
+            SleepTimerStore.rearm(context)
+        }
 
         val prefs = context.getSharedPreferences("bifrost_prefs", Context.MODE_PRIVATE)
 

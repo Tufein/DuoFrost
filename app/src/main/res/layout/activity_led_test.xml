@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent" android:layout_height="match_parent"
+    android:background="@color/bifrost_bg" android:padding="24dp" android:orientation="vertical">
+    <TextView android:layout_width="match_parent" android:layout_height="wrap_content"
+        android:text="@string/led_test_title" android:textColor="@color/bifrost_text" android:textSize="22sp" android:textStyle="bold" />
+    <TextView android:layout_width="match_parent" android:layout_height="wrap_content"
+        android:layout_marginTop="12dp" android:text="@string/led_test_description"
+        android:textColor="@color/bifrost_text_secondary" android:textSize="14sp" />
+    <TextView android:id="@+id/ledTestStep" android:layout_width="match_parent" android:layout_height="0dp"
+        android:layout_weight="1" android:gravity="center" android:textColor="@color/bifrost_text" android:textSize="24sp" />
+    <com.google.android.material.button.MaterialButton android:id="@+id/ledTestPrevious"
+        android:layout_width="match_parent" android:layout_height="wrap_content" android:text="@string/led_test_previous" />
+    <com.google.android.material.button.MaterialButton android:id="@+id/ledTestNext"
+        android:layout_width="match_parent" android:layout_height="wrap_content" android:text="@string/led_test_next" />
+    <com.google.android.material.button.MaterialButton android:id="@+id/ledTestFinish"
+        android:layout_width="match_parent" android:layout_height="wrap_content" android:text="@string/led_test_finish" />
+</LinearLayout>

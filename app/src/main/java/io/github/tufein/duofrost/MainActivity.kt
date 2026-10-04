@@ -81,6 +81,8 @@ import io.github.tufein.duofrost.services.ServiceController
 import io.github.tufein.duofrost.services.ServiceRecoveryStore
 import io.github.tufein.duofrost.services.ServiceRecoveryPolicy
 import io.github.tufein.duofrost.services.BackgroundDiagnostics
+import io.github.tufein.duofrost.services.SleepTimerStore
+import io.github.tufein.duofrost.widgets.DuoFrostWidget
 import io.github.tufein.duofrost.schedule.ScheduleApplier
 import io.github.tufein.duofrost.schedule.ScheduleStore
 import io.github.tufein.duofrost.services.VideoLiveWallpaperService
@@ -298,6 +300,7 @@ class MainActivity : AppCompatActivity() {
 
         const val EXTRA_GRANT_PROJECTION_FOR_APP_PROFILE = "grant_projection_for_app_profile"
         const val EXTRA_START_FROM_TILE = "start_from_tile"
+        const val EXTRA_START_WIDGET_PRESET = "start_widget_preset"
     }
 
     private var selectedAnimationType: LedAnimationType = LedAnimationType.AMBIENT
@@ -443,7 +446,10 @@ class MainActivity : AppCompatActivity() {
     private val notificationPermissionLauncher =
         registerForActivityResult(ActivityResultContracts.RequestPermission()) { isGranted ->
             if (isGranted) {
-                if (needsAccessibilityPermission(selectedAnimationType) && !DuoFrostAccessibilityService.isEnabled(this)) {
+                val requested = pendingTileStartIntent
+                if (requested != null) {
+                    continueRequestedStart(requested)
+                } else if (needsAccessibilityPermission(selectedAnimationType) && !DuoFrostAccessibilityService.isEnabled(this)) {
                     Toast.makeText(this, "Enable Accessibility for Ambilight features", Toast.LENGTH_LONG).show()
                     startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
                 } else if (requiresProjectionToken(selectedAnimationType)) {
@@ -458,7 +464,7 @@ class MainActivity : AppCompatActivity() {
             } else {
                 pendingTileStartIntent = null
                 isAwaitingPermissionResult = false
-                serviceToggle.isChecked = false
+                syncServiceToggle(LEDService.isRunning)
                 Toast.makeText(
                     this,
                     "Notification permission required for Foreground Service",
@@ -505,7 +511,7 @@ class MainActivity : AppCompatActivity() {
                 isGrantingProjectionForAppProfile = false
                 if (!wasAppProfileGrant) {
                     isAwaitingPermissionResult = false
-                    serviceToggle.isChecked = false
+                    syncServiceToggle(LEDService.isRunning)
                 }
                 Toast.makeText(
                     this,
@@ -635,7 +641,7 @@ class MainActivity : AppCompatActivity() {
         super.onNewIntent(intent)
         setIntent(intent)
         handleAppProfileProjectionIntent(intent)
-        handleTileStartIntent(intent)
+        if (!handleWidgetPresetIntent(intent)) handleTileStartIntent(intent)
     }
 
     private fun maybeOfferCrashReport() {
@@ -675,18 +681,45 @@ class MainActivity : AppCompatActivity() {
             }
             return
         }
-        if (!checkNotificationPermission()) return
-
         val startup = HeimdallStartupManager.buildStartupServiceIntent(this, prefs)
         if (startup == null) {
             serviceToggle.isChecked = true
-        } else if (HeimdallStartupManager.requiresProjectionConsent(startup, prefs)) {
+        } else {
+            continueRequestedStart(startup)
+        }
+    }
+
+    private fun handleWidgetPresetIntent(intent: Intent?): Boolean {
+        val name = intent?.getStringExtra(EXTRA_START_WIDGET_PRESET) ?: return false
+        if (!::presetController.isInitialized) return true
+        intent.removeExtra(EXTRA_START_WIDGET_PRESET)
+        val index = presetController.getPresets().indexOfFirst { it.name == name }
+        val startup = if (name.length <= 128) HeimdallStartupManager.buildServiceIntentForPreset(this, prefs, name) else null
+        if (index < 0 || startup == null) {
+            Toast.makeText(this, R.string.widget_preset_missing, Toast.LENGTH_LONG).show()
+            return true
+        }
+        presetController.selectPresetForEditing(index)
+        prefs.edit().putString(PREF_KEY_LAST_PRESET, name).apply()
+        refreshCoverFlowFromPresets()
+        continueRequestedStart(startup)
+        return true
+    }
+
+    private fun continueRequestedStart(startup: Intent) {
+        if (!checkNotificationPermission()) {
+            pendingTileStartIntent = startup
+            requestNotificationPermission()
+            return
+        }
+        if (HeimdallStartupManager.requiresProjectionConsent(startup, prefs)) {
             pendingTileStartIntent = startup
             requestScreenCapturePermission()
-        } else {
-            ContextCompat.startForegroundService(this, startup)
-            syncServiceToggle(true)
+            return
         }
+        pendingTileStartIntent = null
+        ContextCompat.startForegroundService(this, startup)
+        syncServiceToggle(true)
     }
 
     private fun handleAppProfileProjectionIntent(intent: Intent?) {
@@ -840,6 +873,7 @@ class MainActivity : AppCompatActivity() {
         setupAdaptiveBrightnessSwitch()
         setupBatterySaverBrightnessSwitch()
         setupOutputLimitControls()
+        setupQuickLightingControls()
         setupLowBatteryAlertSwitch()
         setupLowBatteryAlertSeekBar()
         setupDisableLowBatteryAlertWhileChargingSwitch()
@@ -888,8 +922,10 @@ class MainActivity : AppCompatActivity() {
             }
         }
 
-        maybeAutoStartHeimdallOnLaunch()
-        handleTileStartIntent(intent)
+        if (!handleWidgetPresetIntent(intent)) {
+            maybeAutoStartHeimdallOnLaunch()
+            handleTileStartIntent(intent)
+        }
         maybeOfferCrashReport()
 
         isAppInitialized = true
@@ -3154,6 +3190,7 @@ class MainActivity : AppCompatActivity() {
         )
         findViewById<MaterialButton>(R.id.resumeCaptureButton).visibility =
             if (LEDService.isWaitingForCapturePermission) View.VISIBLE else View.GONE
+        refreshQuickLightingControls()
     }
 
     private fun setupPluggedBatteryOverrideSwitch() {
@@ -3263,6 +3300,52 @@ class MainActivity : AppCompatActivity() {
             action = LEDService.ACTION_UPDATE_PARAMS
             putExtra(LEDService.EXTRA_REFRESH_OUTPUT_LIMITS, true)
         })
+    }
+
+    private fun setupQuickLightingControls() {
+        findViewById<MaterialButton>(R.id.muteLightingButton).setOnClickListener {
+            if (!LEDService.isRunning) {
+                Toast.makeText(this, R.string.quick_controls_start_first, Toast.LENGTH_SHORT).show()
+                return@setOnClickListener
+            }
+            startService(Intent(this, LEDService::class.java).apply {
+                action = LEDService.ACTION_SET_MUTED
+                putExtra(LEDService.EXTRA_MUTED, !ServiceRecoveryStore.isMuted(this@MainActivity))
+            })
+            mainHandler.postDelayed({ refreshQuickLightingControls() }, 150L)
+        }
+        findViewById<MaterialButton>(R.id.sleepTimerButton).setOnClickListener {
+            val minutes = intArrayOf(0, 15, 30, 60, 120)
+            val options = minutes.map { if (it == 0) getString(R.string.sleep_timer_cancel)
+                else getString(R.string.sleep_timer_minutes, it) }.toTypedArray()
+            AlertDialog.Builder(this).setTitle(R.string.sleep_timer_title).setItems(options) { _, index ->
+                if (!LEDService.isRunning) {
+                    if (minutes[index] == 0) SleepTimerStore.cancel(this)
+                    else Toast.makeText(this, R.string.quick_controls_start_first, Toast.LENGTH_SHORT).show()
+                } else startService(Intent(this, LEDService::class.java).apply {
+                    action = LEDService.ACTION_SLEEP_TIMER
+                    putExtra(LEDService.EXTRA_TIMER_MINUTES, minutes[index])
+                })
+                mainHandler.postDelayed({ refreshQuickLightingControls() }, 150L)
+            }.setNegativeButton(R.string.action_cancel, null).show()
+        }
+        findViewById<MaterialButton>(R.id.ledTestButton).setOnClickListener {
+            if (LEDService.isRunning) startActivity(Intent(this, LedTestActivity::class.java))
+            else Toast.makeText(this, R.string.quick_controls_start_first, Toast.LENGTH_SHORT).show()
+        }
+        refreshQuickLightingControls()
+    }
+
+    private fun refreshQuickLightingControls() {
+        findViewById<MaterialButton>(R.id.muteLightingButton).setText(
+            if (ServiceRecoveryStore.isMuted(this)) R.string.unmute_lighting else R.string.mute_lighting)
+        val remaining = SleepTimerStore.remaining(this)
+        findViewById<TextView>(R.id.quickLightingStatus).text = if (remaining != null && remaining > 0) {
+            val end = java.time.Instant.ofEpochMilli(System.currentTimeMillis() + remaining)
+                .atZone(java.time.ZoneId.systemDefault()).toLocalTime()
+                .format(java.time.format.DateTimeFormatter.ofPattern("HH:mm"))
+            getString(R.string.sleep_timer_status, end)
+        } else getString(R.string.sleep_timer_off)
     }
 
     private fun setupLowBatteryAlertSwitch() {
@@ -3472,6 +3555,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun maybeAutoStartHeimdallOnLaunch() {
+        SleepTimerStore.expireIfDue(this)
         if (LEDService.isRunning) return
         val decision = ServiceRecoveryPolicy.decide(
             ServiceRecoveryPolicy.Signal.APP_OPEN,
@@ -3777,6 +3861,7 @@ class MainActivity : AppCompatActivity() {
             },
             onPresetRenamed = { oldName, newName ->
                 appProfileManager.renamePresetInMappings(oldName, newName)
+                DuoFrostWidget.renameFavorite(this, oldName, newName)
             }
         )
 
@@ -3886,6 +3971,15 @@ class MainActivity : AppCompatActivity() {
                 negativeLabelResId = null,
                 cancelable = true,
                 onConfirm = {
+                    if (backupResult.appliedOptions.settings && LEDService.isRunning) {
+                        startService(Intent(this, LEDService::class.java).apply {
+                            action = LEDService.ACTION_UPDATE_PARAMS
+                            putExtra(LEDService.EXTRA_ALLOW_BACKGROUND_RUN, ServiceRecoveryStore.isKeepRunningEnabled(prefs))
+                            putExtra(LEDService.EXTRA_BATTERY_SAVER_BRIGHTNESS,
+                                prefs.getBoolean(LEDService.PREF_BATTERY_SAVER_BRIGHTNESS, false))
+                            putExtra(LEDService.EXTRA_REFRESH_OUTPUT_LIMITS, true)
+                        })
+                    }
                     recreate()
                 }
             )
@@ -3952,12 +4046,14 @@ class MainActivity : AppCompatActivity() {
         val themesSwitch = view.findViewById<SwitchMaterial>(R.id.themesSwitch)
         val profilesSwitch = view.findViewById<SwitchMaterial>(R.id.profilesSwitch)
         val imagesSwitch = view.findViewById<SwitchMaterial>(R.id.imagesSwitch)
+        val settingsSwitch = view.findViewById<SwitchMaterial>(R.id.backupSettingsSwitch)
 
         titleView.text = title
         subtitleView.text = subtitle
         themesSwitch.isChecked = true
         profilesSwitch.isChecked = true
         imagesSwitch.isChecked = true
+        settingsSwitch.isChecked = true
 
         val dialog = AlertDialog.Builder(this)
             .setView(view)
@@ -3971,7 +4067,8 @@ class MainActivity : AppCompatActivity() {
                 val options = BackupArchiveTransfer.CategoryOptions(
                     themes = themesSwitch.isChecked,
                     profiles = profilesSwitch.isChecked,
-                    images = imagesSwitch.isChecked
+                    images = imagesSwitch.isChecked,
+                    settings = settingsSwitch.isChecked
                 )
                 if (!options.hasAtLeastOneCategory()) {
                     Toast.makeText(this, "Select at least one category", Toast.LENGTH_SHORT).show()
@@ -3989,6 +4086,7 @@ class MainActivity : AppCompatActivity() {
         if (options.themes) selected += "Themes"
         if (options.profiles) selected += "Profiles"
         if (options.images) selected += "Images"
+        if (options.settings) selected += "Settings"
         return if (selected.isEmpty()) "None" else selected.joinToString(" + ")
     }
 

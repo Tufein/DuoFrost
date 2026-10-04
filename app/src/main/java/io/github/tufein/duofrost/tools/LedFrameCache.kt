@@ -18,6 +18,11 @@ internal class LedFrameCache {
 
     fun colorAt(zone: Int): Int = colors[zone]
 
+    /** A temporary all-zone overlay must not leave untouched zones lit. */
+    fun prepareAllZonesForRestore() {
+        update(0, 0, zoneMask.inv() and 15)
+    }
+
     fun resetToBlack() {
         colors.fill(0)
     }

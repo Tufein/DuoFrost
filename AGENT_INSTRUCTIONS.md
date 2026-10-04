@@ -51,3 +51,15 @@ This document contains instructions for autonomous coding agents.
     never multiplying limits or brightening dim sources. Keep raw zone colors for
     sleep/wake redraws. Observe Android interactive state via broadcasts and an
     initial snapshot; lid position is not equivalent to device sleep on every Thor.
+22. Sleep timers use elapsed time, persist across process restoration and end on
+    reboot. Their one-shot alarm only stops lighting; never start a foreground
+    service from timer expiry. Cancel both timer state and alarm on explicit Stop.
+23. Diagnostic frames are temporary overlays, never recovery configurations.
+    Keep live raw colors beneath them, black unwritten zones on exit, and restore
+    on activity stop, service shutdown or timeout. Output ceilings/mute still apply.
+24. Widgets use distinct immutable PendingIntents per widget/action, no periodic
+    updates, private control receivers and a declared configuration activity.
+    Start capture through the visible app with fresh Android consent.
+25. Behavior backups use a typed whitelist and an explicit Settings category.
+    Missing Settings in legacy archives must preserve current preferences.
+    Never transfer wanted-running state, mute, timers, grants or widget host IDs.

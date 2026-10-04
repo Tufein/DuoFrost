@@ -19,10 +19,12 @@ DuoFrost is an independent GPLv3 continuation of [BiFrost](https://github.com/Po
 - Background lighting after Clear all, safe service recovery, battery settings
   shortcuts and a shareable background status report.
 - Adjustable overall/Battery Saver output ceilings and optional screen-off dimming.
+- Sleep timer, temporary LED mute, a favorite-preset widget and a six-step LED test.
+- Selective backup of lighting and background settings, separately from presets/themes.
 
 ## Install
 
-Download `DuoFrost-1.3.0.apk` from the releases page, open it on your Thor and
+Download `DuoFrost-1.5.0.apk` from the releases page, open it on your Thor and
 follow the first-run guide. Enable only the features and permissions you need.
 For updates through Obtainium, use:
 
@@ -37,7 +39,34 @@ Ambient and audio effects need capture access. Screen/audio samples are processe
 locally; captured content is not recorded or uploaded by these lighting effects.
 Background lighting requires the foreground service to remain active.
 
-## New in 1.3.0
+## New in 1.5.0
+
+- **Sleep timer:** in Settings → Behavior, stop lighting after 15, 30, 60 or
+  120 minutes, or cancel the timer. It survives process restoration, uses elapsed
+  time and ends on reboot. The notification shows the stop time. Android can
+  defer its one-shot stop alarm during device sleep.
+- **Mute LED output:** mute/unmute in Settings → Behavior or the ongoing
+  notification. Effects and capture remain active, colors and ceilings are
+  retained, and explicit Stop clears mute for the next session.
+- **Homescreen widget:** add DuoFrost from the launcher's widget picker. Use
+  Start/Stop, choose a saved favorite preset or change it later. Each widget can
+  have its own favorite. Start/favorite opens DuoFrost to apply settings and
+  obtain capture permission when necessary; app-profile mode still takes priority.
+- **LED test:** while lighting is running, open Settings → Behavior → LED test.
+  Check red, green, blue, white and each stick. Output is limited to 25% and obeys
+  existing ceilings/mute. Closing the test restores current effect colors; each
+  step also has a 60-second timeout.
+- **Settings backup:** select Lighting and background settings in the backup
+  dialog. Transfer ceilings, background continuation, boot startup, adaptive
+  brightness, battery behavior and Thor display preferences independently of
+  profiles, themes and images. Restored ceilings/background continuation apply
+  live; other service options take effect at the next start. Android permissions,
+  timers, mute and running state remain local. Older backups retain current settings.
+
+Version 1.5.0 updates earlier DuoFrost APKs in place using the same certificate.
+See [verification](VERIFICATION.md) and the [Thor checklist](IMPROVEMENTS.md).
+
+## Added in 1.3.0
 
 In **Settings → Behavior**:
 

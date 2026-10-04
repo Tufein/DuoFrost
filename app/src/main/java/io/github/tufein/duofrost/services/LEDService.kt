@@ -62,6 +62,8 @@ import io.github.tufein.duofrost.animations.StrobeAnimation
 import io.github.tufein.duofrost.external.ExternalOverrideState
 import io.github.tufein.duofrost.external.Terminator
 import io.github.tufein.duofrost.tools.LedOutputLimits
+import io.github.tufein.duofrost.tools.LedDiagnosticFrame
+import io.github.tufein.duofrost.widgets.DuoFrostWidget
 import io.github.tufein.duofrost.tools.Crossfade
 import io.github.tufein.duofrost.tools.LedController
 import io.github.tufein.duofrost.tools.PerformanceProfile
@@ -116,6 +118,12 @@ class LEDService : Service() {
         const val PREF_BATTERY_SAVER_BRIGHTNESS = "battery_saver_brightness_enabled"
         const val EXTRA_BATTERY_SAVER_BRIGHTNESS = "batterySaverBrightness"
         const val EXTRA_REFRESH_OUTPUT_LIMITS = "refreshOutputLimits"
+        const val ACTION_SET_MUTED = "io.github.tufein.duofrost.SET_MUTED"
+        const val ACTION_SLEEP_TIMER = "io.github.tufein.duofrost.SLEEP_TIMER"
+        const val ACTION_LED_TEST = "io.github.tufein.duofrost.LED_TEST"
+        const val EXTRA_MUTED = "muted"
+        const val EXTRA_TIMER_MINUTES = "timerMinutes"
+        const val EXTRA_TEST_STEP = "testStep"
 
         const val EXTRA_EXTERNAL_CALLER_PACKAGE = "external.callerPackage"
         const val EXTRA_EXTERNAL_EFFECT = "external.effect"
@@ -213,6 +221,11 @@ class LEDService : Service() {
     private var currentBatterySaverBrightness: Boolean = false
     private var outputLimits = LedOutputLimits()
     private var isScreenInteractive = true
+    private var outputMuted = false
+    private val sleepTimerCallback = Runnable {
+        if (SleepTimerStore.remaining(this) == 0L) cleanupAndStop() else refreshSleepTimer()
+    }
+    private val clearDiagnosticCallback = Runnable { ledController.setDiagnosticFrame(null) }
     private var isBatterySaverActive: Boolean = false
     private var powerSaveReceiverRegistered: Boolean = false
     private var allowBackgroundRun: Boolean = false
@@ -392,6 +405,10 @@ class LEDService : Service() {
                 Intent.ACTION_SCREEN_OFF, Intent.ACTION_SCREEN_ON -> isScreenInteractive = readScreenInteractive()
                 else -> return
             }
+            if (SleepTimerStore.remaining(this@LEDService) == 0L) {
+                cleanupAndStop()
+                return
+            }
             if (!isStopping.get()) {
                 applyOutputLimits()
             }
@@ -435,7 +452,9 @@ class LEDService : Service() {
 
     private fun applyOutputLimits() {
         ledController.setOutputBrightnessLimit(
-            outputLimits.resolve(currentBatterySaverBrightness, isBatterySaverActive, isScreenInteractive)
+            outputLimits.resolve(
+                currentBatterySaverBrightness, isBatterySaverActive, isScreenInteractive, outputMuted
+            )
         )
     }
 
@@ -485,6 +504,7 @@ class LEDService : Service() {
         allowBackgroundRun = keepRunning
         currentBatterySaverBrightness = prefs.getBoolean(PREF_BATTERY_SAVER_BRIGHTNESS, false)
         outputLimits = LedOutputLimits.fromStoredValues(prefs.all)
+        outputMuted = ServiceRecoveryStore.isMuted(this)
         registerPowerSaveStateReceiver()
         applyOutputLimits()
         registerBatteryStateReceiver()
@@ -508,6 +528,32 @@ class LEDService : Service() {
         if (intent.action != null && !isRunning) {
             stopSelf()
             return START_NOT_STICKY
+        }
+
+        if (intent.action == ACTION_SET_MUTED) {
+            outputMuted = intent.getBooleanExtra(EXTRA_MUTED, outputMuted)
+            ServiceRecoveryStore.setMuted(this, outputMuted)
+            applyOutputLimits()
+            updateForegroundNotification()
+            DuoFrostWidget.refreshFrom(this)
+            return restartMode()
+        }
+        if (intent.action == ACTION_SLEEP_TIMER) {
+            val minutes = intent.getIntExtra(EXTRA_TIMER_MINUTES, -1)
+            if (minutes == 0) SleepTimerStore.cancel(this)
+            else if (minutes in 1..120) SleepTimerStore.set(this, minutes)
+            refreshSleepTimer()
+            updateForegroundNotification()
+            return restartMode()
+        }
+        if (intent.action == ACTION_LED_TEST) {
+            val step = intent.getIntExtra(EXTRA_TEST_STEP, -1)
+            handler.removeCallbacks(clearDiagnosticCallback)
+            ledController.setDiagnosticFrame(LedDiagnosticFrame.steps.getOrNull(step))
+            if (step in LedDiagnosticFrame.steps.indices) {
+                handler.postDelayed(clearDiagnosticCallback, 60_000L)
+            }
+            return restartMode()
         }
 
         if (intent.action == ACTION_UPDATE_PARAMS) {
@@ -574,6 +620,7 @@ class LEDService : Service() {
             currentBatterySaverBrightness
         )
         outputLimits = LedOutputLimits.fromStoredValues(prefs.all)
+        outputMuted = ServiceRecoveryStore.isMuted(this)
         applyOutputLimits()
 
         acceptProjectionConsent(intent)
@@ -584,6 +631,12 @@ class LEDService : Service() {
         isRunning = true
         ServiceRecoveryStore.recordStarted(this, intent)
         DuoFrostTileService.refreshFrom(this)
+        DuoFrostWidget.refreshFrom(this)
+        // A new full configuration ends any temporary diagnostic overlay.
+        handler.removeCallbacks(clearDiagnosticCallback)
+        ledController.setDiagnosticFrame(null, redraw = false)
+        refreshSleepTimer()
+        if (isStopping.get()) return START_NOT_STICKY
         // Arm after the start command: an onCreate callback can run before
         // isRunning becomes true and otherwise terminate the watchdog forever.
         handler.removeCallbacks(activityCheckRunnable)
@@ -678,6 +731,17 @@ class LEDService : Service() {
         return if (isRunning && !isStopping.get() && keepRunning &&
             ServiceRecoveryStore.isDesiredRunning(this)
         ) START_STICKY else START_NOT_STICKY
+    }
+
+    private fun refreshSleepTimer() {
+        handler.removeCallbacks(sleepTimerCallback)
+        val remaining = SleepTimerStore.remaining(this) ?: return
+        if (remaining == 0L) {
+            cleanupAndStop()
+        } else {
+            handler.postDelayed(sleepTimerCallback, remaining)
+            SleepTimerStore.rearm(this)
+        }
     }
 
     private fun acceptProjectionConsent(intent: Intent): Boolean {
@@ -1397,6 +1461,8 @@ class LEDService : Service() {
 
     override fun onTaskRemoved(rootIntent: Intent?) {
         super.onTaskRemoved(rootIntent)
+        handler.removeCallbacks(clearDiagnosticCallback)
+        ledController.setDiagnosticFrame(null)
         if (!allowBackgroundRun) {
             cleanupAndStop()
         }
@@ -1417,6 +1483,8 @@ class LEDService : Service() {
         dismissProjectionPromptNotification()
         handler.removeCallbacksAndMessages(null)
         DuoFrostTileService.refreshFrom(this)
+        DuoFrostWidget.refreshFrom(this)
+        ledController.setDiagnosticFrame(null, redraw = false)
         releasePipboyWakeLock()
         stopCurrentAnimation()
         clearMediaProjection()
@@ -1447,6 +1515,8 @@ class LEDService : Service() {
         waitingForProjectionConsent = false
         dismissProjectionPromptNotification()
         DuoFrostTileService.refreshFrom(this)
+        DuoFrostWidget.refreshFrom(this)
+        ledController.setDiagnosticFrame(null, redraw = false)
         allowBackgroundRun = false
         isTransitioning.set(false)
         activeExternalOverride = null
@@ -1493,6 +1563,12 @@ class LEDService : Service() {
         val mainPendingIntent =
             PendingIntent.getActivity(this, 0, mainIntent, PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
 
+        val mutePendingIntent = PendingIntent.getService(this, 2,
+            Intent(this, LEDService::class.java).apply {
+                action = ACTION_SET_MUTED
+                putExtra(EXTRA_MUTED, !outputMuted)
+            }, PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
+
         return Notification.Builder(this, CHANNEL_ID)
             .setContentTitle("DuoFrost is active")
             .setContentText(if (waitingForProjectionConsent) "Open DuoFrost to resume screen capture" else "LED control is running in the background")
@@ -1501,12 +1577,21 @@ class LEDService : Service() {
             .setLargeIcon(BitmapFactory.decodeResource(resources, R.mipmap.ic_launcher_foreground))
             .setContentIntent(mainPendingIntent)
             .addAction(android.R.drawable.ic_delete, "Stop", stopPendingIntent)
+            .addAction(android.R.drawable.ic_lock_silent_mode, if (outputMuted) "Unmute" else "Mute", mutePendingIntent)
             .setOnlyAlertOnce(true)
             .setOngoing(currentPersistentNotification)
             .build()
     }
 
     private fun resolveNotificationSubText(): String {
+        val remaining = SleepTimerStore.remaining(this)
+        if (remaining != null && remaining > 0) {
+            val end = java.time.Instant.ofEpochMilli(System.currentTimeMillis() + remaining)
+                .atZone(java.time.ZoneId.systemDefault()).toLocalTime()
+                .format(java.time.format.DateTimeFormatter.ofPattern("HH:mm"))
+            return (if (outputMuted) "Muted · " else "") + "Sleep timer: $end"
+        }
+        if (outputMuted) return "LED output muted; effects remain active"
         return if (waitingForProjectionConsent) {
             "Screen capture permission needed"
         } else if (isDevicePluggedIn && currentBatteryOverrideWhenPlugged) {

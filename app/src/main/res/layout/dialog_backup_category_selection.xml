@@ -102,5 +102,11 @@
                 app:trackTint="@color/switch_track_tint" />
         </LinearLayout>
 
+        <com.google.android.material.switchmaterial.SwitchMaterial
+            android:id="@+id/backupSettingsSwitch"
+            android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:text="@string/backup_settings_label" android:textColor="@color/bifrost_text"
+            android:textSize="12sp" app:thumbTint="@color/switch_thumb_tint"
+            app:trackTint="@color/switch_track_tint" />
     </LinearLayout>
 </com.google.android.material.card.MaterialCardView>

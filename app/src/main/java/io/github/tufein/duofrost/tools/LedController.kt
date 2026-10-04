@@ -29,6 +29,15 @@ class LedController {
     // hardware wire field cannot enforce this limit on the Thor.
     @Volatile private var outputBrightnessLimit = 255
     private val frameCache = LedFrameCache()
+    private var diagnosticFrame: LedDiagnosticFrame? = null
+
+    fun setDiagnosticFrame(frame: LedDiagnosticFrame?, redraw: Boolean = true) {
+        lock.withLock {
+            if (frame == null && diagnosticFrame != null) frameCache.prepareAllZonesForRestore()
+            diagnosticFrame = frame
+            if (redraw) emitCachedFrame()
+        }
+    }
 
     init {
         pServerBinder = try {
@@ -60,6 +69,7 @@ class LedController {
         lock.withLock {
             val color = (r shl 16) or (g shl 8) or b
             frameCache.update(color, color, zoneMask(leftTop, leftBottom, rightTop, rightBottom))
+            if (diagnosticFrame != null) return
             emit(r, g, b, br, leftTop, leftBottom, rightTop, rightBottom)
         }
     }
@@ -128,6 +138,7 @@ class LedController {
                 (rr shl 16) or (rg shl 8) or rb,
                 zoneMask(leftTop, leftBottom, rightTop, rightBottom)
             )
+            if (diagnosticFrame != null) return
             emitDual(lr, lg, lb, rr, rg, rb, br, leftTop, leftBottom, rightTop, rightBottom)
         }
     }
@@ -190,12 +201,15 @@ class LedController {
     // Caller holds lock: redraw the last raw color independently for all four
     // zones, so a dual-color or partial-zone frame survives cap/fade changes.
     private fun emitCachedFrame() {
-        if (pServerBinder == null || frameCache.zoneMask == 0) return
+        val diagnostic = diagnosticFrame
+        val zones = if (diagnostic != null) 15 else frameCache.zoneMask
+        if (pServerBinder == null || zones == 0) return
         val command = StringBuilder(256)
-        val scale = masterScale
+        val scale = if (diagnostic != null) 1f else masterScale
         for (zone in 0..3) {
-            if ((frameCache.zoneMask and (1 shl zone)) == 0) continue
-            val color = BatterySaverBrightness.limitRgb(frameCache.colorAt(zone), outputBrightnessLimit)
+            if ((zones and (1 shl zone)) == 0) continue
+            val color = diagnostic?.colorAt(zone, outputBrightnessLimit)
+                ?: BatterySaverBrightness.limitRgb(frameCache.colorAt(zone), outputBrightnessLimit)
             val red = (((color ushr 16) and 255) * scale).roundToInt().coerceIn(0, 255)
             val green = (((color ushr 8) and 255) * scale).roundToInt().coerceIn(0, 255)
             val blue = ((color and 255) * scale).roundToInt().coerceIn(0, 255)

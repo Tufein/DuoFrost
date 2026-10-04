@@ -40,6 +40,8 @@ object BackgroundDiagnostics {
             appendLine("Desired running: ${readValue { ServiceRecoveryStore.isDesiredRunning(appContext) }}")
             appendLine("Service running: ${LEDService.isRunning}")
             appendLine("Waiting for capture permission: ${LEDService.isWaitingForCapturePermission}")
+            appendLine("LED output muted: ${readValue { ServiceRecoveryStore.isMuted(appContext) }}")
+            appendLine("Sleep timer remaining ms: ${readValue { SleepTimerStore.remaining(appContext) }}")
             appendLine("LED limits: ${readValue { LedOutputLimits.fromStoredValues(prefs.all) }}")
             appendLine("Battery Saver dimming enabled: ${readValue {
                 prefs.getBoolean(LEDService.PREF_BATTERY_SAVER_BRIGHTNESS, false)

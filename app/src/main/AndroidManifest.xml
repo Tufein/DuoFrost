@@ -56,6 +56,19 @@
         </activity>
 
         <activity android:name=".CreditsActivity" android:exported="false" />
+        <activity android:name=".LedTestActivity" android:exported="false" android:label="LED test" />
+        <activity android:name=".widgets.WidgetConfigureActivity" android:exported="true">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_CONFIGURE" />
+            </intent-filter>
+        </activity>
+        <receiver android:name=".widgets.DuoFrostWidget" android:exported="false">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data android:name="android.appwidget.provider" android:resource="@xml/duofrost_widget_info" />
+        </receiver>
+        <receiver android:name=".receivers.SleepTimerReceiver" android:exported="false" />
 
         <!-- First-run guide launched from MainActivity.onCreate. Must be
              declared or R8 (minifyEnabled) renames the class and startActivity

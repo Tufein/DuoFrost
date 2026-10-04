@@ -450,6 +450,7 @@ class PresetController(
         }
 
         prefs.edit().putString(PREF_KEY_PRESETS, array.toString()).apply()
+        io.github.tufein.duofrost.widgets.DuoFrostWidget.refreshFrom(activity)
     }
 
     private fun saveLastPresetName(name: String) {

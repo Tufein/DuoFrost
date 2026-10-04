@@ -9,7 +9,8 @@ data class LedOutputLimits(
     val screenOffEnabled: Boolean = false,
     val screenOffPercent: Int = 0
 ) {
-    fun resolve(batterySaverEnabled: Boolean, batterySaverActive: Boolean, interactive: Boolean): Int {
+    fun resolve(batterySaverEnabled: Boolean, batterySaverActive: Boolean, interactive: Boolean, muted: Boolean = false): Int {
+        if (muted) return 0
         var percent = maximumPercent.coerceIn(0, 100)
         if (batterySaverEnabled && batterySaverActive) {
             percent = minOf(percent, batterySaverPercent.coerceIn(0, 100))

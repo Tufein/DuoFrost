@@ -641,6 +641,7 @@
                     </LinearLayout>
 
                     <include layout="@layout/layout_led_output_limits" />
+                    <include layout="@layout/layout_quick_lighting_controls" />
 
                     <LinearLayout
                         android:layout_width="match_parent"
