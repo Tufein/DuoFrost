@@ -61,7 +61,7 @@ import io.github.tufein.duofrost.animations.StaticAnimation
 import io.github.tufein.duofrost.animations.StrobeAnimation
 import io.github.tufein.duofrost.external.ExternalOverrideState
 import io.github.tufein.duofrost.external.Terminator
-import io.github.tufein.duofrost.tools.BatterySaverBrightness
+import io.github.tufein.duofrost.tools.LedOutputLimits
 import io.github.tufein.duofrost.tools.Crossfade
 import io.github.tufein.duofrost.tools.LedController
 import io.github.tufein.duofrost.tools.PerformanceProfile
@@ -115,6 +115,7 @@ class LEDService : Service() {
         const val EXTRA_ADAPTIVE_BRIGHTNESS = "adaptiveBrightness"
         const val PREF_BATTERY_SAVER_BRIGHTNESS = "battery_saver_brightness_enabled"
         const val EXTRA_BATTERY_SAVER_BRIGHTNESS = "batterySaverBrightness"
+        const val EXTRA_REFRESH_OUTPUT_LIMITS = "refreshOutputLimits"
 
         const val EXTRA_EXTERNAL_CALLER_PACKAGE = "external.callerPackage"
         const val EXTRA_EXTERNAL_EFFECT = "external.effect"
@@ -210,6 +211,8 @@ class LEDService : Service() {
     private var currentPersistentNotification: Boolean = true
     private var currentAdaptiveBrightness: Boolean = false
     private var currentBatterySaverBrightness: Boolean = false
+    private var outputLimits = LedOutputLimits()
+    private var isScreenInteractive = true
     private var isBatterySaverActive: Boolean = false
     private var powerSaveReceiverRegistered: Boolean = false
     private var allowBackgroundRun: Boolean = false
@@ -384,12 +387,13 @@ class LEDService : Service() {
 
     private val powerSaveStateReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
-            if (intent?.action != PowerManager.ACTION_POWER_SAVE_MODE_CHANGED) return
-            val active = readBatterySaverState()
-            if (active == isBatterySaverActive) return
-            isBatterySaverActive = active
+            when (intent?.action) {
+                PowerManager.ACTION_POWER_SAVE_MODE_CHANGED -> isBatterySaverActive = readBatterySaverState()
+                Intent.ACTION_SCREEN_OFF, Intent.ACTION_SCREEN_ON -> isScreenInteractive = readScreenInteractive()
+                else -> return
+            }
             if (!isStopping.get()) {
-                applyBatterySaverBrightness()
+                applyOutputLimits()
             }
         }
     }
@@ -400,19 +404,27 @@ class LEDService : Service() {
         }.getOrDefault(isBatterySaverActive)
     }
 
+    private fun readScreenInteractive(): Boolean = runCatching {
+        getSystemService(PowerManager::class.java)?.isInteractive ?: true
+    }.getOrDefault(isScreenInteractive)
+
     private fun registerPowerSaveStateReceiver() {
         if (powerSaveReceiverRegistered) return
         powerSaveReceiverRegistered = runCatching {
             ContextCompat.registerReceiver(
                 this,
                 powerSaveStateReceiver,
-                IntentFilter(PowerManager.ACTION_POWER_SAVE_MODE_CHANGED),
+                IntentFilter(PowerManager.ACTION_POWER_SAVE_MODE_CHANGED).apply {
+                    addAction(Intent.ACTION_SCREEN_OFF)
+                    addAction(Intent.ACTION_SCREEN_ON)
+                },
                 ContextCompat.RECEIVER_NOT_EXPORTED
             )
         }.isSuccess
         // Register before the snapshot so a power-mode change cannot be missed
         // between the initial read and mounting the event-driven observer.
         isBatterySaverActive = readBatterySaverState()
+        isScreenInteractive = readScreenInteractive()
     }
 
     private fun unregisterPowerSaveStateReceiver() {
@@ -421,9 +433,9 @@ class LEDService : Service() {
         powerSaveReceiverRegistered = false
     }
 
-    private fun applyBatterySaverBrightness() {
+    private fun applyOutputLimits() {
         ledController.setOutputBrightnessLimit(
-            BatterySaverBrightness.resolve(255, currentBatterySaverBrightness, isBatterySaverActive)
+            outputLimits.resolve(currentBatterySaverBrightness, isBatterySaverActive, isScreenInteractive)
         )
     }
 
@@ -472,8 +484,9 @@ class LEDService : Service() {
         keepRunning = ServiceRecoveryStore.isKeepRunningEnabled(prefs)
         allowBackgroundRun = keepRunning
         currentBatterySaverBrightness = prefs.getBoolean(PREF_BATTERY_SAVER_BRIGHTNESS, false)
+        outputLimits = LedOutputLimits.fromStoredValues(prefs.all)
         registerPowerSaveStateReceiver()
-        applyBatterySaverBrightness()
+        applyOutputLimits()
         registerBatteryStateReceiver()
         refreshBatteryStateSnapshot()
         mountScreenBrightnessObserver()
@@ -560,7 +573,8 @@ class LEDService : Service() {
             EXTRA_BATTERY_SAVER_BRIGHTNESS,
             currentBatterySaverBrightness
         )
-        applyBatterySaverBrightness()
+        outputLimits = LedOutputLimits.fromStoredValues(prefs.all)
+        applyOutputLimits()
 
         acceptProjectionConsent(intent)
         val hasProjectionConsent = lastProjectionData != null ||
@@ -728,10 +742,15 @@ class LEDService : Service() {
             )
             if (enabled != currentBatterySaverBrightness) {
                 currentBatterySaverBrightness = enabled
-                applyBatterySaverBrightness()
+                applyOutputLimits()
             }
             // A global output-limit change must not replace external colors or
             // unsuppress a stopped app profile. Process it before color resets.
+            globalParameterCount++
+        }
+        if (intent.hasExtra(EXTRA_REFRESH_OUTPUT_LIMITS)) {
+            outputLimits = LedOutputLimits.fromStoredValues(prefs.all)
+            applyOutputLimits()
             globalParameterCount++
         }
         if (intent.extras?.size() == globalParameterCount) return

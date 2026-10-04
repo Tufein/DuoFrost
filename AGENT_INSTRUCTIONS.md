@@ -47,3 +47,7 @@ This document contains instructions for autonomous coding agents.
     and rearm schedule alarms before attempting a potentially rejected service start.
 20. Background diagnostics are bounded, user-triggered metadata only. Do not add
     polling, restart alarms or permanent wake locks to bypass system Stop/Force stop.
+21. Combine global, Battery Saver and screen-off ceilings by taking the minimum,
+    never multiplying limits or brightening dim sources. Keep raw zone colors for
+    sleep/wake redraws. Observe Android interactive state via broadcasts and an
+    initial snapshot; lid position is not equivalent to device sleep on every Thor.

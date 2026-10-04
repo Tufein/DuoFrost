@@ -85,7 +85,14 @@
     <string name="repository_url" translatable="false">https://github.com/Tufein/DuoFrost</string>
     <string name="credits_no_browser">Install a browser to open the repository.</string>
     <string name="battery_saver_brightness_label">BATTERY SAVER LED DIMMING</string>
-    <string name="battery_saver_brightness_description">Limit LED output to 25% while Android Battery Saver is on. Normal brightness returns when it is off.</string>
+    <string name="battery_saver_brightness_description">Use the Battery Saver limit below while Android Battery Saver is on.</string>
+    <string name="led_output_maximum_label">MAXIMUM LED OUTPUT</string>
+    <string name="led_output_maximum_description">A ceiling for every effect and app profile. Lower limits never brighten an already dim color. 0% keeps the service running with LEDs off.</string>
+    <string name="led_output_battery_label">BATTERY SAVER LIMIT</string>
+    <string name="led_output_screen_off_label">DIM WHEN SCREEN IS OFF</string>
+    <string name="led_output_screen_off_description">Apply the screen-off limit when Android puts the device to sleep. Wake restores normal output. Thor lid behavior depends on its system settings.</string>
+    <string name="led_output_screen_off_limit_label">SCREEN-OFF LIMIT</string>
+    <string name="led_output_percent">%1$d%%</string>
     <string name="quick_settings_tile_add">Add DuoFrost to Quick Settings</string>
     <string name="quick_settings_tile_added">DuoFrost was added to Quick Settings. Use the tile to switch lighting on or off.</string>
     <string name="quick_settings_tile_already_added">The DuoFrost tile is already in Quick Settings.</string>

@@ -640,6 +640,8 @@
                             app:trackTint="@color/switch_track_tint" />
                     </LinearLayout>
 
+                    <include layout="@layout/layout_led_output_limits" />
+
                     <LinearLayout
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"

@@ -18,10 +18,11 @@ DuoFrost is an independent GPLv3 continuation of [BiFrost](https://github.com/Po
 - Optional LED dimming during Android Battery Saver and easy Quick Settings tile setup.
 - Background lighting after Clear all, safe service recovery, battery settings
   shortcuts and a shareable background status report.
+- Adjustable overall/Battery Saver output ceilings and optional screen-off dimming.
 
 ## Install
 
-Download `DuoFrost-1.2.0.apk` from the releases page, open it on your Thor and
+Download `DuoFrost-1.3.0.apk` from the releases page, open it on your Thor and
 follow the first-run guide. Enable only the features and permissions you need.
 For updates through Obtainium, use:
 
@@ -36,7 +37,29 @@ Ambient and audio effects need capture access. Screen/audio samples are processe
 locally; captured content is not recorded or uploaded by these lighting effects.
 Background lighting requires the foreground service to remain active.
 
-## New in 1.2.0
+## New in 1.3.0
+
+In **Settings → Behavior**:
+
+- **Maximum LED output:** set a 0–100% ceiling across effects, app profiles and
+  third-party frames. 0% leaves the service running with its LED output off.
+- **Battery Saver limit:** choose 0–100% instead of the fixed 25% cap. Enable
+  **Battery Saver LED dimming** to activate it with Android Battery Saver.
+- **Dim when screen is off:** optionally use a separate 0–100% ceiling while
+  Android puts the device to sleep. Wake restores the other applicable limits.
+  Thor lid behavior depends on whether its firmware puts the device to sleep.
+
+The lowest active ceiling wins. Already dim colors stay dim, and changing a
+ceiling redraws the current colors without restarting effects or capture. Defaults
+preserve previous behavior: overall 100%, Battery Saver 25%, screen-off mode off.
+These settings survive app updates and service restoration without modifying
+individual presets. Background reports now include the limits and screen/power state.
+
+Install over an earlier DuoFrost release using the same signing certificate.
+Physical sleep/wake and LED output need Thor verification; see the
+[device checklist](IMPROVEMENTS.md) and [verification](VERIFICATION.md).
+
+## Added in 1.2.0
 
 - **Keep running in background:** enabled by default in Settings → Behavior.
   Closing DuoFrost through Recents or Clear all no longer stops its own LED

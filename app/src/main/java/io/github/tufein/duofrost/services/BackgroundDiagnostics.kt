@@ -10,6 +10,7 @@ import android.os.PowerManager
 import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.ContextCompat
 import io.github.tufein.duofrost.BuildConfig
+import io.github.tufein.duofrost.tools.LedOutputLimits
 import java.time.Instant
 
 /** Read-only metadata collected only when the user chooses to share a report. */
@@ -18,6 +19,7 @@ object BackgroundDiagnostics {
 
     fun buildReport(context: Context): String {
         val appContext = context.applicationContext ?: context
+        val prefs = appContext.getSharedPreferences("bifrost_prefs", Context.MODE_PRIVATE)
         return buildString {
             appendLine("DuoFrost background report")
             appendLine("Generated (UTC): ${readValue { Instant.now() }}")
@@ -38,6 +40,16 @@ object BackgroundDiagnostics {
             appendLine("Desired running: ${readValue { ServiceRecoveryStore.isDesiredRunning(appContext) }}")
             appendLine("Service running: ${LEDService.isRunning}")
             appendLine("Waiting for capture permission: ${LEDService.isWaitingForCapturePermission}")
+            appendLine("LED limits: ${readValue { LedOutputLimits.fromStoredValues(prefs.all) }}")
+            appendLine("Battery Saver dimming enabled: ${readValue {
+                prefs.getBoolean(LEDService.PREF_BATTERY_SAVER_BRIGHTNESS, false)
+            }}")
+            appendLine("Android Battery Saver active: ${readValue {
+                appContext.getSystemService(PowerManager::class.java)?.isPowerSaveMode
+            }}")
+            appendLine("Screen interactive: ${readValue {
+                appContext.getSystemService(PowerManager::class.java)?.isInteractive
+            }}")
             appendLine("Battery optimization exempt: ${readValue {
                 appContext.getSystemService(PowerManager::class.java)
                     ?.isIgnoringBatteryOptimizations(appContext.packageName)

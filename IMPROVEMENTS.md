@@ -3,7 +3,21 @@
 This is a modified GPLv3 version of Pollux-MoonBench/Bifrost, based on
 upstream commit `1baddf1` (1.3.1). Original authorship and license are retained.
 
-## New in 1.2.0
+## New in 1.3.0
+
+- Global LED output ceiling from 0–100%, applied to actual RGB writes across
+  all effects, app profiles and third-party output.
+- Adjustable Android Battery Saver ceiling; 25% remains the upgrade default.
+- Optional screen-off ceiling, with a default of 0% when enabled. Android sleep
+  and wake broadcasts update the current frame; no new polling or wake lock.
+- The lowest active ceiling wins. Raw independent zone colors are retained,
+  so wake and limit changes redraw without restarting animation or capture.
+- Ceiling changes use a dedicated parameter update before preset/profile reset
+  paths. Settings are loaded on normal starts, scheduled starts and recovery.
+- Invalid stored types fall back to defaults and integer percentages are bounded.
+- Background reports include ceiling settings, screen state and Battery Saver state.
+
+## Added in 1.2.0
 
 - Background use is enabled by default and independent of boot auto-start or
   the external API. Recents removal no longer intentionally stops lighting.
@@ -67,6 +81,24 @@ upstream commit `1baddf1` (1.3.1). Original authorship and license are retained.
 - GitHub Actions runs unit tests and builds a debug APK on pushes and pull requests.
 
 ## On-device verification still required
+
+For 1.3.0, check the controls in **Settings → Behavior**:
+
+1. Set Maximum LED output to 40% during Static, Rainbow and Ambient. Check both
+   sticks, including different left/right colors and a dim preset. Colors must
+   stay distinct; a dim source must not become brighter. Return to 100%.
+2. Enable Battery Saver LED dimming, set its limit to 10%, and toggle Android
+   Battery Saver. Check that 25% still appears after upgrading with no new setting.
+3. Enable screen-off dimming at 0%, turn the screen off, then wake. LEDs should
+   go dark and restore their current colors while the service remains wanted.
+   Repeat at 15%, during Android Battery Saver and with an overall 10% ceiling.
+4. Close/open the Thor lid. This option follows Android device sleep; if Thor
+   keeps a display awake when closed, it should not be treated as screen-off.
+   Android may separately pause or revoke a capture session during device sleep.
+5. During an external LED effect, change a ceiling. The effect and its independent
+   colors must remain active until the existing lease/terminator ends.
+6. Set overall output to 0%, close the app, reopen it and restore 100%. The
+   service should stay active. Explicit Stop must still keep it stopped.
 
 For 1.2.0, first test the reported Clear all problem:
 

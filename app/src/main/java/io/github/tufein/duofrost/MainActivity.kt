@@ -86,6 +86,7 @@ import io.github.tufein.duofrost.schedule.ScheduleStore
 import io.github.tufein.duofrost.services.VideoLiveWallpaperService
 import io.github.tufein.duofrost.tools.CrashReporter
 import io.github.tufein.duofrost.tools.DeviceInfo
+import io.github.tufein.duofrost.tools.LedOutputLimits
 import io.github.tufein.duofrost.tools.PerformanceProfile
 import io.github.tufein.duofrost.ui.AnimatedRainbowDrawable
 import io.github.tufein.duofrost.ui.DuoFrostAlertDialog
@@ -838,6 +839,7 @@ class MainActivity : AppCompatActivity() {
         setupPersistentNotificationSwitch()
         setupAdaptiveBrightnessSwitch()
         setupBatterySaverBrightnessSwitch()
+        setupOutputLimitControls()
         setupLowBatteryAlertSwitch()
         setupLowBatteryAlertSeekBar()
         setupDisableLowBatteryAlertWhileChargingSwitch()
@@ -3206,6 +3208,7 @@ class MainActivity : AppCompatActivity() {
         batterySaverBrightnessSwitch.isChecked = selectedBatterySaverBrightness
         batterySaverBrightnessSwitch.setOnCheckedChangeListener { _, isChecked ->
             selectedBatterySaverBrightness = isChecked
+            findViewById<SeekBar>(R.id.batterySaverLimitSeekBar).isEnabled = isChecked
             prefs.edit().putBoolean(LEDService.PREF_BATTERY_SAVER_BRIGHTNESS, isChecked).apply()
             if (LEDService.isRunning) {
                 startService(Intent(this, LEDService::class.java).apply {
@@ -3214,6 +3217,52 @@ class MainActivity : AppCompatActivity() {
                 })
             }
         }
+    }
+
+    private fun setupOutputLimitControls() {
+        val limits = LedOutputLimits.fromStoredValues(prefs.all)
+        fun bindLimit(seekBarId: Int, labelId: Int, key: String, initial: Int) {
+            val seekBar = findViewById<SeekBar>(seekBarId)
+            val label = findViewById<TextView>(labelId)
+            seekBar.max = 100
+            seekBar.progress = initial
+            label.text = getString(R.string.led_output_percent, initial)
+            seekBar.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
+                override fun onProgressChanged(bar: SeekBar?, progress: Int, fromUser: Boolean) {
+                    label.text = getString(R.string.led_output_percent, progress)
+                    if (!fromUser) return
+                    prefs.edit().putInt(key, progress).apply()
+                    refreshServiceOutputLimits()
+                }
+                override fun onStartTrackingTouch(bar: SeekBar?) = Unit
+                override fun onStopTrackingTouch(bar: SeekBar?) = Unit
+            })
+        }
+        bindLimit(R.id.maximumOutputSeekBar, R.id.maximumOutputValue,
+            LedOutputLimits.PREF_MAXIMUM, limits.maximumPercent)
+        bindLimit(R.id.batterySaverLimitSeekBar, R.id.batterySaverLimitValue,
+            LedOutputLimits.PREF_BATTERY_SAVER, limits.batterySaverPercent)
+        findViewById<SeekBar>(R.id.batterySaverLimitSeekBar).isEnabled = selectedBatterySaverBrightness
+        bindLimit(R.id.screenOffLimitSeekBar, R.id.screenOffLimitValue,
+            LedOutputLimits.PREF_SCREEN_OFF, limits.screenOffPercent)
+        val screenOffSlider = findViewById<SeekBar>(R.id.screenOffLimitSeekBar)
+        screenOffSlider.isEnabled = limits.screenOffEnabled
+        findViewById<SwitchMaterial>(R.id.screenOffDimmingSwitch).apply {
+            isChecked = limits.screenOffEnabled
+            setOnCheckedChangeListener { _, enabled ->
+                screenOffSlider.isEnabled = enabled
+                prefs.edit().putBoolean(LedOutputLimits.PREF_SCREEN_OFF_ENABLED, enabled).apply()
+                refreshServiceOutputLimits()
+            }
+        }
+    }
+
+    private fun refreshServiceOutputLimits() {
+        if (!LEDService.isRunning) return
+        startService(Intent(this, LEDService::class.java).apply {
+            action = LEDService.ACTION_UPDATE_PARAMS
+            putExtra(LEDService.EXTRA_REFRESH_OUTPUT_LIMITS, true)
+        })
     }
 
     private fun setupLowBatteryAlertSwitch() {
