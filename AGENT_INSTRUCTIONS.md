@@ -73,3 +73,10 @@ This document contains instructions for autonomous coding agents.
 29. Visible runtime status uses private events, not periodic polling. Register
     only for the visible activity and synchronize controls without user callbacks.
     Global adaptive/notification updates must also precede profile reset paths.
+
+30. Public documentation has only Version 1 and Version 2 in CHANGELOG.md. Keep
+    implementation, build and API detail in technical.md; retain GPLv3 credits.
+    The public Version 2 deliberately retains the signed 1.5.1 APK unchanged.
+    Never rename an APK's internal version by altering its manifest after signing,
+    or replace the signing key to bypass a missing original keystore. Future
+    rebuilds need the original key or an explicit migration decision.

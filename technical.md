@@ -1,8 +1,184 @@
-# Integrating with DuoFrost
+# DuoFrost technical notes
+
+This document collects build, lifecycle, capture, API and maintainer information.
+For installation and features, see [README](README.md). The public release history
+is limited to [Version 1 and Version 2](CHANGELOG.md).
+
+## Upstream and public numbering
+
+DuoFrost is based on BiFrost 1.3.1, commit `1baddf1`, with the original Git history,
+authorship and GPLv3 license retained. Version 1 corresponds to the original
+DuoFrost 1.0.0 build. Version 2 consolidates all development through build 1.5.1. At the maintainer's
+request the original tested, signed APK is retained unchanged: Android displays
+`1.5.1`, with version code `22`. The public release name and tag are `DuoFrost 2`
+and `v2`; no new signing key or differently signed build is introduced.
+Its compiled implementation is from commit `dc8fc3db61d9e8ad3e1ee5fa4c9fe5ec7c239bca`;
+the public `v2` source snapshot adds the consolidated documentation and screenshots
+to that same application code.
+Intermediate development releases are archived locally by the maintainer and
+removed from the public release list. Their implementation remains in Git history.
+
+## Android identity and upgrades
+
+- Application ID and API namespace: `io.github.tufein.duofrost`.
+- Minimum Android version: 13 (SDK 33); compile/target SDK 36.
+- Separate installation from BiFrost; only one hardware LED controller should run.
+- Legacy archive schema identifiers are retained for import compatibility.
+- Debug builds use `io.github.tufein.duofrost.debug`.
+- Existing DuoFrost APKs share this signing certificate SHA-256:
+  `a0402863156665d4c6401bbb4a632c574978aca7000281196fc3cfa2cfc3b201`.
+- Version code must increase for a rebuilt release; the retained Version 2 build uses 22.
+
+## Build and automated verification
+
+Use JDK 17, Gradle 8.13 and Android SDK 36:
+
+```sh
+bash gradlew --no-daemon :app:testDebugUnitTest :app:assembleDebug :app:assembleRelease
+```
+
+The 2026-10-04 build record reports **164 JVM tests passed**, no failures,
+errors or skipped tests, optimized signed release build and release-critical
+Android lint passed. Signature verification used RSA 3072 and APK Signature
+Scheme v2. GitHub Actions builds a debug APK and runs tests on pushes and PRs.
+Keys and passwords are never committed or placed in CI artifacts.
+The original private signing key is unavailable in this checkout; the unchanged
+public Version 2 APK keeps its original certificate. A future rebuilt update
+requires recovering that key or explicitly documenting a signing migration.
+The publication cleanup changes documentation and release presentation;
+it does not add lighting behavior.
+
+## Device validation
+
+On 2026-10-05 the maintainer reported completing the on-device testing before
+public publication. This is the maintainer's report, separate from the recorded
+JVM and build checks. UI screenshots are captured from an Android emulator;
+they show the real app interface, not physical LED output on a Thor.
+
+For future releases, repeat the relevant scenarios:
+
+- Start followed immediately by Home/Clear all; background option on and off.
+- Explicit Stop in app, widget, tile and notification; Stop after process loss.
+- Timer expiry/replacement/cancellation, process restoration, sleep and reboot.
+- Mute during Ambient and dual-color effects; stale mute after Stop.
+- Multiple widgets, favorites, preset rename/delete/import and capture cancellation.
+- Six-step LED test, timeout/close and restoration of all zones.
+- Thor top/bottom-screen launches preserving widget/tile/capture-resume requests.
+- RGB ceilings, Battery Saver, screen sleep/wake and dim-source hue preservation.
+- Backup types, old archives and selective Settings restoration during active output.
+- Ambient purple/pink sampling, repeated capture sessions and revoked consent.
+- Schedule weekdays, overnight rules, all-day rules and DST transitions.
+- Opening/updating after Stop, boot schedule priority and app-profile changes.
+
+Android Force stop blocks service restoration until the app is opened again.
+Firmware can kill background work; recovery is best effort. Capture after actual
+process death requires new Android consent. Sleep can defer timer alarms.
+An ADB force-stop is not a valid sticky-process-recovery test.
+
+## Background service and capture
+
+Background continuation is enabled by default and independent from boot auto-start.
+Wanted-running state is durable and separate from exported preferences. Explicit
+Stop is saved before shutdown; onDestroy alone is not interpreted as user intent.
+Sticky recovery restores only a validated base configuration and current schedules.
+Capture tokens, external leases and transient profile decisions are never persisted.
+
+Configuration updates apply inside the active service. Adaptive brightness,
+notification and ceiling changes precede profile-reset paths. Opening the app
+preserves an active capture session. Initial Start is dispatched while the activity
+is visible; Thor display relaunches retain the request intent and bounded retry guard.
+Visible status uses private events; widgets update only on relevant events.
+There is no added status polling, restart alarm or permanent wake lock.
+
+Android 14+ MediaProjection consent is single-use. Recovery waits as a specialUse
+foreground service for fresh consent; boot never replays a capture token. Failed
+or revoked capture cleans up and requests consent without crashing the LED service.
+Accessibility callbacks from previous sessions are discarded; hardware buffers
+are closed on failures and aliased/scaled bitmaps are recycled once after processing.
+Negative HSV hue is normalized and custom single-color sampling retains a grid.
+Screen/audio samples for lighting are processed locally, not recorded or uploaded.
+
+Stop and timer expiry issue one best-effort black frame if the service is already
+absent and wanted state is off. This clears retained hardware output without starting
+a service, retrying indefinitely or creating restart work.
+
+## Output limits, mute and diagnostic frames
+
+Thor ignores the brightness wire field, so output caps scale actual RGB values.
+The minimum of overall, Battery Saver and screen-off ceilings applies. Raw colors
+remain separate by zone, preserve hue and allow redraws without capture restart.
+A dim source is never brightened. Defaults are overall 100%, Battery Saver 25%
+and optional screen-off dimming disabled. Android interactive state follows sleep/wake
+broadcasts; closing the lid does not guarantee sleep on every firmware.
+
+Mute suppresses RGB output while preserving effects/capture; explicit Stop clears
+mute. Diagnostic frames are overlays, capped at 25% and respecting mute/ceilings.
+Current raw frames remain underneath; exit, timeout or shutdown restores them and
+blacks zones the underlying effect did not write.
+
+## Timer, schedules, widgets and backups
+
+Sleep timers use elapsed-time deadlines, survive process restoration and end at
+reboot. Expired timers block recovery. Their one-shot alarm only stops lighting,
+never starts a foreground service; explicit Stop cancels timer state and alarm.
+Choices are 5/15/30/60/120 minutes; notification cancellation leaves lighting running.
+
+Schedules use ISO weekdays Monday=1 through Sunday=7. Overnight rules belong to
+the starting day; legacy rules without weekdays apply daily. Local calendar
+midnights and absolute instants account for repeated/skipped DST times. Empty
+weekday selections are rejected and every next alarm is strictly in the future.
+Boot schedules take precedence over auto-start; alarms are rearmed before service actions.
+
+Widgets have distinct immutable PendingIntents per action and widget, private
+receivers and a declared configuration activity. Capture starts through the visible
+app with fresh consent. Mute never starts stopped lighting. Favorites refresh after
+imports, rename/deletion and reopening the app.
+
+Settings backup uses a typed whitelist independent of presets, themes and images.
+Older archives without Settings preserve current preferences. Grants, running
+state, mute, timers and widget host IDs are excluded. Ceilings, background continuation,
+adaptive brightness and persistent notification apply live after restore; other
+service options apply at the next normal start.
+
+## Plugin catalog
+
+The [repository-owned catalog](plugins/catalog.json) starts empty until integrations
+are verified against DuoFrost's own package/API. BiFrost-only integrations do not
+automatically control DuoFrost. The preset archive schema remains compatible.
+
+## Release signing and publication
+
+
+Repository: https://github.com/Tufein/DuoFrost
+Android identity: `io.github.tufein.duofrost`
+
+1. Increment `versionCode` for each published APK and update `versionName`.
+2. Use JDK 17, run JVM tests and build the release variant.
+3. Configure a **gitignored** `keystore.properties` file:
+
+   ```properties
+   storeFile=/absolute/private/path/duofrost-release.jks
+   storePassword=YOUR_PRIVATE_PASSWORD
+   keyAlias=duofrost
+   keyPassword=YOUR_PRIVATE_PASSWORD
+   ```
+
+4. Sign every future release with the same DuoFrost key. Keep an independent,
+   private backup of the keystore and its passwords. A different key cannot
+   update an installed release in place. Do not commit these files.
+5. Verify the APK with `apksigner verify --verbose --print-certs`.
+6. Tag the exact tested source and publish the APK with a SHA-256 checksum and
+   release notes. GitHub's source archive for that tag is the corresponding
+   GPLv3 source; do not publish APK-only releases.
+
+CI intentionally uses debug signing and does not receive release keys.
+
+## Integration API
+
 
 DuoFrost exposes a broadcast-based IPC API that lets other apps on the device drive its LEDs — flashing police lights during a car chase, matching the LED colour to a character's health bar, setting a preset for your launcher wallpaper, reacting to in-game events in real time. It is entirely opt-in: the user must enable **"Allow third-party LED control"** in DuoFrost settings before any command is accepted.
 
-> **Minimum DuoFrost version:** 1.0.0
+> **Available since public Version 1**
 > **API version:** 1  
 > **Min Android SDK for callers:** 33 (same as DuoFrost itself)
 
@@ -392,7 +568,7 @@ object DuoFrost {
         putExtra(DuoFrostApi.EXTRA_COLOR_RIGHT, colorRight)
         putExtra(DuoFrostApi.EXTRA_INTENSITY,   intensity.coerceIn(0, 255))
         putExtra(DuoFrostApi.EXTRA_SPEED,       speed.coerceIn(0f, 1f))
-        putExtra(DuoFrostApi.EXTRA_DURATION_MS, durationMs.coerceIn(1L, DuoFrostApi.MAX_DURATION_MS))
+        putExtra(DuoFrostApi.EXTRA_DURATION_MS, durationMs.coerceIn(1L, MAX_DURATION_MS))
         putExtra(DuoFrostApi.EXTRA_PRIORITY,    priority.coerceIn(0, 100))
         requestId?.let { putExtra(DuoFrostApi.EXTRA_REQUEST_ID, it.take(64)) }
     }
