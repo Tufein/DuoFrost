@@ -7,10 +7,13 @@ import android.Manifest
 import android.app.ActivityOptions
 import android.app.StatusBarManager
 import android.app.WallpaperManager
+import android.content.BroadcastReceiver
 import android.content.ComponentName
+import android.content.Context
 import android.content.SharedPreferences
 import android.content.res.ColorStateList
 import android.content.Intent
+import android.content.IntentFilter
 import android.content.pm.PackageManager
 import android.graphics.Color
 import android.graphics.drawable.GradientDrawable
@@ -76,6 +79,7 @@ import io.github.tufein.duofrost.services.DuoFrostAccessibilityService
 import io.github.tufein.duofrost.services.DuoFrostTileService
 import io.github.tufein.duofrost.services.HeimdallStartupManager
 import io.github.tufein.duofrost.services.LEDService
+import io.github.tufein.duofrost.services.LightingStateEvents
 import io.github.tufein.duofrost.services.LiveWallpaperSettingsManager
 import io.github.tufein.duofrost.services.ServiceController
 import io.github.tufein.duofrost.services.ServiceRecoveryStore
@@ -342,6 +346,14 @@ class MainActivity : AppCompatActivity() {
     private var titleIntroAnimator: ValueAnimator? = null
     private var headerSettleAnimator: ValueAnimator? = null
     private var isAppInitialized = false
+    private var lightingStateReceiverRegistered = false
+    private val lightingStateReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context?, intent: Intent?) {
+            if (lightingStateReceiverRegistered && intent?.action == LightingStateEvents.ACTION_CHANGED) {
+                syncVisibleLightingState()
+            }
+        }
+    }
     private var bifrostTitleLabel: String = ""
     private var selectedCoverFlowIndex: Int = 0
     private var coverFlowSnapRunnable: Runnable? = null
@@ -887,6 +899,7 @@ class MainActivity : AppCompatActivity() {
         setupColoredLogoSwitch()
         setupRainbowTitleText()
         setupPresetFeature()
+        DuoFrostWidget.refreshFrom(this)
         updateParameterVisibility()
         enableRainbowBackground(LEDService.isRunning)
         showFirstLaunchAlertIfNeeded()
@@ -2427,6 +2440,38 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    override fun onStart() {
+        super.onStart()
+        if (!lightingStateReceiverRegistered) {
+            lightingStateReceiverRegistered = runCatching {
+                ContextCompat.registerReceiver(
+                    this,
+                    lightingStateReceiver,
+                    IntentFilter(LightingStateEvents.ACTION_CHANGED),
+                    ContextCompat.RECEIVER_NOT_EXPORTED
+                )
+            }.isSuccess
+        }
+        // Mount first so a service change cannot fall between the snapshot and
+        // registration. Permission prompts retain their existing pending UI.
+        if (!isAwaitingPermissionResult) syncVisibleLightingState()
+    }
+
+    override fun onStop() {
+        if (lightingStateReceiverRegistered) {
+            lightingStateReceiverRegistered = false
+            runCatching { unregisterReceiver(lightingStateReceiver) }
+        }
+        super.onStop()
+    }
+
+    private fun syncVisibleLightingState() {
+        if (!isAppInitialized) return
+        syncServiceToggle(LEDService.isRunning)
+        enableRainbowBackground(LEDService.isRunning)
+        refreshBackgroundStatus()
+    }
+
     override fun onResume() {
         super.onResume()
         if (!isAppInitialized) return
@@ -2444,6 +2489,7 @@ class MainActivity : AppCompatActivity() {
 
             if (::presetController.isInitialized) {
                 presetController.reloadFromPrefs()
+                DuoFrostWidget.refreshFrom(this)
             }
 
             if (prefs.getBoolean(PREF_LIVE_WALLPAPER_RESTORE_SETTINGS, false)) {
@@ -3218,7 +3264,10 @@ class MainActivity : AppCompatActivity() {
             prefs.edit().putBoolean(PREF_PERSISTENT_NOTIFICATION, isChecked).apply()
 
             if (LEDService.isRunning && !serviceController.isServiceTransitioning) {
-                sendLiveUpdateToLedService()
+                startService(Intent(this, LEDService::class.java).apply {
+                    action = LEDService.ACTION_UPDATE_PARAMS
+                    putExtra(LEDService.EXTRA_PERSISTENT_NOTIFICATION, isChecked)
+                })
             }
         }
     }
@@ -3232,7 +3281,10 @@ class MainActivity : AppCompatActivity() {
             prefs.edit().putBoolean(PREF_ADAPTIVE_BRIGHTNESS, isChecked).apply()
 
             if (LEDService.isRunning && !serviceController.isServiceTransitioning) {
-                sendLiveUpdateToLedService()
+                startService(Intent(this, LEDService::class.java).apply {
+                    action = LEDService.ACTION_UPDATE_PARAMS
+                    putExtra(LEDService.EXTRA_ADAPTIVE_BRIGHTNESS, isChecked)
+                })
             }
         }
     }
@@ -3315,7 +3367,7 @@ class MainActivity : AppCompatActivity() {
             mainHandler.postDelayed({ refreshQuickLightingControls() }, 150L)
         }
         findViewById<MaterialButton>(R.id.sleepTimerButton).setOnClickListener {
-            val minutes = intArrayOf(0, 15, 30, 60, 120)
+            val minutes = intArrayOf(0, 5, 15, 30, 60, 120)
             val options = minutes.map { if (it == 0) getString(R.string.sleep_timer_cancel)
                 else getString(R.string.sleep_timer_minutes, it) }.toTypedArray()
             AlertDialog.Builder(this).setTitle(R.string.sleep_timer_title).setItems(options) { _, index ->
@@ -3535,7 +3587,8 @@ class MainActivity : AppCompatActivity() {
 
         if (currentDisplayId == targetDisplayId) return false
 
-        val newIntent = Intent(this, MainActivity::class.java).apply {
+        // Keep pending widget/tile/capture actions when moving to Thor's other screen.
+        val newIntent = Intent(intent).setClass(this, MainActivity::class.java).apply {
             addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
             putExtra(EXTRA_DISPLAY_RELAUNCH_ATTEMPT, attempt + 1)
         }
@@ -3955,6 +4008,20 @@ class MainActivity : AppCompatActivity() {
         }
 
         if (backupResult.errors.isEmpty()) {
+            DuoFrostWidget.refreshFrom(this)
+            if (backupResult.appliedOptions.settings && LEDService.isRunning) {
+                startService(Intent(this, LEDService::class.java).apply {
+                    action = LEDService.ACTION_UPDATE_PARAMS
+                    putExtra(LEDService.EXTRA_ALLOW_BACKGROUND_RUN, ServiceRecoveryStore.isKeepRunningEnabled(prefs))
+                    putExtra(LEDService.EXTRA_BATTERY_SAVER_BRIGHTNESS,
+                        prefs.getBoolean(LEDService.PREF_BATTERY_SAVER_BRIGHTNESS, false))
+                    putExtra(LEDService.EXTRA_ADAPTIVE_BRIGHTNESS,
+                        prefs.getBoolean(PREF_ADAPTIVE_BRIGHTNESS, false))
+                    putExtra(LEDService.EXTRA_PERSISTENT_NOTIFICATION,
+                        prefs.getBoolean(PREF_PERSISTENT_NOTIFICATION, true))
+                    putExtra(LEDService.EXTRA_REFRESH_OUTPUT_LIMITS, true)
+                })
+            }
             val categorySummary = describeBackupCategories(backupResult.appliedOptions)
             val warningText = if (backupResult.warnings.isEmpty()) {
                 "Categories: $categorySummary\n\nRestore completed successfully."
@@ -3971,15 +4038,6 @@ class MainActivity : AppCompatActivity() {
                 negativeLabelResId = null,
                 cancelable = true,
                 onConfirm = {
-                    if (backupResult.appliedOptions.settings && LEDService.isRunning) {
-                        startService(Intent(this, LEDService::class.java).apply {
-                            action = LEDService.ACTION_UPDATE_PARAMS
-                            putExtra(LEDService.EXTRA_ALLOW_BACKGROUND_RUN, ServiceRecoveryStore.isKeepRunningEnabled(prefs))
-                            putExtra(LEDService.EXTRA_BATTERY_SAVER_BRIGHTNESS,
-                                prefs.getBoolean(LEDService.PREF_BATTERY_SAVER_BRIGHTNESS, false))
-                            putExtra(LEDService.EXTRA_REFRESH_OUTPUT_LIMITS, true)
-                        })
-                    }
                     recreate()
                 }
             )

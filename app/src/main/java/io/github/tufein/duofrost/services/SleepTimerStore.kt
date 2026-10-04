@@ -54,8 +54,7 @@ object SleepTimerStore {
 
     fun expireIfDue(context: Context): Boolean {
         if (remaining(context) != 0L) return false
-        ServiceRecoveryStore.markStopped(context)
-        context.stopService(Intent(context, LEDService::class.java))
+        LightingStopper.stop(context)
         return true
     }
 

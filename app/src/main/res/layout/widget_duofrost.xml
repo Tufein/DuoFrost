@@ -12,6 +12,8 @@
         <Button android:id="@+id/widgetStop" android:layout_width="0dp" android:layout_height="48dp"
             android:layout_weight="1" android:text="@string/widget_stop" android:textColor="#FFFFFF" android:backgroundTint="#39344D" />
     </LinearLayout>
+    <Button android:id="@+id/widgetMute" android:layout_width="match_parent" android:layout_height="48dp"
+        android:text="@string/widget_mute" android:textColor="#FFFFFF" android:backgroundTint="#39344D" />
     <Button android:id="@+id/widgetFavorite" android:layout_width="match_parent" android:layout_height="48dp"
         android:singleLine="true" android:ellipsize="end" android:text="@string/widget_choose_preset"
         android:textColor="#FFFFFF" android:backgroundTint="#59417F" />

@@ -51,27 +51,22 @@ class ServiceController(
     fun startDebounced(createIntent: () -> Intent) {
         if (isOperationInProgress) return
         beginOperationWindow()
-        val token = operationToken
-
-        pendingServiceOperation = Runnable {
-            if (token != operationToken) return@Runnable
-            try {
-                activity.startService(createIntent())
-            } finally {
-                finishOperationWindowWithGraceDelay()
-            }
+        // Dispatch an authorized Start before onPause can cancel UI work.
+        // Closing the app immediately afterwards must leave a real foreground
+        // service for the continuation/recovery policy to manage.
+        try {
+            ContextCompat.startForegroundService(activity.applicationContext, createIntent())
+        } finally {
+            finishOperationWindowWithGraceDelay()
         }
-
-        handler.postDelayed(pendingServiceOperation!!, 100)
     }
 
     fun stopDebounced() {
         cancelPendingOperations()
         beginOperationWindow()
         // A requested Stop must survive onPause cancelling pending UI work.
-        ServiceRecoveryStore.markStopped(activity)
         try {
-            activity.stopService(Intent(activity, LEDService::class.java))
+            LightingStopper.stop(activity)
         } finally {
             finishOperationWindowWithGraceDelay()
         }

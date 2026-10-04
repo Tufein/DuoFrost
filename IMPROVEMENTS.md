@@ -3,7 +3,28 @@
 This is a modified GPLv3 version of Pollux-MoonBench/Bifrost, based on
 upstream commit `1baddf1` (1.3.1). Original authorship and license are retained.
 
-## New in 1.5.0
+## New in 1.5.1
+
+- Home-widget mute/unmute uses a private, per-widget immutable action with an
+  explicit target state. Stopped or recovering lighting is never started by mute.
+- Sleep timer adds a 5-minute choice and notification cancellation. Both use the
+  existing elapsed-time timer; no new alarms or polling are introduced.
+- Initial Start is dispatched while the activity is visible, rather than waiting
+  for a callback that onPause could cancel. Existing operation grace is retained.
+- Explicit Stop and timer expiry clear retained hardware output with one bounded
+  black-frame write when no service exists. The off path never starts a service.
+- Visible controls receive private runtime-state events for start, stop, mute,
+  timer and capture changes. State synchronization does not call user toggles.
+- Thor display relaunches keep the original intent so widget favorites, tile
+  start and capture-resume requests reach the selected screen.
+- Widgets refresh on app initialization/resume and successful backup import,
+  including removed favorites, without periodic updates.
+- Adaptive brightness and persistent-notification updates apply before profile
+  reset paths and send only their own parameter. Successful Settings restores
+  apply those values, ceilings and background continuation before the result
+  dialog, preserving active capture and external output.
+
+## Added in 1.5.0
 
 - Sleep timer with 15/30/60/120-minute choices and cancel. One elapsed-time
   callback and one inexact user-requested stop alarm; no restart alarm or polling.
@@ -103,6 +124,29 @@ upstream commit `1baddf1` (1.3.1). Original authorship and license are retained.
 - GitHub Actions runs unit tests and builds a debug APK on pushes and pull requests.
 
 ## On-device verification still required
+
+For 1.5.1:
+
+1. Tap Start and immediately go Home or use Clear all. The initial session should
+   exist and continue with background mode enabled. Repeat after capture consent.
+2. Set a 5-minute timer and keep DuoFrost visible. Expiry should turn the toggle
+   off and clear the timer text. Start again, set a timer and cancel it from the
+   notification; lighting should continue beyond the old deadline.
+3. Mute/unmute from two widgets and the notification during a capture effect.
+   Visible app/widget status should follow. After Stop, a stale mute action must
+   not restart lighting; normal Start should remain available.
+4. Kill only the app process, without force-stop, while lighting is on. Use widget
+   Stop or allow a timer to expire before restoration. Check that retained LEDs
+   go black and no service is started. This depends on Thor's hardware binder.
+5. Enable launching on the bottom screen. Start a widget favorite or tile, and
+   resume capture from its notification. The requested action should survive the
+   display move; cancelling capture must preserve existing lighting.
+6. During external output or a suppressed app profile, toggle adaptive brightness
+   and persistent notification. No preset should replace the active state. Restore
+   a Settings backup and check immediate ceilings/background/adaptive/notification
+   values; other service behavior applies on the next normal start.
+7. Restore profiles that remove a widget's favorite. The widget should offer a
+   new choice immediately, including after reopening the app.
 
 For 1.5.0:
 

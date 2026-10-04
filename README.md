@@ -24,7 +24,7 @@ DuoFrost is an independent GPLv3 continuation of [BiFrost](https://github.com/Po
 
 ## Install
 
-Download `DuoFrost-1.5.0.apk` from the releases page, open it on your Thor and
+Download `DuoFrost-1.5.1.apk` from the releases page, open it on your Thor and
 follow the first-run guide. Enable only the features and permissions you need.
 For updates through Obtainium, use:
 
@@ -39,7 +39,22 @@ Ambient and audio effects need capture access. Screen/audio samples are processe
 locally; captured content is not recorded or uploaded by these lighting effects.
 Background lighting requires the foreground service to remain active.
 
-## New in 1.5.0
+## New in 1.5.1
+
+- Mute/unmute directly from the home widget, without restarting stopped lighting.
+- A 5-minute sleep timer and a Cancel timer action in the ongoing notification.
+- Start is dispatched immediately so closing the app cannot cancel an unstarted
+  lighting session. Stop also sends a single black frame if the service is already
+  gone, clearing retained hardware output without starting a service.
+- Timer, mute and running status update while the app is visible through private
+  state events. No periodic status polling is added.
+- Thor screen relaunches retain pending widget, tile and capture-resume actions.
+- Widget favorites refresh after backup imports and when reopening the app.
+- Adaptive brightness and persistent-notification changes preserve the active
+  effect and app-profile suppression. Restored values apply immediately alongside
+  output ceilings and background continuation.
+
+## Added in 1.5.0
 
 - **Sleep timer:** in Settings → Behavior, stop lighting after 15, 30, 60 or
   120 minutes, or cancel the timer. It survives process restoration, uses elapsed
@@ -60,7 +75,8 @@ Background lighting requires the foreground service to remain active.
   dialog. Transfer ceilings, background continuation, boot startup, adaptive
   brightness, battery behavior and Thor display preferences independently of
   profiles, themes and images. Restored ceilings/background continuation apply
-  live; other service options take effect at the next start. Android permissions,
+  live, as do adaptive brightness and persistent-notification settings; other
+  service options take effect at the next start. Android permissions,
   timers, mute and running state remain local. Older backups retain current settings.
 
 Version 1.5.0 updates earlier DuoFrost APKs in place using the same certificate.

@@ -49,6 +49,27 @@ class ServiceRecoveryCodecTest {
         assertEquals(137, before.values["brightness"])
     }
 
+    @Test fun restoredGlobalBehaviorSurvivesRecoveryWithoutReplacingTheEffect() {
+        val before = ServiceRecoveryCodec.snapshot(base())!!
+        val after = ServiceRecoveryCodec.merge(before, mapOf(
+            "adaptiveBrightness" to true, "persistentNotification" to false,
+            "allowBackgroundRun" to true, "batterySaverBrightness" to false,
+            "refreshOutputLimits" to true
+        ))!!
+        val restored = ServiceRecoveryCodec.decode(ServiceRecoveryCodec.encode(after))!!
+        listOf("animationType", "animationColor", "animationRightColor", "brightness",
+            "batteryLowColorOverride", "ambientDisplayId").forEach {
+            assertEquals("global restore changed $it", before.values[it], restored.values[it])
+        }
+        assertEquals(true, restored.values["adaptiveBrightness"])
+        assertEquals(false, restored.values["persistentNotification"])
+        // Background continuation comes from the current preference, never an
+        // old base-effect snapshot. One-shot refresh commands are excluded too.
+        assertFalse(restored.values.containsKey("allowBackgroundRun"))
+        assertEquals(false, restored.values["batterySaverBrightness"])
+        assertFalse(restored.values.containsKey("refreshOutputLimits"))
+    }
+
     @Test fun invalidPartialUpdateIsRejectedWithoutChangingOriginal() {
         val before = ServiceRecoveryCodec.snapshot(base())!!
         assertNull(ServiceRecoveryCodec.merge(before, mapOf("brightness" to 256, "speed" to 0.1f)))

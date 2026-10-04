@@ -1,12 +1,10 @@
 package io.github.tufein.duofrost.schedule
 
 import android.content.Context
-import android.content.Intent
 import android.util.Log
 import androidx.core.content.ContextCompat
 import io.github.tufein.duofrost.services.HeimdallStartupManager
-import io.github.tufein.duofrost.services.LEDService
-import io.github.tufein.duofrost.services.ServiceRecoveryStore
+import io.github.tufein.duofrost.services.LightingStopper
 import java.time.ZonedDateTime
 
 object ScheduleApplier {
@@ -49,10 +47,7 @@ object ScheduleApplier {
             }
 
             ScheduleAction.TurnOff -> {
-                ServiceRecoveryStore.markStopped(context)
-                if (LEDService.isRunning) {
-                    context.stopService(Intent(context, LEDService::class.java))
-                }
+                LightingStopper.stop(context)
             }
         }
 

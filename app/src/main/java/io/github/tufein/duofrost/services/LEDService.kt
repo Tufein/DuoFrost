@@ -222,6 +222,13 @@ class LEDService : Service() {
     private var outputLimits = LedOutputLimits()
     private var isScreenInteractive = true
     private var outputMuted = false
+    private data class VisibleLightingState(
+        val running: Boolean,
+        val waitingForCapture: Boolean,
+        val muted: Boolean,
+        val timerDeadline: Long?
+    )
+    private var lastPublishedLightingState: VisibleLightingState? = null
     private val sleepTimerCallback = Runnable {
         if (SleepTimerStore.remaining(this) == 0L) cleanupAndStop() else refreshSleepTimer()
     }
@@ -536,6 +543,7 @@ class LEDService : Service() {
             applyOutputLimits()
             updateForegroundNotification()
             DuoFrostWidget.refreshFrom(this)
+            publishLightingStateIfChanged()
             return restartMode()
         }
         if (intent.action == ACTION_SLEEP_TIMER) {
@@ -544,6 +552,7 @@ class LEDService : Service() {
             else if (minutes in 1..120) SleepTimerStore.set(this, minutes)
             refreshSleepTimer()
             updateForegroundNotification()
+            publishLightingStateIfChanged()
             return restartMode()
         }
         if (intent.action == ACTION_LED_TEST) {
@@ -558,6 +567,7 @@ class LEDService : Service() {
 
         if (intent.action == ACTION_UPDATE_PARAMS) {
             handleUpdateParams(intent)
+            publishLightingStateIfChanged()
             return restartMode()
         }
 
@@ -722,7 +732,20 @@ class LEDService : Service() {
             restartAnimationForCurrentState(force = true)
         }
 
+        publishLightingStateIfChanged()
         return restartMode()
+    }
+
+    private fun publishLightingStateIfChanged() {
+        val state = VisibleLightingState(
+            isRunning,
+            isWaitingForCapturePermission,
+            ServiceRecoveryStore.isMuted(this),
+            SleepTimerStore.read(this)?.deadline
+        )
+        if (state == lastPublishedLightingState) return
+        lastPublishedLightingState = state
+        LightingStateEvents.notifyChanged(this)
     }
 
     // Every parameter or external command must preserve the running service's
@@ -817,6 +840,22 @@ class LEDService : Service() {
             applyOutputLimits()
             globalParameterCount++
         }
+        if (intent.hasExtra(EXTRA_ADAPTIVE_BRIGHTNESS)) {
+            val enabled = intent.getBooleanExtra(EXTRA_ADAPTIVE_BRIGHTNESS, currentAdaptiveBrightness)
+            if (enabled != currentAdaptiveBrightness) {
+                currentAdaptiveBrightness = enabled
+                currentAnimation?.setTargetBrightness(effectiveBrightness())
+            }
+            globalParameterCount++
+        }
+        if (intent.hasExtra(EXTRA_PERSISTENT_NOTIFICATION)) {
+            val enabled = intent.getBooleanExtra(EXTRA_PERSISTENT_NOTIFICATION, currentPersistentNotification)
+            if (enabled != currentPersistentNotification) {
+                currentPersistentNotification = enabled
+                updateForegroundNotification()
+            }
+            globalParameterCount++
+        }
         if (intent.extras?.size() == globalParameterCount) return
         Log.d(TAG, "handleUpdateParams: received update, appProfileEnabled=${appProfileManager.isEnabled}")
         isAppProfileSuppressed = false
@@ -855,14 +894,6 @@ class LEDService : Service() {
             val newBrightness = intent.getIntExtra("brightness", currentBrightness).coerceIn(0, 255)
             currentBrightness = newBrightness
             animation?.setTargetBrightness(effectiveBrightness())
-        }
-
-        if (intent.hasExtra(EXTRA_ADAPTIVE_BRIGHTNESS)) {
-            val newAdaptive = intent.getBooleanExtra(EXTRA_ADAPTIVE_BRIGHTNESS, currentAdaptiveBrightness)
-            if (newAdaptive != currentAdaptiveBrightness) {
-                currentAdaptiveBrightness = newAdaptive
-                animation?.setTargetBrightness(effectiveBrightness())
-            }
         }
 
         if (intent.hasExtra("speed")) {
@@ -1039,16 +1070,6 @@ class LEDService : Service() {
             }
         }
 
-        if (intent.hasExtra(EXTRA_PERSISTENT_NOTIFICATION)) {
-            val newPersistentNotification = intent.getBooleanExtra(
-                EXTRA_PERSISTENT_NOTIFICATION,
-                currentPersistentNotification
-            )
-            if (newPersistentNotification != currentPersistentNotification) {
-                currentPersistentNotification = newPersistentNotification
-                updateForegroundNotification()
-            }
-        }
     }
 
     private fun restartAnimationForCurrentState(force: Boolean = false) {
@@ -1296,14 +1317,17 @@ class LEDService : Service() {
             isWaitingForCapturePermission = true
             updateForegroundNotification()
             showProjectionPromptNotification()
+            publishLightingStateIfChanged()
         }
     }
 
     private fun clearProjectionWait() {
+        val wasWaiting = waitingForProjectionConsent
         waitingForProjectionConsent = false
         isWaitingForCapturePermission = false
         dismissProjectionPromptNotification()
         updateForegroundNotification()
+        if (wasWaiting) publishLightingStateIfChanged()
     }
 
     private fun clearMediaProjection() {
@@ -1480,6 +1504,7 @@ class LEDService : Service() {
         isStopping.set(true)
         isRunning = false
         isWaitingForCapturePermission = false
+        publishLightingStateIfChanged()
         dismissProjectionPromptNotification()
         handler.removeCallbacksAndMessages(null)
         DuoFrostTileService.refreshFrom(this)
@@ -1513,6 +1538,7 @@ class LEDService : Service() {
         isRunning = false
         isWaitingForCapturePermission = false
         waitingForProjectionConsent = false
+        publishLightingStateIfChanged()
         dismissProjectionPromptNotification()
         DuoFrostTileService.refreshFrom(this)
         DuoFrostWidget.refreshFrom(this)
@@ -1569,7 +1595,7 @@ class LEDService : Service() {
                 putExtra(EXTRA_MUTED, !outputMuted)
             }, PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
 
-        return Notification.Builder(this, CHANNEL_ID)
+        val builder = Notification.Builder(this, CHANNEL_ID)
             .setContentTitle("DuoFrost is active")
             .setContentText(if (waitingForProjectionConsent) "Open DuoFrost to resume screen capture" else "LED control is running in the background")
             .setSubText(resolveNotificationSubText())
@@ -1580,7 +1606,16 @@ class LEDService : Service() {
             .addAction(android.R.drawable.ic_lock_silent_mode, if (outputMuted) "Unmute" else "Mute", mutePendingIntent)
             .setOnlyAlertOnce(true)
             .setOngoing(currentPersistentNotification)
-            .build()
+        if ((SleepTimerStore.remaining(this) ?: 0L) > 0L) {
+            val cancelTimer = PendingIntent.getService(this, 3,
+                Intent(this, LEDService::class.java).apply {
+                    action = ACTION_SLEEP_TIMER
+                    putExtra(EXTRA_TIMER_MINUTES, 0)
+                }, PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
+            builder.addAction(android.R.drawable.ic_menu_close_clear_cancel,
+                getString(R.string.sleep_timer_cancel), cancelTimer)
+        }
+        return builder.build()
     }
 
     private fun resolveNotificationSubText(): String {

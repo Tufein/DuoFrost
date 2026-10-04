@@ -11,6 +11,7 @@ import android.widget.RemoteViews
 import io.github.tufein.duofrost.MainActivity
 import io.github.tufein.duofrost.R
 import io.github.tufein.duofrost.services.LEDService
+import io.github.tufein.duofrost.services.LightingStopper
 import io.github.tufein.duofrost.services.ServiceRecoveryStore
 
 class DuoFrostWidget : AppWidgetProvider() {
@@ -20,10 +21,24 @@ class DuoFrostWidget : AppWidgetProvider() {
 
     override fun onReceive(context: Context, intent: Intent) {
         super.onReceive(context, intent)
-        if (intent.action == ACTION_STOP) {
-            ServiceRecoveryStore.markStopped(context)
-            context.stopService(Intent(context, LEDService::class.java))
-            refreshFrom(context)
+        when (intent.action) {
+            ACTION_STOP -> {
+                LightingStopper.stop(context)
+            }
+            ACTION_SET_MUTED -> {
+                // A stale launcher button must never restart stopped lighting.
+                if (ServiceRecoveryStore.isDesiredRunning(context) && LEDService.isRunning &&
+                    intent.hasExtra(LEDService.EXTRA_MUTED)) {
+                    val muted = intent.getBooleanExtra(LEDService.EXTRA_MUTED, false)
+                    runCatching {
+                        context.startService(Intent(context, LEDService::class.java).apply {
+                            action = LEDService.ACTION_SET_MUTED
+                            putExtra(LEDService.EXTRA_MUTED, muted)
+                        })
+                    }
+                }
+                refreshFrom(context)
+            }
         }
     }
 
@@ -35,6 +50,7 @@ class DuoFrostWidget : AppWidgetProvider() {
 
     companion object {
         private const val ACTION_STOP = "io.github.tufein.duofrost.widget.STOP"
+        private const val ACTION_SET_MUTED = "io.github.tufein.duofrost.widget.SET_MUTED"
         private fun prefs(context: Context) = context.getSharedPreferences("duofrost_widgets", Context.MODE_PRIVATE)
         fun saveFavorite(context: Context, id: Int, name: String) {
             prefs(context).edit().putString(id.toString(), name).commit()
@@ -77,6 +93,18 @@ class DuoFrostWidget : AppWidgetProvider() {
                 data = Uri.parse("duofrost://widget/$id/stop")
             }
             views.setOnClickPendingIntent(R.id.widgetStop, PendingIntent.getBroadcast(context, id, stop,
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE))
+            views.setTextViewText(R.id.widgetMute, context.getString(
+                if (muted) R.string.widget_unmute else R.string.widget_mute))
+            views.setContentDescription(R.id.widgetMute, context.getString(
+                if (muted) R.string.unmute_lighting else R.string.mute_lighting))
+            views.setBoolean(R.id.widgetMute, "setEnabled", enabled && LEDService.isRunning)
+            val mute = Intent(context, DuoFrostWidget::class.java).apply {
+                action = ACTION_SET_MUTED
+                data = Uri.parse("duofrost://widget/$id/mute")
+                putExtra(LEDService.EXTRA_MUTED, !muted)
+            }
+            views.setOnClickPendingIntent(R.id.widgetMute, PendingIntent.getBroadcast(context, id, mute,
                 PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE))
             val favoriteIntent = if (favorite != null) Intent(context, MainActivity::class.java).apply {
                 flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP

@@ -63,3 +63,13 @@ This document contains instructions for autonomous coding agents.
 25. Behavior backups use a typed whitelist and an explicit Settings category.
     Missing Settings in legacy archives must preserve current preferences.
     Never transfer wanted-running state, mute, timers, grants or widget host IDs.
+26. Dispatch an authorized initial foreground start while the activity is visible.
+    Do not let onPause cancel the only pending start before recovery state exists.
+27. Stop after process loss must also clear retained hardware output. Only issue
+    one black frame when no service was stopped, no service is running and wanted
+    state is off; never start a service or schedule retries just to clear LEDs.
+28. Thor display relaunches must retain pending widget/tile/capture actions and
+    the bounded retry guard. Do not replace the launch request with an empty intent.
+29. Visible runtime status uses private events, not periodic polling. Register
+    only for the visible activity and synchronize controls without user callbacks.
+    Global adaptive/notification updates must also precede profile reset paths.

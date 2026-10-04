@@ -9,7 +9,7 @@ import org.w3c.dom.Element
 class WidgetManifestTest {
     private val ns = "http://schemas.android.com/apk/res/android"
     private fun file(path: String): File {
-        var dir: File? = File(System.getProperty("user.dir"))
+        var dir: File? = File(System.getProperty("user.dir") ?: ".")
         repeat(5) {
             dir?.let { parent ->
                 for (prefix in listOf("", "app/")) {

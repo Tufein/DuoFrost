@@ -31,8 +31,7 @@ class DuoFrostTileService : TileService() {
     override fun onClick() {
         super.onClick()
         if (LEDService.isRunning) {
-            ServiceRecoveryStore.markStopped(this)
-            stopService(Intent(this, LEDService::class.java))
+            LightingStopper.stop(this)
             renderState(forcedRunning = false)
             return
         }
