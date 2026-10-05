@@ -1,0 +1,17 @@
+Use case: ads-marketing / compositing
+Asset: polished landscape Reddit announcement banner for DuoFrost 2.1.0, approximately 16:9, high resolution.
+Input image 1 is a STYLE REFERENCE: the previous navy, cyan and purple DuoFrost banner. Keep the same brand mood and restrained glowing LED arcs, but create a new layout and replace the old version number.
+Input image 2 is an AUTHENTIC APP SCREENSHOT of the preset selection screen. Input image 3 is an AUTHENTIC APP SCREENSHOT of ambient settings. Input image 4 is an AUTHENTIC APP SCREENSHOT of the custom sleep timer dialog. Use their actual UI content faithfully as screenshot inserts, preserving all displayed labels and controls. Do not invent or redraw an alternative app interface.
+Design: generous margins, strong readable typography, deep midnight navy background, frost-white title, thin cyan/purple highlights. Sparse large copy on the left and an elegant collage of the three app screenshots on the right. Give the home screenshot the largest panel. Use the ambient screenshot as a smaller portrait card and the timer screenshot as a smaller landscape card. Modest overlap and fine glowing borders are okay, but keep the defining UI content visible. Screens should look like clean app captures, not fictional device renders. Use understated icy texture and LED light trails as background accents; no fake handheld or Thor device silhouette.
+Exact main copy, no substitutions:
+"DUOFROST"
+"VERSION 2.1.0"
+"LED control for AYN devices"
+Feature copy, smaller but readable:
+"Ambient colors"
+"Audio-reactive effects"
+"Custom sleep timer"
+Footer:
+"github.com/Tufein/DuoFrost"
+Optional tiny panel caption: "App screenshots"
+Keep the main headline, version and AYN-device scope immediately legible at Reddit feed size. No Thor-only wording, no extra claims, no watermarks. Opaque background.

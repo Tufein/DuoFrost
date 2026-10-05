@@ -6,9 +6,9 @@ DuoFrost brings screen-matching colors, audio-reactive lighting and custom LED e
 
 An independent, open-source continuation of [BiFrost](https://github.com/Pollux-MoonBench/Bifrost), maintained by **Stefan van Den Broek (Tufein)**. The maintainer's device is **AYN Thor**.
 
-**[Download DuoFrost 2.1.0](https://github.com/Tufein/DuoFrost/releases/download/v2.1.0/DuoFrost-2.1.0.apk)** · [Release notes](https://github.com/Tufein/DuoFrost/releases/tag/v2.1.0) · [Report a problem](https://github.com/Tufein/DuoFrost/issues)
+**[Download Version 2 — stable](https://github.com/Tufein/DuoFrost/releases/download/v2/DuoFrost-2.apk)** · **[Try 2.1.0 — pre-release](https://github.com/Tufein/DuoFrost/releases/download/v2.1.0/DuoFrost-2.1.0.apk)** · [Report a problem](https://github.com/Tufein/DuoFrost/issues)
 
-**Updating from an older DuoFrost version? A one-time reinstall is required.** Export a full backup from the old app and save it outside the app **before uninstalling**. Then uninstall the old DuoFrost, install 2.1.0, import your backup and grant the permissions you need again. Keep your backup until you have checked the restore.
+**Trying 2.1.0 from an older DuoFrost version? A one-time reinstall is required.** Export a full backup from the old app and save it outside the app **before uninstalling**. Then uninstall the old DuoFrost, install 2.1.0, import your backup and grant the permissions you need again. Keep your backup until you have checked the restore.
 
 ![DuoFrost preset selection](assets/screenshots/home.png)
 
@@ -31,17 +31,17 @@ DuoFrost keeps BiFrost's ambient screen colors, audio-reactive effects, Ambi Aur
 
 - **Better background control:** keep lighting running after closing the app or using Clear all, with recovery controls when Android interrupts it.
 - **Brightness limits:** choose a maximum output, a Battery Saver limit and optional dimming when the screen is off.
-- **Sleep timer and temporary mute:** choose your own duration from 1 to 120 minutes, use a quick choice, or silence the LEDs while keeping the current effect ready to resume.
+- **Sleep timer and temporary mute:** use a timer quick choice or silence the LEDs while keeping the current effect ready to resume. The 2.1.0 pre-release adds custom durations from 1 to 120 minutes.
 - **Home-screen widgets:** Start/Stop, mute/unmute and a favorite preset without navigating through settings.
 - **More flexible schedules:** choose weekdays or weekends, including schedules that continue overnight.
 - **Small everyday conveniences:** an easier Quick Settings tile setup, a six-step LED test, and separate backup of lighting and background settings.
 - **Ambient fixes:** more faithful purple/pink colors, improved custom single-color sampling and more reliable capture cleanup.
-- **Audio and sharing fixes:** audio effects stop cleanly after capture errors and use fewer hardware calls. Safer preset imports, better detection of unsaved custom colors and clear export failures help protect your presets.
+- **Audio and sharing fixes in 2.1.0 pre-release:** audio effects stop cleanly after capture errors and use fewer hardware calls. Safer preset imports, better detection of unsaved custom colors and clear export failures help protect your presets.
 
 ## Get started
 
-1. If you already use DuoFrost, follow the backup and reinstall instructions above first.
-2. Download the APK from the [latest release](https://github.com/Tufein/DuoFrost/releases/latest).
+1. If you already use DuoFrost and want to try 2.1.0, follow the backup and reinstall instructions above first.
+2. Download the APK from [Version 2 (stable)](https://github.com/Tufein/DuoFrost/releases/tag/v2), or choose the [2.1.0 pre-release](https://github.com/Tufein/DuoFrost/releases/tag/v2.1.0) to try the fixes.
 3. Open it on your AYN device and follow the first-run guide.
 4. Pick an effect, adjust your colors and brightness, and enable only the permissions you need.
 
@@ -53,10 +53,11 @@ Ambient and audio effects need capture permission. These effects process samples
 
 ## Releases
 
-- **Version 2 and 2.1.0 pre-release:** all DuoFrost improvements in one release, including widgets, custom timers, mute, brightness limits, scheduling, background behavior and audio/preset/export fixes.
-- **Version 1:** the first DuoFrost release, focused on ambient color accuracy and capture stability.
+- **[2.1.0 fix update — pre-release](https://github.com/Tufein/DuoFrost/releases/tag/v2.1.0):** audio stability, safer preset imports, custom sleep timers and clearer export failures, building on Version 2.
+- **[Version 2](https://github.com/Tufein/DuoFrost/releases/tag/v2):** the original release with widgets, timer quick choices, mute, brightness limits, scheduling and background controls. Its original signed APK retains Android version 1.5.1.
+- **[Version 1](https://github.com/Tufein/DuoFrost/releases/tag/v1.0.0):** the first DuoFrost release, focused on ambient color accuracy and capture stability.
 
-See the [two-release changelog](CHANGELOG.md) for details and [technical.md](technical.md) for build instructions, implementation notes and Android behavior.
+See the [changelog](CHANGELOG.md) for details and [technical.md](technical.md) for build instructions, implementation notes and Android behavior.
 
 ## Open source and credits
 

@@ -2,22 +2,25 @@
 
 This document collects build, lifecycle, capture, API and maintainer information.
 For installation and features, see [README](README.md). The public release history
-is limited to [Version 1 and Version 2](CHANGELOG.md).
+includes [Version 1, the original Version 2 and the separate 2.1.0 fix update](CHANGELOG.md).
 
 ## Upstream and public numbering
 
 DuoFrost is based on BiFrost 1.3.1, commit `1baddf1`, with the original Git history,
 authorship and GPLv3 license retained. Version 1 corresponds to the original
-DuoFrost 1.0.0 build. Version 2 now ships Android version `2.1.0`, version code
-`23`, under tag `v2.1.0`. It combines the earlier Version 2 controls with the
-audio, preset, export and custom-timer improvements below.
+DuoFrost 1.0.0 build. The original Version 2 remains available under tag `v2`,
+with Android version `1.5.1` and version code `22`. The separate fix update
+ships Android version `2.1.0`, version code `23`, under tag `v2.1.0` as a
+pre-release. It builds on Version 2 with the audio, preset, export and
+custom-timer improvements below.
 
 The original `v2` publication contained the signed `1.5.1` APK (code `22`), built
 from commit `dc8fc3db61d9e8ad3e1ee5fa4c9fe5ec7c239bca`. On 2026-10-05 the maintainer
-explicitly approved a new private release key and replacing that publication
-with 2.1.0. Its old release metadata and assets are archived locally, and the
-original `v2` tag and Git history remain available. The earlier source/test
-`v2.1.0` tag object is archived before the tag is finalized for the public release.
+approved a new private release key for 2.1.0, then clarified that the original
+Version 2 must remain a separate public release. Its APK, source archive and
+checksums were restored byte-for-byte from the local archive; the original
+`v2` tag and Git history are unchanged. The earlier source/test `v2.1.0` tag
+object was archived before the tag was finalized for the public release.
 Intermediate development releases are archived locally by the maintainer and
 removed from the public release list. Their implementation remains in Git history.
 
@@ -69,9 +72,9 @@ Scheme v2. The release download includes SHA-256 checksums and matching source.
 
 ## DuoFrost 2.1.0 (2026-10-05)
 
-Version `2.1.0` (code `23`, tag `v2.1.0`) replaces the previous Version 2 APK.
-The public changelog remains Version 1 and Version 2; this is the updated
-Version 2 download, rather than a third release entry.
+Version `2.1.0` (code `23`, tag `v2.1.0`) is the separate fix pre-release following
+Version 2. Both original releases remain public; Version 2 is the latest stable
+release. The maintainer explicitly selected pre-release status for 2.1.0 on 2026-10-05.
 
 - Custom sleep timer entry accepts any whole number from 1 to 120 minutes, with
   the existing quick choices retained. Invalid input and cancellation preserve

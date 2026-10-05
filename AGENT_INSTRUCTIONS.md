@@ -74,10 +74,13 @@ This document contains instructions for autonomous coding agents.
     only for the visible activity and synchronize controls without user callbacks.
     Global adaptive/notification updates must also precede profile reset paths.
 
-30. Public documentation has only Version 1 and Version 2 in CHANGELOG.md. Keep
+30. Preserve Version 1, original Version 2 and the separate 2.1.0 fix update in
+    the public releases and CHANGELOG.md, as clarified by the user on 2026-10-05.
+    The user explicitly selected pre-release status for 2.1.0; v2 stays latest stable. Keep
     implementation, build and API detail in technical.md; retain GPLv3 credits.
     On 2026-10-05 the user explicitly approved a new private release signing key
-    and replacing public Version 2 with the regular production APK 2.1.0.
+    for the regular production APK 2.1.0. Original Version 2 keeps its exact
+    signed APK 1.5.1 under tag v2; do not replace it with the fix release.
     Older DuoFrost installations require a one-time backup and reinstall:
     instruct users to save a full backup outside the app before uninstalling,
     then install 2.1.0, import the backup and grant permissions again.
