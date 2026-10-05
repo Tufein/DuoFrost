@@ -1,8 +1,8 @@
 # DuoFrost
 
-**Make your AYN Thor lighting your own.**
+**Make your AYN device's lighting your own.**
 
-DuoFrost brings screen-matching colors, audio-reactive lighting and custom LED effects to your Thor, with practical controls for everyday use. Set your favorite look, keep it running in the background, dim it when you need to, or let a sleep timer turn it off.
+DuoFrost brings screen-matching colors, audio-reactive lighting and custom LED effects to AYN devices, with practical controls for everyday use. Set your favorite look, keep it running in the background, dim it when you need to, or let a sleep timer turn it off.
 
 An independent, open-source continuation of [BiFrost](https://github.com/Pollux-MoonBench/Bifrost), maintained by **Stefan van Den Broek (Tufein)**. Tested by the maintainer on **AYN Thor**.
 
@@ -38,7 +38,7 @@ DuoFrost keeps BiFrost's ambient screen colors, audio-reactive effects, Ambi Aur
 ## Get started
 
 1. Download the APK from the [latest release](https://github.com/Tufein/DuoFrost/releases/latest).
-2. Open it on your Thor and follow the first-run guide.
+2. Open it on your AYN device and follow the first-run guide.
 3. Pick an effect, adjust your colors and brightness, and enable only the permissions you need.
 
 For updates through Obtainium, add [this repository](https://github.com/Tufein/DuoFrost).

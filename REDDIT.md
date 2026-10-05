@@ -1,48 +1,28 @@
-# Reddit post draft
-
-## Title
-
-DuoFrost for AYN Thor: a BiFrost fork with widgets, sleep timers and better background controls
-
-## Post
+# DuoFrost 2 — LED control for AYN devices (BiFrost fork)
 
 Hey everyone,
 
-I've been working on **DuoFrost**, an independent fork of **BiFrost** for the **AYN Thor**, and I'm making the releases public after testing it on my Thor.
+I'm sharing DuoFrost 2, an open-source fork of BiFrost for AYN devices.
 
-BiFrost already does a lot well: ambient screen colors, audio-reactive effects, Ambi Aurora, separate stick colors, presets and app profiles. DuoFrost builds on that foundation with a few things I wanted for daily use:
+It keeps BiFrost's ambient screen colors, audio-reactive effects, separate stick colors, presets and app profiles, while adding some practical controls for everyday use.
 
-- Keep lighting running after closing the app or using Clear all, with controls to recover when Android interrupts it.
-- Set a maximum brightness, dim the LEDs with Battery Saver, or use a separate limit when the screen is off.
-- Add a sleep timer or temporarily mute the LEDs without losing the current effect.
-- Use home-screen widgets for Start/Stop, mute and a favorite preset.
-- Choose weekdays or weekends for schedules, and back up lighting/background settings separately.
+What's new or improved:
 
-There are also fixes for purple/pink ambient colors, custom single-color sampling and capture cleanup, plus a simple LED test.
+- Better background controls to keep lighting running after closing the app.
+- Adjustable brightness limits, Battery Saver dimming and optional screen-off dimming.
+- Sleep timers of 5, 15, 30, 60 or 120 minutes, plus temporary LED mute.
+- Home-screen widgets for Start/Stop, mute and your favorite preset.
+- Weekday/weekend schedules and separate backups of lighting and background settings.
+- Fixes for purple/pink ambient colors and capture stability, plus a simple LED test.
 
-I've kept the public release history to two versions: **Version 1** contains the initial ambient fixes, and **Version 2** brings all the later DuoFrost work together.
+I've tested it on my AYN Thor, and Version 2 is available now.
 
-**[Download the APK](https://github.com/Tufein/DuoFrost/releases/latest)**  
-**[Source and changelog](https://github.com/Tufein/DuoFrost)**
+Download: https://github.com/Tufein/DuoFrost/releases/latest
 
-If you're coming from BiFrost, export your presets, themes or backup and import them into DuoFrost. They can be installed alongside each other; use one LED controller at a time. Ambient/audio effects ask for the permissions they need, and samples are processed locally.
+Source and changelog: https://github.com/Tufein/DuoFrost
 
-Full credit to **Pollux / Pollux-MoonBench** and the BiFrost contributors for the original app. DuoFrost is open source under **GPLv3**, and forks and contributions are welcome.
+Coming from BiFrost? Export your presets, themes or backup and import them into DuoFrost. Both apps can be installed alongside each other; use one LED controller at a time.
 
-If you try it, I'd like to hear how it works on your Thor. Please include your DuoFrost version and the effect or setting involved when [reporting an issue](https://github.com/Tufein/DuoFrost/issues).
+Full credit to Pollux / Pollux-MoonBench and the BiFrost contributors for the original app. DuoFrost is released under GPLv3, and forks and contributions are welcome.
 
-— Stefan / Tufein
-
-## Screenshots to attach
-
-1. [Preset selection](assets/screenshots/home.png): the main lighting screen with sample presets.
-2. [Background controls](assets/screenshots/behaviour.png): background continuation controls.
-3. [Ambient settings](assets/screenshots/ambient-settings.png): screen-matching color controls.
-
-Suggested gallery caption: **DuoFrost's app interface, captured in an Android emulator with sample presets.**
-These show the actual released app. A photo of the Thor LEDs can be added separately.
-
-## Posting note
-
-The text above is ready to paste. This file is a draft; it has not been posted to Reddit.
-
+If you give it a try, let me know which AYN device you're using and what works well or needs improvement!
