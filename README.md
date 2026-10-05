@@ -53,7 +53,7 @@ Ambient and audio effects need capture permission. These effects process samples
 
 ## Releases
 
-- **Version 2 (2.1.0):** all DuoFrost improvements in one release, including widgets, custom timers, mute, brightness limits, scheduling, background behavior and audio/preset/export fixes.
+- **Version 2 and 2.1.0 pre-release:** all DuoFrost improvements in one release, including widgets, custom timers, mute, brightness limits, scheduling, background behavior and audio/preset/export fixes.
 - **Version 1:** the first DuoFrost release, focused on ambient color accuracy and capture stability.
 
 See the [two-release changelog](CHANGELOG.md) for details and [technical.md](technical.md) for build instructions, implementation notes and Android behavior.
