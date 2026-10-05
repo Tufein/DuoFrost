@@ -1,18 +1,19 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <color name="bifrost_bg">#0A0E1A</color>
-    <color name="bifrost_card">#12182B</color>
-    <color name="bifrost_surface">#1A2236</color>
-    <color name="bifrost_text">#E8EEFF</color>
+    <color name="bifrost_bg">#0D111B</color>
+    <color name="bifrost_card">#161D2B</color>
+    <color name="bifrost_surface">#202A3B</color>
+    <color name="bifrost_text">#F1F4FB</color>
     <color name="bifrost_icon">#FFFFFF</color>
-    <color name="bifrost_text_secondary">#7A8AA8</color>
-    <color name="bifrost_dropdown_bg">#1A2236</color>
-    <color name="bifrost_dialog_background">#12182B</color>
+    <color name="bifrost_text_secondary">#AAB6CC</color>
+    <color name="bifrost_dropdown_bg">#202A3B</color>
+    <color name="bifrost_dialog_background">#161D2B</color>
 
-    <color name="bifrost_glow_purple">#6366F1</color>
+    <color name="bifrost_glow_purple">#5965DB</color>
     <color name="bifrost_glow_cyan">#06B6D4</color>
     <color name="bifrost_glow_pink">#EC4899</color>
 
-    <color name="bifrost_accent">#6366F1</color>
-    <color name="bifrost_accent_light">#818CF8</color>
+    <color name="bifrost_accent">#5965DB</color>
+    <color name="bifrost_accent_light">#A2ACFF</color>
+    <color name="bifrost_outline">#35425A</color>
 </resources>

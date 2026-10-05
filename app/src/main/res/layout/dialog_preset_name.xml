@@ -1,42 +1,42 @@
 <?xml version="1.0" encoding="utf-8"?>
-<com.google.android.material.card.MaterialCardView xmlns:android="http://schemas.android.com/apk/res/android"
+<com.google.android.material.card.MaterialCardView
+    xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    app:cardCornerRadius="20dp"
+    app:cardCornerRadius="16dp"
     app:cardElevation="0dp"
     app:cardBackgroundColor="@color/bifrost_card"
-    android:layout_margin="16dp"
-    android:outlineAmbientShadowColor="@color/bifrost_glow_purple"
-    android:outlineSpotShadowColor="@color/bifrost_glow_purple">
+    android:layout_margin="16dp">
 
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="vertical"
-        android:padding="20dp"
-        android:background="@drawable/card_glow_bg">
+        android:padding="24dp"
+        android:background="@color/bifrost_card">
 
         <TextView
             android:id="@+id/dialogTitle"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="SAVE PRESET"
+            android:text="@string/gui_dialog_save_preset"
             android:textColor="@color/bifrost_text"
-            android:textSize="14sp"
+            android:textSize="22sp"
             android:textStyle="bold"
-            android:letterSpacing="0.08"
-            android:layout_marginBottom="4dp" />
+            android:layout_marginBottom="4dp"
+            android:accessibilityHeading="true"
+            android:lineSpacingExtra="3dp" />
 
         <TextView
             android:id="@+id/dialogSubtitle"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="Name this configuration for quick access"
+            android:text="@string/gui_dialog_save_preset_description"
             android:textColor="@color/bifrost_text_secondary"
-            android:textSize="11sp"
-            android:letterSpacing="0.05"
-            android:layout_marginBottom="16dp" />
+            android:textSize="14sp"
+            android:layout_marginBottom="16dp"
+            android:lineSpacingExtra="3dp" />
 
         <com.google.android.material.textfield.TextInputLayout
             android:id="@+id/presetNameInputLayout"
@@ -53,9 +53,9 @@
                 android:layout_height="wrap_content"
                 android:textColor="@color/bifrost_text"
                 android:textColorHint="@color/bifrost_text_secondary"
-                android:textSize="13sp" />
+                android:textSize="16sp"
+                android:minHeight="48dp" />
         </com.google.android.material.textfield.TextInputLayout>
-
 
         <com.google.android.material.button.MaterialButton
             android:id="@+id/presetCustomImageButton"
@@ -70,8 +70,9 @@
             app:iconGravity="textStart"
             app:iconPadding="8dp"
             app:iconTint="@color/bifrost_text"
-            app:strokeColor="@color/bifrost_accent"
-            app:strokeWidth="1dp" />
-
+            app:strokeColor="@color/bifrost_surface"
+            app:strokeWidth="1dp"
+            android:textSize="14sp"
+            android:minHeight="48dp" />
     </LinearLayout>
 </com.google.android.material.card.MaterialCardView>

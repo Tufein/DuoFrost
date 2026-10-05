@@ -1,16 +1,14 @@
 package io.github.tufein.duofrost.plugins
 
 import android.os.Bundle
-import android.view.Gravity
 import android.view.View
-import android.widget.Button
-import android.widget.CheckBox
 import android.widget.LinearLayout
-import android.widget.ScrollView
 import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
+import com.google.android.material.button.MaterialButton
 import io.github.tufein.duofrost.services.DuoFrostAccessibilityService
+import io.github.tufein.duofrost.ui.SecondaryScreenUi
 
 /**
  * The plugin store screen. Lists the catalogue, installs/updates/removes
@@ -31,7 +29,7 @@ class PluginStoreActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        title = "Plugin Store"
+        title = "Plugins"
         supportActionBar?.setDisplayHomeAsUpEnabled(true)
         setContentView(buildRoot())
         refreshCatalog()
@@ -42,43 +40,20 @@ class PluginStoreActivity : AppCompatActivity() {
     // ---- UI scaffold ----------------------------------------------------
 
     private fun buildRoot(): View {
-        val scroll = ScrollView(this)
-        val root = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            setPadding(dp(16), dp(16), dp(16), dp(16))
-        }
-        scroll.addView(root)
-
-        root.addView(TextView(this).apply {
-            text = "Plugins"
-            textSize = 22f
-            setPadding(0, 0, 0, dp(4))
-        })
-        root.addView(TextView(this).apply {
-            text = "Install LED packs for your games and apps. Updates are " +
-                "applied on demand; nothing is downloaded automatically."
-            textSize = 13f
-            alpha = 0.7f
-            setPadding(0, 0, 0, dp(12))
-        })
+        val (scroll, root) = SecondaryScreenUi.screen(this, "Plugins",
+            "Add lighting packs for your games and apps. You choose when to install or update them.")
 
         // "Check for updates at launch" toggle (mirrors the persisted setting).
-        root.addView(CheckBox(this).apply {
-            text = "Check for plugin updates at launch"
-            isChecked = PluginPrefs.checkUpdatesAtLaunch(prefs)
-            setOnCheckedChangeListener { _, checked ->
-                PluginPrefs.setCheckUpdatesAtLaunch(prefs, checked)
-            }
+        root.addView(SecondaryScreenUi.toggle(this, "Check for updates at launch",
+            PluginPrefs.checkUpdatesAtLaunch(prefs)) { checked ->
+            PluginPrefs.setCheckUpdatesAtLaunch(prefs, checked)
         })
 
-        root.addView(Button(this).apply {
-            text = "Refresh catalogue"
-            setOnClickListener { refreshCatalog() }
-        })
+        root.addView(SecondaryScreenUi.action(this, "Refresh catalogue", primary = true) { refreshCatalog() })
 
-        statusText = TextView(this).apply {
-            textSize = 13f
-            setPadding(0, dp(8), 0, dp(8))
+        statusText = SecondaryScreenUi.body(this, "").apply {
+            setPadding(0, dp(16), 0, dp(8))
+            accessibilityLiveRegion = View.ACCESSIBILITY_LIVE_REGION_POLITE
         }
         root.addView(statusText)
 
@@ -106,7 +81,7 @@ class PluginStoreActivity : AppCompatActivity() {
                         renderCatalog(result.catalog)
                     }
                     is PluginRepository.CatalogResult.Failure -> {
-                        statusText.text = "Couldn't load catalogue:\n${result.message}\n\nSource: $url"
+                        statusText.text = "Couldn't load plugins:\n${result.message}\n\nTry refreshing the catalogue again."
                     }
                 }
             }
@@ -119,7 +94,7 @@ class PluginStoreActivity : AppCompatActivity() {
             statusText.text = "No plugins in the catalogue yet."
             return
         }
-        statusText.text = "${catalog.plugins.size} plugin(s) available."
+        statusText.text = if (catalog.plugins.size == 1) "1 plugin available." else "${catalog.plugins.size} plugins available."
         catalog.plugins.forEach { listContainer.addView(pluginRow(it)) }
     }
 
@@ -127,53 +102,36 @@ class PluginStoreActivity : AppCompatActivity() {
         val installed = PluginPrefs.installedVersion(prefs, entry.id)
         val hasUpdate = installed != null && entry.version > installed
 
-        val card = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            setPadding(dp(12), dp(12), dp(12), dp(12))
-            val lp = LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT,
-                LinearLayout.LayoutParams.WRAP_CONTENT
-            ).apply { topMargin = dp(8) }
-            layoutParams = lp
-        }
+        val (card, content) = SecondaryScreenUi.card(this)
 
-        card.addView(TextView(this).apply {
-            text = "${entry.name}  ·  v${entry.versionName}"
-            textSize = 17f
+        content.addView(SecondaryScreenUi.body(this, entry.name, secondary = false).apply {
+            setTypeface(typeface, android.graphics.Typeface.BOLD)
         })
+        content.addView(SecondaryScreenUi.body(this, "Version ${entry.versionName}")
+            .apply { setPadding(0, dp(4), 0, 0) })
         if (entry.author.isNotBlank()) {
-            card.addView(TextView(this).apply {
-                text = "by ${entry.author}"
-                textSize = 12f
-                alpha = 0.6f
-            })
+            content.addView(SecondaryScreenUi.body(this, "By ${entry.author}"))
         }
         if (entry.description.isNotBlank()) {
-            card.addView(TextView(this).apply {
-                text = entry.description
-                textSize = 13f
-                setPadding(0, dp(4), 0, dp(4))
-            })
+            content.addView(SecondaryScreenUi.body(this, entry.description, secondary = false)
+                .apply { setPadding(0, dp(12), 0, dp(12)) })
         }
-        card.addView(TextView(this).apply {
-            text = when {
+        content.addView(SecondaryScreenUi.body(this,
+            when {
                 hasUpdate -> "Installed v$installed — update available"
                 installed != null -> "Installed"
                 else -> "Not installed"
-            }
-            textSize = 12f
-            alpha = 0.7f
-        })
+            }))
 
         // Per-plugin "mirror screen" toggle — only the Fallout plugin honours it,
         // and only once installed. ON = AMBIENT-mirror whichever display shows the
         // Pip-Boy instead of the event-driven feed (heavier; needs the a11y service).
         if (entry.id == PluginPrefs.FALLOUT_PLUGIN_ID && installed != null) {
-            card.addView(CheckBox(this).apply {
-                text = "Mirror bottom screen (heavier; needs accessibility)"
-                textSize = 13f
-                isChecked = PluginPrefs.isMirrorScreen(prefs, entry.id)
-                setOnCheckedChangeListener { _, checked ->
+            content.addView(SecondaryScreenUi.body(this,
+                "Screen mirroring uses more resources and needs Accessibility access.")
+                .apply { setPadding(0, dp(16), 0, 0) })
+            content.addView(SecondaryScreenUi.toggle(this, "Mirror bottom screen",
+                PluginPrefs.isMirrorScreen(prefs, entry.id)) { checked ->
                     PluginPrefs.setMirrorScreen(prefs, entry.id, checked)
                     toast(
                         when {
@@ -183,13 +141,12 @@ class PluginStoreActivity : AppCompatActivity() {
                             else -> "Mirror mode off"
                         }
                     )
-                }
             })
         }
 
         val buttons = LinearLayout(this).apply {
-            orientation = LinearLayout.HORIZONTAL
-            gravity = Gravity.END
+            orientation = LinearLayout.VERTICAL
+            setPadding(0, dp(12), 0, 0)
         }
         if (installed == null) {
             buttons.addView(actionButton("Install") { doInstall(entry) })
@@ -197,15 +154,12 @@ class PluginStoreActivity : AppCompatActivity() {
             if (hasUpdate) buttons.addView(actionButton("Update to v${entry.versionName}") { doInstall(entry) })
             buttons.addView(actionButton("Uninstall") { doUninstall(entry) })
         }
-        card.addView(buttons)
+        content.addView(buttons)
         return card
     }
 
-    private fun actionButton(label: String, onClick: () -> Unit): Button =
-        Button(this).apply {
-            text = label
-            setOnClickListener { onClick() }
-        }
+    private fun actionButton(label: String, onClick: () -> Unit): MaterialButton =
+        SecondaryScreenUi.action(this, label, onClick = onClick)
 
     // ---- actions --------------------------------------------------------
 

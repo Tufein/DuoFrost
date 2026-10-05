@@ -1,0 +1,27 @@
+<resources>
+    <style name="GuiHeading">
+        <item name="android:textColor">@color/bifrost_text</item>
+        <item name="android:textSize">20sp</item>
+        <item name="android:fontFamily">sans-serif-medium</item>
+        <item name="android:letterSpacing">0</item>
+    </style>
+    <style name="GuiBody">
+        <item name="android:textColor">@color/bifrost_text</item>
+        <item name="android:textSize">16sp</item>
+    </style>
+    <style name="GuiSecondary">
+        <item name="android:textColor">@color/bifrost_text_secondary</item>
+        <item name="android:textSize">14sp</item>
+    </style>
+    <style name="GuiButton" parent="Widget.Material3.Button.OutlinedButton">
+        <item name="android:minHeight">48dp</item>
+        <item name="android:textSize">14sp</item>
+        <item name="android:textAllCaps">false</item>
+        <item name="android:insetTop">0dp</item>
+        <item name="android:insetBottom">0dp</item>
+        <item name="android:textColor">@color/bifrost_text</item>
+        <item name="backgroundTint">@color/bifrost_surface</item>
+        <item name="strokeColor">@color/bifrost_outline</item>
+        <item name="cornerRadius">12dp</item>
+    </style>
+</resources>

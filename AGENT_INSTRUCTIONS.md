@@ -102,3 +102,15 @@ This document contains instructions for autonomous coding agents.
 33. Custom sleep timer input must validate the original whole-number value in
     the existing supported range; never silently truncate pasted values. Invalid
     input and Cancel preserve the current timer. Use theme-aware input colors.
+34. Browsing or filtering the preset library must never apply a lighting preset.
+    Filtered cards retain original storage indices and require explicit selection.
+    Read app-profile mode at click time; keep selected borders synchronized.
+35. Preserve editor drafts, destination and search across activity recreation,
+    without serializing capture grants or runtime state. Programmatic Spinner and
+    slider synchronization must not mutate drafts or issue lighting commands.
+    Skip already-selected Spinner callbacks and update slider models only for
+    user input. Keep unconsumed widget/tile/capture requests after recreation.
+36. Hide the home view from focus and accessibility while the editor is visible.
+    Respect system bars, cutouts and IME insets; keep short-screen content scrollable.
+    Use readable text, 48dp controls and contrasting swatch labels. Dashboard and
+    editor output ceilings share the same preference and minimal update command.

@@ -2,12 +2,14 @@ package io.github.tufein.duofrost
 
 import android.content.Intent
 import android.os.Bundle
+import android.view.ViewGroup
 import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import com.google.android.material.button.MaterialButton
 import io.github.tufein.duofrost.services.LEDService
 import io.github.tufein.duofrost.tools.LedDiagnosticFrame
+import io.github.tufein.duofrost.ui.SecondaryScreenUi
 
 class LedTestActivity : AppCompatActivity() {
     private var step = 0
@@ -15,6 +17,7 @@ class LedTestActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_led_test)
+        SecondaryScreenUi.applyInsets(findViewById<ViewGroup>(android.R.id.content).getChildAt(0))
         step = (savedInstanceState?.getInt("step") ?: 0).coerceIn(LedDiagnosticFrame.steps.indices)
         findViewById<MaterialButton>(R.id.ledTestPrevious).setOnClickListener {
             step = (step + LedDiagnosticFrame.steps.size - 1) % LedDiagnosticFrame.steps.size

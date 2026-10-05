@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <dimen name="bifrost_screen_padding">14dp</dimen>
+    <dimen name="bifrost_screen_padding">20dp</dimen>
     <dimen name="bifrost_title_size">28sp</dimen>
     <dimen name="bifrost_header_control_gap">8dp</dimen>
     <dimen name="bifrost_spacing_md">12dp</dimen>

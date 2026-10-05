@@ -1,241 +1,61 @@
-<?xml version="1.0" encoding="utf-8"?>
-<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:app="http://schemas.android.com/apk/res-auto"
-    android:layout_width="match_parent"
-    android:layout_height="match_parent"
-    android:background="@color/bifrost_bg">
-
-    <LinearLayout
-        android:id="@+id/homeContainer"
-        android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:orientation="vertical"
-        android:padding="@dimen/bifrost_screen_padding">
-
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:gravity="center_vertical"
-            android:orientation="horizontal">
-
-            <LinearLayout
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:gravity="center_vertical"
-                android:orientation="horizontal">
-
-                <ImageView
-                    android:id="@+id/homeDuoFrostLogoView"
-                    android:layout_width="40dp"
-                    android:layout_height="40dp"
-                    android:layout_marginEnd="10dp"
-                    android:contentDescription="@string/app_name"
-                    android:padding="2dp"
-                    app:srcCompat="@mipmap/ic_launcher" />
-
-                <TextView
-                    android:id="@+id/homeDuoFrostTitleText"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="DUOFROST"
-                    android:textColor="@color/bifrost_text"
-                    android:textSize="@dimen/bifrost_title_size"
-                    android:textStyle="bold"
-                    android:letterSpacing="0.12"
-                    android:shadowColor="@color/bifrost_glow_purple"
-                    android:shadowDx="0"
-                    android:shadowDy="0"
-                    android:shadowRadius="20"
-                    android:maxLines="1"
-                    android:singleLine="true"
-                    android:ellipsize="none" />
+<?xml version='1.0' encoding='utf-8'?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android" xmlns:app="http://schemas.android.com/apk/res-auto" android:id="@+id/gui_root" android:layout_width="match_parent" android:layout_height="match_parent" android:background="@color/bifrost_bg">
+    <LinearLayout android:id="@+id/homeContainer" android:layout_width="match_parent" android:layout_height="match_parent" android:orientation="vertical" android:padding="@dimen/bifrost_screen_padding">
+        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:gravity="center_vertical" android:layout_marginBottom="16dp">
+            <ImageView android:id="@+id/homeDuoFrostLogoView" android:layout_width="48dp" android:layout_height="48dp" android:layout_marginEnd="12dp" android:contentDescription="@string/app_name" app:srcCompat="@mipmap/ic_launcher" />
+            <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:orientation="vertical">
+                <TextView android:id="@+id/homeDuoFrostTitleText" style="@style/GuiHeading" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="DuoFrost" android:textSize="24sp" android:maxLines="1" android:ellipsize="end" />
+                <TextView style="@style/GuiSecondary" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="@string/gui_tagline" />
             </LinearLayout>
-
-            <com.google.android.material.card.MaterialCardView
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:layout_marginStart="8dp"
-                android:layout_marginEnd="8dp"
-                app:cardBackgroundColor="@color/bifrost_card"
-                app:cardCornerRadius="14dp"
-                app:cardElevation="0dp"
-                app:strokeColor="@color/bifrost_accent"
-                app:strokeWidth="1dp">
-
-                <LinearLayout
-                    android:id="@+id/systemStatusContainer"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:background="@drawable/card_glow_bg"
-                    android:gravity="center_vertical"
-                    android:orientation="horizontal"
-                    android:paddingStart="10dp"
-                    android:paddingTop="8dp"
-                    android:paddingEnd="10dp"
-                    android:paddingBottom="8dp">
-
-                    <TextView
-                        android:layout_width="0dp"
-                        android:layout_height="wrap_content"
-                        android:layout_weight="1"
-                        android:text="CALL HEIMDALL"
-                        android:textColor="@color/bifrost_text"
-                        android:textSize="11sp"
-                        android:textStyle="bold"
-                        android:letterSpacing="0.05" />
-
-                    <com.google.android.material.switchmaterial.SwitchMaterial
-                        android:id="@+id/serviceToggle"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        app:thumbTint="@color/switch_thumb_tint"
-                        app:trackTint="@color/switch_track_tint" />
-                </LinearLayout>
-            </com.google.android.material.card.MaterialCardView>
-
-            <LinearLayout
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginEnd="8dp"
-                android:gravity="center_vertical"
-                android:orientation="horizontal">
-
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="APP MODE"
-                    android:textColor="@color/bifrost_text_secondary"
-                    android:textSize="10sp"
-                    android:textStyle="bold"
-                    android:letterSpacing="0.08" />
-
-                <com.google.android.material.switchmaterial.SwitchMaterial
-                    android:id="@+id/homeAppProfileSwitch"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginStart="4dp"
-                    app:thumbTint="@color/switch_thumb_tint"
-                    app:trackTint="@color/switch_track_tint" />
-            </LinearLayout>
-
-            <com.google.android.material.button.MaterialButton
-                android:id="@+id/homeSettingsButton"
-                android:layout_width="44dp"
-                android:layout_height="44dp"
-                android:insetTop="0dp"
-                android:insetBottom="0dp"
-                android:padding="0dp"
-                android:text="@string/settings_gear_symbol"
-                android:textColor="@color/bifrost_text"
-                android:textSize="24sp"
-                android:backgroundTint="@color/bifrost_surface"
-                app:cornerRadius="12dp"
-                app:strokeWidth="1dp"
-                app:strokeColor="@color/bifrost_accent" />
+            <com.google.android.material.button.MaterialButton android:id="@+id/homeSettingsButton" style="@style/GuiButton" android:layout_width="wrap_content" android:layout_height="48dp" android:layout_marginStart="8dp" android:text="@string/gui_settings" />
         </LinearLayout>
-
-        <io.github.tufein.duofrost.ui.LockableHorizontalScrollView
-            android:id="@+id/presetCoverFlowScroll"
-            android:layout_width="match_parent"
-            android:layout_height="0dp"
-            android:layout_weight="1"
-            android:layout_marginTop="12dp"
-            android:minHeight="100dp"
-            android:overScrollMode="never"
-            android:scrollbars="none"
-            android:fillViewport="true">
-
-            <LinearLayout
-                android:id="@+id/presetCoverFlowContainer"
-                android:layout_width="wrap_content"
-                android:layout_height="match_parent"
-                android:gravity="center_vertical"
-                android:orientation="horizontal" />
-        </io.github.tufein.duofrost.ui.LockableHorizontalScrollView>
-
-        <com.google.android.material.card.MaterialCardView
-            android:id="@+id/activePresetInfoCard"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="10dp"
-            app:cardBackgroundColor="@color/bifrost_card"
-            app:cardCornerRadius="16dp"
-            app:cardElevation="0dp"
-            app:strokeColor="@color/bifrost_accent"
-            app:strokeWidth="1dp">
-
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:background="@drawable/card_glow_bg"
-                android:orientation="vertical"
-                android:padding="@dimen/bifrost_card_padding">
-
-                <LinearLayout
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:gravity="center_vertical"
-                    android:orientation="horizontal">
-
-                    <TextView
-                        android:id="@+id/activePresetNameText"
-                        android:layout_width="0dp"
-                        android:layout_height="wrap_content"
-                        android:layout_weight="1"
-                        android:text="Default"
-                        android:textColor="@color/bifrost_text"
-                        android:textSize="20sp"
-                        android:textStyle="bold" />
-
-                    <TextView
-                        android:id="@+id/activePresetStatusBadge"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:background="@drawable/badge_active_bg"
-                        android:paddingStart="10dp"
-                        android:paddingTop="4dp"
-                        android:paddingEnd="10dp"
-                        android:paddingBottom="4dp"
-                        android:text="ACTIVE"
-                        android:textColor="@color/bifrost_text"
-                        android:textSize="10sp"
-                        android:textStyle="bold"
-                        android:letterSpacing="0.08"
-                        android:visibility="gone" />
-                </LinearLayout>
-
-                <TextView
-                    android:id="@+id/activePresetAnimationText"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="10dp"
-                    android:text="Animation: Static"
-                    android:textColor="@color/bifrost_text_secondary"
-                    android:textSize="11sp"
-                    android:letterSpacing="0.04" />
-
-                <TextView
-                    android:id="@+id/activePresetProfileText"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="4dp"
-                    android:text="Profile: High"
-                    android:textColor="@color/bifrost_text_secondary"
-                    android:textSize="11sp"
-                    android:letterSpacing="0.04" />
+        <ScrollView android:id="@+id/gui_homeScroll" android:layout_width="match_parent" android:layout_height="0dp" android:layout_weight="1" android:fillViewport="true" android:clipToPadding="false">
+            <LinearLayout android:id="@+id/gui_homeContent" android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:baselineAligned="false">
+                <com.google.android.material.card.MaterialCardView android:id="@+id/activePresetInfoCard" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginBottom="16dp" app:cardBackgroundColor="@color/bifrost_card" app:cardCornerRadius="20dp" app:cardElevation="0dp" app:strokeColor="@color/bifrost_outline" app:strokeWidth="1dp">
+                    <LinearLayout android:id="@+id/systemStatusContainer" android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:padding="20dp">
+                        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:gravity="center_vertical">
+                            <TextView android:id="@+id/gui_lightingStatus" style="@style/GuiBody" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:accessibilityLiveRegion="polite" android:text="@string/gui_lights_stopped" />
+                            <com.google.android.material.switchmaterial.SwitchMaterial android:id="@+id/serviceToggle" android:layout_width="wrap_content" android:layout_height="48dp" android:contentDescription="@string/gui_lighting" app:thumbTint="@color/switch_thumb_tint" app:trackTint="@color/switch_track_tint" />
+                        </LinearLayout>
+                        <TextView style="@style/GuiSecondary" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="16dp" android:text="@string/gui_selected_preset" />
+                        <TextView android:id="@+id/activePresetNameText" style="@style/GuiHeading" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="4dp" android:text="Default" android:textSize="28sp" android:maxLines="2" android:ellipsize="end" />
+                        <TextView android:id="@+id/activePresetStatusBadge" style="@style/GuiSecondary" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/gui_preset_active" android:visibility="gone" />
+                        <TextView android:id="@+id/activePresetAnimationText" style="@style/GuiSecondary" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="8dp" android:text="Effect: Static" />
+                        <TextView android:id="@+id/activePresetProfileText" style="@style/GuiSecondary" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="4dp" android:text="Performance: High" />
+                        <com.google.android.material.button.MaterialButton android:id="@+id/gui_editLightingButton" style="@style/GuiButton" android:layout_width="match_parent" android:layout_height="48dp" android:layout_marginTop="16dp" android:text="@string/gui_edit_lighting" />
+                        <com.google.android.material.button.MaterialButton android:id="@+id/gui_resumeCaptureButton" style="@style/GuiButton" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="8dp" android:text="@string/gui_capture_resume" android:visibility="gone" />
+                        <TextView style="@style/GuiBody" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="20dp" android:text="@string/gui_max_output" />
+                        <TextView android:id="@+id/gui_outputValue" style="@style/GuiSecondary" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="4dp" android:text="100%" />
+                        <SeekBar android:id="@+id/gui_outputSeekBar" style="@style/DuoFrostSeekBar" android:layout_width="match_parent" android:layout_height="48dp" android:contentDescription="@string/gui_max_output" android:max="100" />
+                        <TextView style="@style/GuiSecondary" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="@string/gui_max_output_help" />
+                        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:layout_marginTop="16dp" android:baselineAligned="false">
+                            <com.google.android.material.button.MaterialButton android:id="@+id/gui_muteButton" style="@style/GuiButton" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:layout_marginEnd="4dp" android:text="@string/mute_lighting" />
+                            <com.google.android.material.button.MaterialButton android:id="@+id/gui_timerButton" style="@style/GuiButton" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:layout_marginStart="4dp" android:text="@string/sleep_timer_title" />
+                        </LinearLayout>
+                        <TextView android:id="@+id/gui_timerStatus" style="@style/GuiSecondary" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="8dp" android:text="@string/sleep_timer_off" android:accessibilityLiveRegion="polite" />
+                        <com.google.android.material.switchmaterial.SwitchMaterial android:id="@+id/homeAppProfileSwitch" android:layout_width="match_parent" android:layout_height="wrap_content" android:minHeight="48dp" android:layout_marginTop="16dp" android:text="@string/gui_app_profiles" android:textSize="16sp" android:textColor="@color/bifrost_text" app:thumbTint="@color/switch_thumb_tint" app:trackTint="@color/switch_track_tint" />
+                    </LinearLayout>
+                </com.google.android.material.card.MaterialCardView>
+                <com.google.android.material.card.MaterialCardView android:id="@+id/gui_libraryCard" android:layout_width="match_parent" android:layout_height="wrap_content" app:cardBackgroundColor="@color/bifrost_card" app:cardCornerRadius="20dp" app:cardElevation="0dp" app:strokeColor="@color/bifrost_outline" app:strokeWidth="1dp">
+                    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:padding="20dp">
+                        <TextView style="@style/GuiHeading" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="@string/gui_presets" />
+                        <TextView android:id="@+id/gui_presetCount" style="@style/GuiSecondary" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="4dp" />
+                        <com.google.android.material.textfield.TextInputLayout android:id="@+id/gui_searchLayout" style="@style/Widget.Material3.TextInputLayout.OutlinedBox" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="16dp" android:hint="@string/gui_search_presets" app:endIconMode="clear_text" app:boxStrokeColor="@color/bifrost_accent_light" app:hintTextColor="@color/bifrost_text_secondary" app:boxCornerRadiusTopStart="12dp" app:boxCornerRadiusTopEnd="12dp" app:boxCornerRadiusBottomStart="12dp" app:boxCornerRadiusBottomEnd="12dp">
+                            <com.google.android.material.textfield.TextInputEditText android:id="@+id/gui_presetSearch" android:layout_width="match_parent" android:layout_height="wrap_content" android:minHeight="56dp" android:inputType="text" android:maxLength="96" android:singleLine="true" android:textSize="16sp" android:textColor="@color/bifrost_text" android:imeOptions="actionDone" />
+                        </com.google.android.material.textfield.TextInputLayout>
+                        <TextView android:id="@+id/gui_libraryHint" style="@style/GuiSecondary" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="12dp" android:text="@string/gui_preset_hint" />
+                        <io.github.tufein.duofrost.ui.LockableHorizontalScrollView android:id="@+id/presetCoverFlowScroll" android:layout_width="match_parent" android:layout_height="184dp" android:layout_marginTop="16dp" android:overScrollMode="never" android:scrollbars="horizontal">
+                            <LinearLayout android:id="@+id/presetCoverFlowContainer" android:layout_width="wrap_content" android:layout_height="match_parent" android:orientation="horizontal" android:gravity="center_vertical" android:padding="4dp" />
+                        </io.github.tufein.duofrost.ui.LockableHorizontalScrollView>
+                        <TextView android:id="@+id/gui_emptySearch" style="@style/GuiBody" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="16dp" android:text="@string/gui_no_matches" android:visibility="gone" />
+                        <com.google.android.material.button.MaterialButton android:id="@+id/gui_newPresetButton" style="@style/GuiButton" android:layout_width="match_parent" android:layout_height="48dp" android:layout_marginTop="16dp" android:text="@string/gui_new_preset" />
+                        <com.google.android.material.button.MaterialButton android:id="@+id/gui_deviceSettingsButton" style="@style/GuiButton" android:layout_width="match_parent" android:layout_height="48dp" android:layout_marginTop="8dp" android:text="@string/gui_device_settings" />
+                    </LinearLayout>
+                </com.google.android.material.card.MaterialCardView>
             </LinearLayout>
-        </com.google.android.material.card.MaterialCardView>
-
+        </ScrollView>
     </LinearLayout>
-
-    <FrameLayout
-        android:id="@+id/settingsOverlay"
-        android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:visibility="gone">
-
+    <FrameLayout android:id="@+id/settingsOverlay" android:layout_width="match_parent" android:layout_height="match_parent" android:visibility="gone">
         <include layout="@layout/layout_settings_panel" />
     </FrameLayout>
 </FrameLayout>

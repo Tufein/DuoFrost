@@ -1,5 +1,14 @@
 # DuoFrost changelog
 
+## 2.2.0 interface refresh — in development
+
+- A clear lighting dashboard with direct output, mute, timer and capture controls.
+- A searchable preset library with readable cards, visible selection and keyboard focus. Browsing or searching never applies a preset.
+- Reorganized Lighting, Device, Appearance and Wallpaper pages with larger controls and calmer styling throughout the app.
+- Layouts adapt to narrow and wide windows. Unsaved lighting edits and your place in the interface survive screen recreation.
+
+This is a preview of the next update. [Screenshots and validation](docs/gui-refresh.md). The latest public release remains [2.1.0](https://github.com/Tufein/DuoFrost/releases/tag/v2.1.0).
+
 ## 2.1.0 fix update
 
 A separate fix update following Version 2, promoted to the latest full release on 2026-10-06. The original Version 1 and Version 2 releases remain available.

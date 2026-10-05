@@ -1,21 +1,24 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<LinearLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:id="@+id/colorPickerRoot"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:orientation="vertical"
-    android:padding="20dp"
-    android:background="@drawable/dialog_bg_glow">
+    android:padding="24dp"
+    android:background="@color/bifrost_card">
 
     <TextView
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="RGB COLOR SELECTOR"
-        android:textSize="14sp"
-        android:letterSpacing="0.1"
+        android:text="@string/gui_dialog_color_title"
+        android:textSize="22sp"
         android:textStyle="bold"
         android:textColor="@color/bifrost_text"
-        android:layout_marginBottom="16dp" />
+        android:layout_marginBottom="16dp"
+        android:accessibilityHeading="true"
+        android:lineSpacingExtra="3dp" />
 
     <FrameLayout
         android:layout_width="match_parent"
@@ -32,25 +35,33 @@
             android:layout_width="match_parent"
             android:layout_height="match_parent"
             android:background="@drawable/color_preview_overlay" />
+    </FrameLayout>
 
-        <EditText
+    <com.google.android.material.textfield.TextInputLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginBottom="16dp"
+        android:hint="@string/gui_color_hex"
+        app:boxBackgroundMode="outline"
+        app:boxStrokeColor="@color/bifrost_accent"
+        app:hintTextColor="@color/bifrost_text_secondary">
+
+        <com.google.android.material.textfield.TextInputEditText
             android:id="@+id/editHex"
             android:layout_width="match_parent"
-            android:layout_height="match_parent"
+            android:layout_height="wrap_content"
             android:padding="12dp"
-            android:hint="#RRGGBB"
             android:maxLength="7"
             android:inputType="textCapCharacters"
             android:textColor="@color/bifrost_text"
             android:textColorHint="@color/bifrost_text_secondary"
-            android:textSize="18sp"
-            android:textStyle="bold"
-            android:letterSpacing="0.05"
+            android:textSize="16sp"
             android:fontFamily="monospace"
-            android:gravity="center"
-            android:background="@android:color/transparent"
-            android:singleLine="true"/>
-    </FrameLayout>
+            android:gravity="start|center_vertical"
+            android:singleLine="true"
+            android:minHeight="48dp"
+            android:contentDescription="@string/gui_color_hex" />
+    </com.google.android.material.textfield.TextInputLayout>
 
     <LinearLayout
         android:layout_width="match_parent"
@@ -75,17 +86,19 @@
                 android:layout_width="0dp"
                 android:layout_weight="1"
                 android:layout_height="wrap_content"
-                android:text="RED"
-                android:textSize="11sp"
-                android:letterSpacing="0.1"
-                android:textColor="@color/bifrost_text_secondary" />
+                android:text="@string/gui_color_red"
+                android:textSize="14sp"
+                android:textColor="@color/bifrost_text_secondary"
+                android:lineSpacingExtra="3dp" />
         </LinearLayout>
 
         <SeekBar
             android:id="@+id/seekRed"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            style="@style/DuoFrostSeekBarRGB" />
+            style="@style/DuoFrostSeekBarRGB"
+            android:minHeight="48dp"
+            android:contentDescription="@string/gui_color_red" />
     </LinearLayout>
 
     <LinearLayout
@@ -111,17 +124,19 @@
                 android:layout_width="0dp"
                 android:layout_weight="1"
                 android:layout_height="wrap_content"
-                android:text="GREEN"
-                android:textSize="11sp"
-                android:letterSpacing="0.1"
-                android:textColor="@color/bifrost_text_secondary" />
+                android:text="@string/gui_color_green"
+                android:textSize="14sp"
+                android:textColor="@color/bifrost_text_secondary"
+                android:lineSpacingExtra="3dp" />
         </LinearLayout>
 
         <SeekBar
             android:id="@+id/seekGreen"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            style="@style/DuoFrostSeekBarRGB" />
+            style="@style/DuoFrostSeekBarRGB"
+            android:minHeight="48dp"
+            android:contentDescription="@string/gui_color_green" />
     </LinearLayout>
 
     <LinearLayout
@@ -146,17 +161,18 @@
                 android:layout_width="0dp"
                 android:layout_weight="1"
                 android:layout_height="wrap_content"
-                android:text="BLUE"
-                android:textSize="11sp"
-                android:letterSpacing="0.1"
-                android:textColor="@color/bifrost_text_secondary" />
+                android:text="@string/gui_color_blue"
+                android:textSize="14sp"
+                android:textColor="@color/bifrost_text_secondary"
+                android:lineSpacingExtra="3dp" />
         </LinearLayout>
 
         <SeekBar
             android:id="@+id/seekBlue"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            style="@style/DuoFrostSeekBarRGB" />
+            style="@style/DuoFrostSeekBarRGB"
+            android:minHeight="48dp"
+            android:contentDescription="@string/gui_color_blue" />
     </LinearLayout>
-
 </LinearLayout>
