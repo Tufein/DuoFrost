@@ -1,8 +1,8 @@
-# DuoFrost 2.1.0 fix pre-release — audio stability, safer presets and custom sleep timers
+# DuoFrost 2.1.0 released — audio fixes, safer presets and custom sleep timers
 
 Hey everyone,
 
-I've released DuoFrost 2.1.0 as a fix pre-release for my open-source BiFrost fork for LED control on AYN devices. The signed APK is ready to download. The original Version 2 remains the stable release.
+I've released DuoFrost 2.1.0, the latest full release of my open-source BiFrost fork for LED control on AYN devices. It builds on Version 2 with fixes for audio effects, preset sharing and exports, plus custom sleep timers. The signed APK is ready to download, and the original releases remain available.
 
 Here's what I've improved:
 
@@ -23,7 +23,7 @@ Keep your backup until you've checked that everything restored correctly.
 
 **Download and release notes:** https://github.com/Tufein/DuoFrost/releases/tag/v2.1.0
 
-**Stable Version 2:** https://github.com/Tufein/DuoFrost/releases/tag/v2
+**Original Version 2:** https://github.com/Tufein/DuoFrost/releases/tag/v2
 
 Source: https://github.com/Tufein/DuoFrost
 

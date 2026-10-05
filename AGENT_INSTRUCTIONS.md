@@ -76,7 +76,8 @@ This document contains instructions for autonomous coding agents.
 
 30. Preserve Version 1, original Version 2 and the separate 2.1.0 fix update in
     the public releases and CHANGELOG.md, as clarified by the user on 2026-10-05.
-    The user explicitly selected pre-release status for 2.1.0; v2 stays latest stable. Keep
+    On 2026-10-06 the user promoted 2.1.0 to the latest full release, superseding
+    the previous pre-release designation. Keep
     implementation, build and API detail in technical.md; retain GPLv3 credits.
     On 2026-10-05 the user explicitly approved a new private release signing key
     for the regular production APK 2.1.0. Original Version 2 keeps its exact

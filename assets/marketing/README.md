@@ -1,4 +1,4 @@
-# DuoFrost 2.1.0 pre-release Reddit images
+# DuoFrost 2.1.0 Reddit images
 
 Use [the banner](duofrost-2.1.0-reddit-banner.png) as the first image in the Reddit post. The banner says **LED control for AYN devices** and **VERSION 2.1.0**.
 

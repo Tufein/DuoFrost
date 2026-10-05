@@ -10,8 +10,8 @@ DuoFrost is based on BiFrost 1.3.1, commit `1baddf1`, with the original Git hist
 authorship and GPLv3 license retained. Version 1 corresponds to the original
 DuoFrost 1.0.0 build. The original Version 2 remains available under tag `v2`,
 with Android version `1.5.1` and version code `22`. The separate fix update
-ships Android version `2.1.0`, version code `23`, under tag `v2.1.0` as a
-pre-release. It builds on Version 2 with the audio, preset, export and
+ships Android version `2.1.0`, version code `23`, under tag `v2.1.0` as the
+latest full release. It builds on Version 2 with the audio, preset, export and
 custom-timer improvements below.
 
 The original `v2` publication contained the signed `1.5.1` APK (code `22`), built
@@ -72,9 +72,11 @@ Scheme v2. The release download includes SHA-256 checksums and matching source.
 
 ## DuoFrost 2.1.0 (2026-10-05)
 
-Version `2.1.0` (code `23`, tag `v2.1.0`) is the separate fix pre-release following
-Version 2. Both original releases remain public; Version 2 is the latest stable
-release. The maintainer explicitly selected pre-release status for 2.1.0 on 2026-10-05.
+Version `2.1.0` (code `23`, tag `v2.1.0`) is the separate fix update following
+Version 2. Both original releases remain public. The maintainer selected
+pre-release status on 2026-10-05, then approved promotion to the latest full
+release on 2026-10-06. Promotion preserves the existing signed APK and source
+archive; it changes release status and public documentation.
 
 - Custom sleep timer entry accepts any whole number from 1 to 120 minutes, with
   the existing quick choices retained. Invalid input and cancellation preserve

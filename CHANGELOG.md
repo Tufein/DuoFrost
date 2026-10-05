@@ -1,8 +1,8 @@
 # DuoFrost changelog
 
-## 2.1.0 fix update — pre-release
+## 2.1.0 fix update
 
-A separate pre-release following Version 2. The original Version 1 and Version 2 releases remain available; Version 2 is the latest stable release.
+A separate fix update following Version 2, promoted to the latest full release on 2026-10-06. The original Version 1 and Version 2 releases remain available.
 
 **One-time update step:** before uninstalling an older DuoFrost build, export a full backup and save it outside the app. Uninstall the old version, install 2.1.0, import your backup and grant the permissions you need again.
 
