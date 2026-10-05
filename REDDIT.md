@@ -2,7 +2,7 @@
 
 Hey everyone,
 
-I've been working on DuoFrost 2.1.0, a fix update for my open-source BiFrost fork for LED control on AYN devices.
+I've released DuoFrost 2.1.0, a fix update for my open-source BiFrost fork for LED control on AYN devices. The regular APK is ready to download.
 
 Here's what I've improved:
 
@@ -13,13 +13,19 @@ Here's what I've improved:
 - Sleep timers accept your own duration from 1 to 120 minutes. The existing quick choices are still there.
 - Failed backup, theme and preset exports show a failure instead of claiming the file was saved.
 
-Version 2.1.0 is available as source and a separate debug test build. The public DuoFrost 2 APK is unchanged.
+**Updating from an older DuoFrost version? This update needs a one-time reinstall:**
+
+1. Export a full backup from the old app and save it outside the app **before uninstalling**.
+2. Uninstall the old DuoFrost, then install 2.1.0.
+3. Import your backup and grant the permissions you need again.
+
+Keep your backup until you've checked that everything restored correctly.
+
+**Download and release notes:** https://github.com/Tufein/DuoFrost/releases/tag/v2.1.0
 
 Source: https://github.com/Tufein/DuoFrost
 
-2.1.0 source: https://github.com/Tufein/DuoFrost/tree/v2.1.0
-
-Debug test builds: https://github.com/Tufein/DuoFrost/actions/workflows/android.yml
+The fixes have been checked with automated tests and in an Android emulator. Feedback from other AYN devices is welcome.
 
 Credit to Pollux / Pollux-MoonBench and the BiFrost contributors for the original app. DuoFrost is GPLv3, and forks and contributions are welcome.
 

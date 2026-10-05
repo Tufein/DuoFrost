@@ -76,12 +76,16 @@ This document contains instructions for autonomous coding agents.
 
 30. Public documentation has only Version 1 and Version 2 in CHANGELOG.md. Keep
     implementation, build and API detail in technical.md; retain GPLv3 credits.
-    The public Version 2 deliberately retains the signed 1.5.1 APK unchanged.
-    Never rename an APK's internal version by altering its manifest after signing,
-    or replace the signing key to bypass a missing original keystore. Future
-    rebuilds need the original key or an explicit migration decision.
-    Source/test versions may update build metadata and have their own Git tags;
-    label them separately from the retained public APK in README and Reddit.
+    On 2026-10-05 the user explicitly approved a new private release signing key
+    and replacing public Version 2 with the regular production APK 2.1.0.
+    Older DuoFrost installations require a one-time backup and reinstall:
+    instruct users to save a full backup outside the app before uninstalling,
+    then install 2.1.0, import the backup and grant permissions again.
+    Preserve the previous release archives locally. Keep the new key and its
+    recovery backup private and use the same key for future release updates.
+    Never alter a signed APK's manifest to change its internal version; build
+    version metadata from source before signing. Public download links must
+    identify the production APK, with debug builds labeled separately.
 31. Audio capture owns a recorder, buffer and route listener per session. End on
     nonpositive reads instead of spinning; stop/release before joining a blocked
     reader and release even if stop fails. Old samples/routes/finish callbacks

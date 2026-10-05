@@ -8,13 +8,16 @@ is limited to [Version 1 and Version 2](CHANGELOG.md).
 
 DuoFrost is based on BiFrost 1.3.1, commit `1baddf1`, with the original Git history,
 authorship and GPLv3 license retained. Version 1 corresponds to the original
-DuoFrost 1.0.0 build. Version 2 consolidates all development through build 1.5.1. At the maintainer's
-request the original tested, signed APK is retained unchanged: Android displays
-`1.5.1`, with version code `22`. The public release name and tag are `DuoFrost 2`
-and `v2`; no new signing key or differently signed build is introduced.
-Its compiled implementation is from commit `dc8fc3db61d9e8ad3e1ee5fa4c9fe5ec7c239bca`;
-the public `v2` source snapshot adds the consolidated documentation and screenshots
-to that same application code.
+DuoFrost 1.0.0 build. Version 2 now ships Android version `2.1.0`, version code
+`23`, under tag `v2.1.0`. It combines the earlier Version 2 controls with the
+audio, preset, export and custom-timer improvements below.
+
+The original `v2` publication contained the signed `1.5.1` APK (code `22`), built
+from commit `dc8fc3db61d9e8ad3e1ee5fa4c9fe5ec7c239bca`. On 2026-10-05 the maintainer
+explicitly approved a new private release key and replacing that publication
+with 2.1.0. Its old release metadata and assets are archived locally, and the
+original `v2` tag and Git history remain available. The earlier source/test
+`v2.1.0` tag object is archived before the tag is finalized for the public release.
 Intermediate development releases are archived locally by the maintainer and
 removed from the public release list. Their implementation remains in Git history.
 
@@ -25,11 +28,24 @@ removed from the public release list. Their implementation remains in Git histor
 - Separate installation from BiFrost; only one hardware LED controller should run.
 - Legacy archive schema identifiers are retained for import compatibility.
 - Debug builds use `io.github.tufein.duofrost.debug`.
-- Existing DuoFrost APKs share this signing certificate SHA-256:
+- Earlier DuoFrost APKs through `1.5.1` use this signing certificate SHA-256:
   `a0402863156665d4c6401bbb4a632c574978aca7000281196fc3cfa2cfc3b201`.
-- Version code must increase for a rebuilt release; the retained Version 2 build uses 22.
-- Current source/test version: `2.1.0`, version code `23`, source tag `v2.1.0`.
-  Debug APKs display `2.1.0-debug`; the public signed APK still displays `1.5.1`.
+- Production version `2.1.0` uses this new signing certificate SHA-256:
+  `0863ff52a003ec13c5997f8f23fe24fd69f4118c0644506641edd198d87aaa2d`.
+- Current production version: `2.1.0`, version code `23`, tag `v2.1.0`.
+  Future updates must increment the version code and retain the new release key.
+  Debug builds still display `2.1.0-debug` and are separate installations.
+
+### One-time signing migration
+
+Android cannot install the new certificate over an earlier production APK with
+the same application ID. Before uninstalling the old app, export a full backup
+with Themes, Profiles, Images and Settings selected, and save it to a document
+location outside DuoFrost. Then uninstall, install `DuoFrost-2.1.0.apk`, restore
+the backup and grant the permissions used by the selected effects. Reconfigure
+launcher widgets if needed. Exported runtime state, capture grants and active
+timers are intentionally not transferred. Later updates signed with this same
+new key can install in place.
 
 ## Build and automated verification
 
@@ -44,18 +60,18 @@ errors or skipped tests, optimized signed release build and release-critical
 Android lint passed. Signature verification used RSA 3072 and APK Signature
 Scheme v2. GitHub Actions builds a debug APK and runs tests on pushes and PRs.
 Keys and passwords are never committed or placed in CI artifacts.
-The original private signing key is unavailable in this checkout; the unchanged
-public Version 2 APK keeps its original certificate. A future rebuilt update
-requires recovering that key or explicitly documenting a signing migration.
-The publication cleanup changes documentation and release presentation;
-it does not add lighting behavior.
+The original private signing key is unavailable. The maintainer explicitly
+approved its replacement for 2.1.0, including the one-time reinstall above.
+The new RSA 3072 key is stored outside the repository, with a private local
+backup. `keystore.properties` and all keystore files are excluded from Git.
+The production APK is optimized, non-debuggable and verified with APK Signature
+Scheme v2. The release download includes SHA-256 checksums and matching source.
 
-## DuoFrost 2.1.0 — source and test version (2026-10-05)
+## DuoFrost 2.1.0 (2026-10-05)
 
-Version `2.1.0` (code `23`, source tag `v2.1.0`) follows the public `v2` snapshot.
-Its changes are available in source and separate debug test builds. They are not
-included in the retained, signed Version 2 APK and do not create a third public
-APK release.
+Version `2.1.0` (code `23`, tag `v2.1.0`) replaces the previous Version 2 APK.
+The public changelog remains Version 1 and Version 2; this is the updated
+Version 2 download, rather than a third release entry.
 
 - Custom sleep timer entry accepts any whole number from 1 to 120 minutes, with
   the existing quick choices retained. Invalid input and cancellation preserve
@@ -75,12 +91,15 @@ APK release.
   prompt. Backup, theme and preset exports report a failure when the selected
   destination cannot be opened, instead of claiming completion.
 
-Debug builds install as the separate `.debug` application. Rebuilding a public
-upgrade still requires the original signing key or an approved migration.
+Debug builds install as the separate `.debug` application. Production builds
+use the new private release key and the original production application ID.
 Local verification on 2026-10-05 passed all **197 JVM tests across 27 suites**
-with no failures, errors or skips, plus the debug APK, optimized unsigned release
+with no failures, errors or skips, plus the debug APK, optimized signed release
 build and `lintVitalRelease`. Physical playback capture and LED output for these
 new source changes still require device validation.
+An isolated Android emulator confirmed the certificate mismatch on an in-place
+update, successful installation after uninstall, production APK launch and
+restoration of a real full backup exported by the old Version 2 app.
 
 ## Device validation
 
