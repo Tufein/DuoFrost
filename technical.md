@@ -48,6 +48,36 @@ requires recovering that key or explicitly documenting a signing migration.
 The publication cleanup changes documentation and release presentation;
 it does not add lighting behavior.
 
+## Unreleased source improvements — 2026-10-05
+
+These changes follow the public `v2` snapshot. They are not included in the
+retained, signed Version 2 APK and do not create a third public release.
+
+- Custom sleep timer entry accepts any whole number from 1 to 120 minutes, with
+  the existing quick choices retained. Invalid input and cancellation preserve
+  an active timer; elapsed-time expiry and reboot behavior remain unchanged.
+- Audio capture ends on failed or empty reads, clears failed intensity, releases
+  the recorder even if stopping fails, and unblocks reads before joining the
+  worker. Session-owned buffers and identity checks isolate delayed callbacks.
+- Audio Reactive and AmbiAurora send both stick colors through one existing
+  dual-color command per frame, preserving distinct colors and output ceilings.
+- Community preset imports validate schema and supported versions before image
+  writes. Expanded archive budgets are 512 entries, 2 MiB for the manifest,
+  8 MiB per other entry and 64 MiB total. Duplicate ZIP entries are rejected.
+  Archive type detection precedes the full-backup reader.
+  Shared preset artwork is imported once and retained while another preset
+  references it, including when a preset is deleted or its image replaced.
+- Custom battery and CPU palette changes now participate in the unsaved-change
+  prompt. Backup, theme and preset exports report a failure when the selected
+  destination cannot be opened, instead of claiming completion.
+
+Debug builds install as the separate `.debug` application. Rebuilding a public
+upgrade still requires the original signing key or an approved migration.
+Local verification on 2026-10-05 passed all **197 JVM tests across 27 suites**
+with no failures, errors or skips, plus the debug APK, optimized unsigned release
+build and `lintVitalRelease`. Physical playback capture and LED output for these
+new source changes still require device validation.
+
 ## Device validation
 
 On 2026-10-05 the maintainer reported completing the on-device testing before

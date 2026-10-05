@@ -7,6 +7,7 @@ import android.os.CancellationSignal
 import org.json.JSONArray
 import org.json.JSONObject
 import java.io.ByteArrayOutputStream
+import java.io.IOException
 import java.util.zip.ZipEntry
 import java.util.zip.ZipInputStream
 import java.util.zip.ZipOutputStream
@@ -96,7 +97,9 @@ object BackupArchiveTransfer {
         }
 
         cancelSignal?.throwIfCanceled()
-        context.contentResolver.openOutputStream(uri)?.use { stream ->
+        val output = context.contentResolver.openOutputStream(uri)
+            ?: throw IOException("Unable to write selected backup file.")
+        output.use { stream ->
             ZipOutputStream(stream.buffered()).use { zip ->
                 cancelSignal?.throwIfCanceled()
                 zip.putNextEntry(ZipEntry(MANIFEST_ENTRY_NAME))
@@ -125,12 +128,7 @@ object BackupArchiveTransfer {
                     }
                 }
             }
-        } ?: return ExportResult(
-            preferenceCount = 0,
-            iconCount = 0,
-            appliedOptions = options,
-            warnings = listOf("Unable to write selected file.")
-        )
+        }
 
         return ExportResult(
             preferenceCount = prefsJson.getJSONArray("items").length(),

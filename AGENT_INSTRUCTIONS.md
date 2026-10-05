@@ -80,3 +80,15 @@ This document contains instructions for autonomous coding agents.
     Never rename an APK's internal version by altering its manifest after signing,
     or replace the signing key to bypass a missing original keystore. Future
     rebuilds need the original key or an explicit migration decision.
+31. Audio capture owns a recorder, buffer and route listener per session. End on
+    nonpositive reads instead of spinning; stop/release before joining a blocked
+    reader and release even if stop fails. Old samples/routes/finish callbacks
+    must not affect a replacement session. Use dual-color writes for both sticks.
+32. Validate community preset schema/version before writing artwork. Bound actual
+    expanded ZIP bytes, entry count and manifest size, including directory data;
+    reject duplicate entries. Inspect the archive type before the full-backup
+    reader so preset imports cannot bypass these bounds. Include every battery
+    and CPU palette override when detecting unsaved lighting changes.
+33. Custom sleep timer input must validate the original whole-number value in
+    the existing supported range; never silently truncate pasted values. Invalid
+    input and Cancel preserve the current timer. Use theme-aware input colors.

@@ -86,6 +86,7 @@ import io.github.tufein.duofrost.services.ServiceRecoveryStore
 import io.github.tufein.duofrost.services.ServiceRecoveryPolicy
 import io.github.tufein.duofrost.services.BackgroundDiagnostics
 import io.github.tufein.duofrost.services.SleepTimerStore
+import io.github.tufein.duofrost.tools.SleepTimerDeadline
 import io.github.tufein.duofrost.widgets.DuoFrostWidget
 import io.github.tufein.duofrost.schedule.ScheduleApplier
 import io.github.tufein.duofrost.schedule.ScheduleStore
@@ -3368,17 +3369,12 @@ class MainActivity : AppCompatActivity() {
         }
         findViewById<MaterialButton>(R.id.sleepTimerButton).setOnClickListener {
             val minutes = intArrayOf(0, 5, 15, 30, 60, 120)
-            val options = minutes.map { if (it == 0) getString(R.string.sleep_timer_cancel)
-                else getString(R.string.sleep_timer_minutes, it) }.toTypedArray()
+            val options = (minutes.map { if (it == 0) getString(R.string.sleep_timer_cancel)
+                else getString(R.string.sleep_timer_minutes, it) } +
+                getString(R.string.sleep_timer_custom)).toTypedArray()
             AlertDialog.Builder(this).setTitle(R.string.sleep_timer_title).setItems(options) { _, index ->
-                if (!LEDService.isRunning) {
-                    if (minutes[index] == 0) SleepTimerStore.cancel(this)
-                    else Toast.makeText(this, R.string.quick_controls_start_first, Toast.LENGTH_SHORT).show()
-                } else startService(Intent(this, LEDService::class.java).apply {
-                    action = LEDService.ACTION_SLEEP_TIMER
-                    putExtra(LEDService.EXTRA_TIMER_MINUTES, minutes[index])
-                })
-                mainHandler.postDelayed({ refreshQuickLightingControls() }, 150L)
+                if (index == minutes.size) showCustomSleepTimerDialog()
+                else applySleepTimer(minutes[index])
             }.setNegativeButton(R.string.action_cancel, null).show()
         }
         findViewById<MaterialButton>(R.id.ledTestButton).setOnClickListener {
@@ -3386,6 +3382,49 @@ class MainActivity : AppCompatActivity() {
             else Toast.makeText(this, R.string.quick_controls_start_first, Toast.LENGTH_SHORT).show()
         }
         refreshQuickLightingControls()
+    }
+
+    private fun applySleepTimer(minutes: Int) {
+        if (!LEDService.isRunning) {
+            if (minutes == 0) SleepTimerStore.cancel(this)
+            else Toast.makeText(this, R.string.quick_controls_start_first, Toast.LENGTH_SHORT).show()
+        } else startService(Intent(this, LEDService::class.java).apply {
+            action = LEDService.ACTION_SLEEP_TIMER
+            putExtra(LEDService.EXTRA_TIMER_MINUTES, minutes)
+        })
+        mainHandler.postDelayed({ refreshQuickLightingControls() }, 150L)
+    }
+
+    private fun showCustomSleepTimerDialog() {
+        if (!LEDService.isRunning) {
+            Toast.makeText(this, R.string.quick_controls_start_first, Toast.LENGTH_SHORT).show()
+            return
+        }
+        val content = layoutInflater.inflate(R.layout.dialog_sleep_timer, null)
+        val inputLayout = content.findViewById<TextInputLayout>(R.id.sleepTimerMinutesInputLayout)
+        val input = content.findViewById<TextInputEditText>(R.id.sleepTimerMinutesInput)
+        inputLayout.helperText = getString(R.string.sleep_timer_custom_range, SleepTimerDeadline.MAX_MINUTES)
+        input.setText("30")
+        input.selectAll()
+        val dialog = AlertDialog.Builder(this)
+            .setTitle(R.string.sleep_timer_custom)
+            .setView(content)
+            .setPositiveButton(R.string.sleep_timer_set, null)
+            .setNegativeButton(R.string.action_cancel, null)
+            .create()
+        dialog.setOnShowListener {
+            dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener {
+                val minutes = input.text?.toString()?.trim()?.toIntOrNull()
+                if (minutes == null || minutes !in 1..SleepTimerDeadline.MAX_MINUTES) {
+                    inputLayout.error = getString(R.string.sleep_timer_custom_error, SleepTimerDeadline.MAX_MINUTES)
+                    input.requestFocus()
+                    return@setOnClickListener
+                }
+                applySleepTimer(minutes)
+                dialog.dismiss()
+            }
+        }
+        dialog.show()
     }
 
     private fun refreshQuickLightingControls() {
@@ -3991,19 +4030,23 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun importPresetBundle(uri: Uri, options: BackupArchiveTransfer.CategoryOptions) {
+        // Route community presets before the full-backup reader expands their ZIP.
+        val archiveType = runCatching {
+            val probe = contentResolver.openInputStream(uri)?.use { ArchiveSchemaProbe.read(it) }
+                ?: throw IllegalStateException("Unable to read selected file.")
+            probe.type ?: throw IllegalArgumentException(probe.errors.joinToString("\n"))
+        }.getOrElse {
+            showArchiveImportFailure(it.message)
+            return
+        }
+        if (archiveType == ArchiveSchemaProbe.Type.PRESET) {
+            importCommunityPresetBundle(uri)
+            return
+        }
         val backupResult = runCatching {
             BackupArchiveTransfer.importFromUri(this, uri, options = options)
         }.getOrElse {
-            DuoFrostAlertDialog().show(
-                activity = this,
-                title = "IMPORT FAILED",
-                subtitle = "Selected file could not be imported",
-                body = it.message,
-                positiveLabelResId = R.string.alert_action_ok,
-                negativeLabelResId = null,
-                cancelable = true,
-                onConfirm = {}
-            )
+            showArchiveImportFailure(it.message)
             return
         }
 
@@ -4044,33 +4087,31 @@ class MainActivity : AppCompatActivity() {
             return
         }
 
-        // Fallback: allow importing legacy preset bundles through the same picker.
+        showArchiveImportFailure(backupResult.errors.joinToString("\n"))
+    }
+
+    private fun showArchiveImportFailure(message: String?) {
+        DuoFrostAlertDialog().show(
+            activity = this,
+            title = "IMPORT FAILED",
+            subtitle = "Selected file could not be imported",
+            body = message,
+            positiveLabelResId = R.string.alert_action_ok,
+            negativeLabelResId = null,
+            cancelable = true,
+            onConfirm = {}
+        )
+    }
+
+    private fun importCommunityPresetBundle(uri: Uri) {
         val result = runCatching {
             PresetArchiveTransfer.importFromUri(this, uri)
         }.getOrElse {
-            val mergedErrorText = buildString {
-                append(backupResult.errors.joinToString("\n"))
-                if (isNotEmpty()) append("\n\n")
-                append("Legacy preset import failed")
-                it.message?.let { message ->
-                    append(": ")
-                    append(message)
-                }
-            }
-            DuoFrostAlertDialog().show(
-                activity = this,
-                title = "IMPORT FAILED",
-                subtitle = "Selected file is not a valid backup archive",
-                body = mergedErrorText,
-                positiveLabelResId = R.string.alert_action_ok,
-                negativeLabelResId = null,
-                cancelable = true,
-                onConfirm = {}
-            )
+            showArchiveImportFailure(it.message)
             return
         }
 
-        if (result.presets.isEmpty()) {
+        if (result.errors.isNotEmpty() || result.presets.isEmpty()) {
             showImportReport(result)
             return
         }

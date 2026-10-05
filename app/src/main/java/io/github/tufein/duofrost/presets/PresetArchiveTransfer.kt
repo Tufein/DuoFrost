@@ -10,9 +10,9 @@ import io.github.tufein.duofrost.plugins.LivePolicy
 import io.github.tufein.duofrost.tools.PerformanceProfile
 import org.json.JSONArray
 import org.json.JSONObject
-import java.io.ByteArrayOutputStream
+import java.io.IOException
+import java.io.InputStream
 import java.util.zip.ZipEntry
-import java.util.zip.ZipInputStream
 import java.util.zip.ZipOutputStream
 
 object PresetArchiveTransfer {
@@ -39,6 +39,12 @@ object PresetArchiveTransfer {
         // Generic plugin live-feed policies (caller package → policy). Empty for
         // ordinary user preset bundles; populated by plugins that declare them.
         val livePolicies: Map<String, LivePolicy> = emptyMap()
+    )
+
+    internal data class ValidatedArchive(
+        val manifest: JSONObject?,
+        val entries: Map<String, ByteArray>,
+        val errors: List<String>
     )
 
     fun exportToUri(
@@ -101,7 +107,9 @@ object PresetArchiveTransfer {
         val seenIconNames = linkedSetOf<String>()
         // Check for cancellation before starting heavy IO
         cancelSignal?.throwIfCanceled()
-        context.contentResolver.openOutputStream(uri)?.use { stream ->
+        val output = context.contentResolver.openOutputStream(uri)
+            ?: throw IOException("Unable to write selected preset file.")
+        output.use { stream ->
             ZipOutputStream(stream.buffered()).use { zip ->
                 cancelSignal?.throwIfCanceled()
                 zip.putNextEntry(ZipEntry(MANIFEST_ENTRY_NAME))
@@ -139,73 +147,34 @@ object PresetArchiveTransfer {
 
     fun importFromUri(context: Context, uri: Uri, cancelSignal: CancellationSignal? = null): ImportResult {
         val warnings = mutableListOf<String>()
-        val errors = mutableListOf<String>()
-
-        val zipEntries = mutableMapOf<String, ByteArray>()
         // Check cancellation before reading
         cancelSignal?.throwIfCanceled()
-        context.contentResolver.openInputStream(uri)?.use { input ->
-            ZipInputStream(input.buffered()).use { zip ->
-                while (true) {
-                    cancelSignal?.throwIfCanceled()
-                    val entry = zip.nextEntry ?: break
-                    if (entry.isDirectory) {
-                        zip.closeEntry()
-                        continue
-                    }
-
-                    val data = ByteArrayOutputStream().use { output ->
-                        zip.copyTo(output)
-                        output.toByteArray()
-                    }
-                    zipEntries[entry.name] = data
-                    zip.closeEntry()
-                }
-            }
+        val archive = context.contentResolver.openInputStream(uri)?.use { input ->
+            readValidatedArchive(input) { cancelSignal?.throwIfCanceled() }
         } ?: return ImportResult(
             presets = emptyList(),
             mappings = emptyMap(),
             warnings = emptyList(),
             errors = listOf("Unable to read selected file.")
         )
-
-        val manifestRaw = zipEntries[MANIFEST_ENTRY_NAME]
-            ?: return ImportResult(
-                presets = emptyList(),
-                mappings = emptyMap(),
-                warnings = emptyList(),
-                errors = listOf("Archive is missing manifest.json")
-            )
-
-        val manifest = runCatching {
-            JSONObject(manifestRaw.toString(Charsets.UTF_8))
-        }.getOrElse {
+        val manifest = archive.manifest ?: run {
             return ImportResult(
                 presets = emptyList(),
                 mappings = emptyMap(),
                 warnings = emptyList(),
-                errors = listOf("manifest.json is invalid JSON")
+                errors = archive.errors
             )
         }
-
-        if (manifest.optString("schema") != ARCHIVE_SCHEMA) {
-            errors += "Unknown preset bundle schema."
-        }
-
-        val version = manifest.optInt("version", -1)
-        if (version < 1) {
-            errors += "Unsupported preset bundle version: $version"
-        } else if (version > ARCHIVE_VERSION) {
-            warnings += "Bundle version $version is newer than supported version $ARCHIVE_VERSION. Attempting compatible import."
-        }
+        val zipEntries = archive.entries
 
         val presetArray = manifest.optJSONArray("presets") ?: JSONArray()
         val importedPresets = mutableListOf<LedPreset>()
+        val importedIconNames = mutableMapOf<String, String?>()
 
         for (index in 0 until presetArray.length()) {
             cancelSignal?.throwIfCanceled()
             val obj = presetArray.optJSONObject(index) ?: continue
-            importedPresets += parsePreset(context, obj, index, zipEntries, warnings, cancelSignal)
+            importedPresets += parsePreset(context, obj, index, zipEntries, importedIconNames, warnings, cancelSignal)
         }
 
         val mappings = parseMappings(context, manifest.optJSONObject("appProfileMappings"), warnings, cancelSignal)
@@ -215,9 +184,43 @@ object PresetArchiveTransfer {
             presets = importedPresets,
             mappings = mappings,
             warnings = warnings,
-            errors = errors,
+            errors = emptyList(),
             livePolicies = livePolicies
         )
+    }
+
+    /** Validation is complete before the Android importer can write any artwork. */
+    internal fun readValidatedArchive(
+        input: InputStream,
+        checkCancellation: () -> Unit = {}
+    ): ValidatedArchive {
+        val entries = PresetArchiveReader.read(input, checkCancellation = checkCancellation)
+        val manifestRaw = entries[MANIFEST_ENTRY_NAME]
+            ?: return ValidatedArchive(null, emptyMap(), listOf("Archive is missing manifest.json"))
+        val manifest = runCatching { JSONObject(manifestRaw.toString(Charsets.UTF_8)) }.getOrNull()
+            ?: return ValidatedArchive(null, emptyMap(), listOf("manifest.json is invalid JSON"))
+        val errors = mutableListOf<String>()
+        if (manifest.optString("schema") != ARCHIVE_SCHEMA) {
+            errors += "Unknown preset bundle schema."
+        }
+        val version = manifest.opt("version") as? Int
+        if (version == null || version !in 1..ARCHIVE_VERSION) {
+            errors += "Unsupported preset bundle version: ${manifest.opt("version") ?: "missing"}"
+        }
+        return if (errors.isEmpty()) {
+            ValidatedArchive(manifest, entries, emptyList())
+        } else {
+            ValidatedArchive(null, emptyMap(), errors)
+        }
+    }
+
+    internal fun cachedImportedIcon(
+        sourceName: String,
+        importedNames: MutableMap<String, String?>,
+        importIcon: () -> String?
+    ): String? {
+        if (importedNames.containsKey(sourceName)) return importedNames[sourceName]
+        return importIcon().also { importedNames[sourceName] = it }
     }
 
     /**
@@ -249,6 +252,7 @@ object PresetArchiveTransfer {
         obj: JSONObject,
         index: Int,
         zipEntries: Map<String, ByteArray>,
+        importedIconNames: MutableMap<String, String?>,
         warnings: MutableList<String>,
         cancelSignal: CancellationSignal? = null
     ): LedPreset {
@@ -273,17 +277,19 @@ object PresetArchiveTransfer {
         val importedIconName = obj.optString("customImageFileName").takeIf { it.isNotBlank() }
         val customImageFileName = if (importedIconName != null) {
             cancelSignal?.throwIfCanceled()
-            val archiveEntryName = "$ICONS_DIR_PREFIX$importedIconName"
-            val iconBytes = zipEntries[archiveEntryName]
-            if (iconBytes == null) {
-                warnings += "Preset '$name': missing icon file '$importedIconName'."
-                null
-            } else {
-                PresetImageStorage.importIconFromBytes(context, importedIconName, iconBytes)
-                    ?: run {
-                        warnings += "Preset '$name': could not import icon '$importedIconName'."
-                        null
-                    }
+            cachedImportedIcon(importedIconName, importedIconNames) {
+                val archiveEntryName = "$ICONS_DIR_PREFIX$importedIconName"
+                val iconBytes = zipEntries[archiveEntryName]
+                if (iconBytes == null) {
+                    warnings += "Preset '$name': missing icon file '$importedIconName'."
+                    null
+                } else {
+                    PresetImageStorage.importIconFromBytes(context, importedIconName, iconBytes)
+                        ?: run {
+                            warnings += "Preset '$name': could not import icon '$importedIconName'."
+                            null
+                        }
+                }
             }
         } else {
             null
@@ -365,4 +371,3 @@ object PresetArchiveTransfer {
         }.isSuccess
     }
 }
-

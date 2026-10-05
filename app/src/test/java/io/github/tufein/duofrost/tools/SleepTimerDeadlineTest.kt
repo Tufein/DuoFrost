@@ -16,6 +16,13 @@ class SleepTimerDeadlineTest {
         val restored = SleepTimerDeadline(timer.started, timer.deadline, timer.bootCount)
         assertEquals(1_200_000L, restored.remaining(601_000, 7))
     }
+    @Test fun customDurationSurvivesRestorationAndExpiresAtItsOriginalDeadline() {
+        val timer = SleepTimerDeadline.create(37, 10_000, 7)!!
+        val restored = SleepTimerDeadline(timer.started, timer.deadline, timer.bootCount)
+        assertEquals(1_620_000L, restored.remaining(610_000, 7))
+        assertEquals(1L, restored.remaining(2_229_999, 7))
+        assertEquals(0L, restored.remaining(2_230_000, 7))
+    }
     @Test fun exactDeadlineAndLongSleepAreExpired() {
         val timer = SleepTimerDeadline.create(15, 1000, 2)!!
         assertEquals(1, timer.remaining(timer.deadline - 1, 2))

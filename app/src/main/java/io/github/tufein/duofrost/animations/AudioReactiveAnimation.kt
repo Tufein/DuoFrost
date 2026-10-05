@@ -160,11 +160,6 @@ class AudioReactiveAnimation(
         val rg = (Color.green(baseRightColor) * scale).roundToInt().coerceIn(0, 255)
         val rb = (Color.blue(baseRightColor) * scale).roundToInt().coerceIn(0, 255)
 
-        ledController.setLedColor(lr, lg, lb,
-            leftTop = true, leftBottom = true,
-            rightTop = false, rightBottom = false)
-        ledController.setLedColor(rr, rg, rb,
-            leftTop = false, leftBottom = false,
-            rightTop = true, rightBottom = true)
+        ledController.setLedColorDual(lr, lg, lb, rr, rg, rb)
     }
 }

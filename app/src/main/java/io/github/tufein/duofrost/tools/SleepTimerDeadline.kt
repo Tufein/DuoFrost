@@ -10,9 +10,10 @@ data class SleepTimerDeadline(val started: Long, val deadline: Long, val bootCou
     }
 
     companion object {
-        const val MAX_DURATION_MS = 120L * 60_000L
+        const val MAX_MINUTES = 120
+        const val MAX_DURATION_MS = MAX_MINUTES * 60_000L
         fun create(minutes: Int, now: Long, bootCount: Int): SleepTimerDeadline? {
-            if (minutes !in 1..120 || now < 0) return null
+            if (minutes !in 1..MAX_MINUTES || now < 0) return null
             val duration = minutes * 60_000L
             if (now > Long.MAX_VALUE - duration) return null
             return SleepTimerDeadline(now, now + duration, bootCount)

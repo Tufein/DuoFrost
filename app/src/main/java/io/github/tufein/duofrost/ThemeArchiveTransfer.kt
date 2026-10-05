@@ -3,6 +3,7 @@ package io.github.tufein.duofrost
 import android.content.Context
 import android.net.Uri
 import org.json.JSONObject
+import java.io.IOException
 
 object ThemeArchiveTransfer {
 
@@ -34,14 +35,13 @@ object ThemeArchiveTransfer {
             put("coloredLogoEnabled", coloredLogoEnabled)
         }
 
-        context.contentResolver.openOutputStream(uri)?.use { stream ->
+        val output = context.contentResolver.openOutputStream(uri)
+            ?: throw IOException("Unable to write selected theme file.")
+        output.use { stream ->
             stream.writer(Charsets.UTF_8).use { writer ->
                 writer.write(payload.toString(2))
             }
-        } ?: return ExportResult(
-            themeId = themeId,
-            warnings = listOf("Unable to write selected file.")
-        )
+        }
 
         return ExportResult(
             themeId = themeId,

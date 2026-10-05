@@ -239,24 +239,9 @@ class AmbiAuroraAnimation(
         val rightGreen = (Color.green(currentRightColor) * scale).roundToInt().coerceIn(0, 255)
         val rightBlue = (Color.blue(currentRightColor) * scale).roundToInt().coerceIn(0, 255)
 
-        ledController.setLedColor(
-            leftRed,
-            leftGreen,
-            leftBlue,
-            leftTop = true,
-            leftBottom = true,
-            rightTop = false,
-            rightBottom = false
-        )
-
-        ledController.setLedColor(
-            rightRed,
-            rightGreen,
-            rightBlue,
-            leftTop = false,
-            leftBottom = false,
-            rightTop = true,
-            rightBottom = true
+        ledController.setLedColorDual(
+            leftRed, leftGreen, leftBlue,
+            rightRed, rightGreen, rightBlue
         )
     }
 }

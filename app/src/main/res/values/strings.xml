@@ -4,6 +4,11 @@
     <string name="quick_controls_start_first">Start lighting first to use these controls.</string>
     <string name="sleep_timer_title">Sleep timer</string>
     <string name="sleep_timer_cancel">Cancel timer</string>
+    <string name="sleep_timer_custom">Custom duration…</string>
+    <string name="sleep_timer_set">Set timer</string>
+    <string name="sleep_timer_duration_label">Minutes</string>
+    <string name="sleep_timer_custom_range">Choose 1–%1$d minutes</string>
+    <string name="sleep_timer_custom_error">Enter a whole number from 1 to %1$d.</string>
     <string name="sleep_timer_minutes">%1$d minutes</string>
     <string name="sleep_timer_status">Timer ends at %1$s</string>
     <string name="sleep_timer_off">Timer off</string>

@@ -42,6 +42,38 @@ class PresetController(
     companion object {
         private const val PREF_KEY_PRESETS = "presets_json"
         private const val PREF_KEY_LAST_PRESET = "last_preset_name"
+
+        internal fun hasLightingChanges(current: LedPreset, selectedPreset: LedPreset): Boolean {
+            return current.animationType != selectedPreset.animationType ||
+                current.performanceProfile != selectedPreset.performanceProfile ||
+                current.color != selectedPreset.color ||
+                current.rightColor != selectedPreset.rightColor ||
+                current.fadeEndColor != selectedPreset.fadeEndColor ||
+                current.fadeEndRightColor != selectedPreset.fadeEndRightColor ||
+                current.brightness != selectedPreset.brightness ||
+                current.speed != selectedPreset.speed ||
+                current.smoothness != selectedPreset.smoothness ||
+                current.sensitivity != selectedPreset.sensitivity ||
+                current.saturationBoost != selectedPreset.saturationBoost ||
+                current.useCustomSampling != selectedPreset.useCustomSampling ||
+                current.useSingleColor != selectedPreset.useSingleColor ||
+                current.breatheWhenCharging != selectedPreset.breatheWhenCharging ||
+                current.indicateChargingSpeed != selectedPreset.indicateChargingSpeed ||
+                current.flashWhenReady != selectedPreset.flashWhenReady ||
+                current.batteryLowColorOverride != selectedPreset.batteryLowColorOverride ||
+                current.batteryMidColorOverride != selectedPreset.batteryMidColorOverride ||
+                current.batteryHighColorOverride != selectedPreset.batteryHighColorOverride ||
+                current.cpuCoolColorOverride != selectedPreset.cpuCoolColorOverride ||
+                current.cpuWarmColorOverride != selectedPreset.cpuWarmColorOverride ||
+                current.cpuHotColorOverride != selectedPreset.cpuHotColorOverride
+        }
+
+        internal fun canDeleteArtwork(fileName: String?, presets: List<LedPreset>, excludedIndex: Int): Boolean {
+            if (fileName.isNullOrBlank()) return false
+            return presets.indices.none { index ->
+                index != excludedIndex && presets[index].customImageFileName == fileName
+            }
+        }
     }
 
     private val presets: MutableList<LedPreset> = mutableListOf()
@@ -268,22 +300,7 @@ class PresetController(
         val selectedPreset = presets[selectedIndex]
         val current = getCurrentConfig()
 
-        return current.animationType != selectedPreset.animationType ||
-            current.performanceProfile != selectedPreset.performanceProfile ||
-            current.color != selectedPreset.color ||
-            current.rightColor != selectedPreset.rightColor ||
-            current.fadeEndColor != selectedPreset.fadeEndColor ||
-            current.fadeEndRightColor != selectedPreset.fadeEndRightColor ||
-            current.brightness != selectedPreset.brightness ||
-            current.speed != selectedPreset.speed ||
-            current.smoothness != selectedPreset.smoothness ||
-            current.sensitivity != selectedPreset.sensitivity ||
-            current.saturationBoost != selectedPreset.saturationBoost ||
-            current.useCustomSampling != selectedPreset.useCustomSampling ||
-            current.useSingleColor != selectedPreset.useSingleColor ||
-            current.breatheWhenCharging != selectedPreset.breatheWhenCharging ||
-            current.indicateChargingSpeed != selectedPreset.indicateChargingSpeed ||
-            current.flashWhenReady != selectedPreset.flashWhenReady
+        return hasLightingChanges(current, selectedPreset)
     }
 
     private fun setupPresetControls(initialPreset: LedPreset) {
@@ -616,7 +633,7 @@ class PresetController(
         if (index !in presets.indices) return
 
         val previousPreset = presets[index]
-        cleanupReplacedImage(previousPreset, updatedPreset)
+        cleanupReplacedImage(index, previousPreset, updatedPreset)
 
         presets[index] = updatedPreset
         savePresetsToPrefs()
@@ -634,9 +651,10 @@ class PresetController(
         }
     }
 
-    private fun cleanupReplacedImage(previousPreset: LedPreset, updatedPreset: LedPreset) {
+    private fun cleanupReplacedImage(index: Int, previousPreset: LedPreset, updatedPreset: LedPreset) {
         val previousFileName = previousPreset.customImageFileName
-        if (!previousFileName.isNullOrBlank() && previousFileName != updatedPreset.customImageFileName) {
+        if (previousFileName != updatedPreset.customImageFileName &&
+            canDeleteArtwork(previousFileName, presets, excludedIndex = index)) {
             PresetImageStorage.deleteIfExists(activity, previousFileName)
         }
     }
@@ -708,7 +726,9 @@ class PresetController(
             activity = activity,
             presetName = preset.name,
             onConfirm = {
-                PresetImageStorage.deleteIfExists(activity, preset.customImageFileName)
+                if (canDeleteArtwork(preset.customImageFileName, presets, excludedIndex = selectedIndex)) {
+                    PresetImageStorage.deleteIfExists(activity, preset.customImageFileName)
+                }
                 presets.removeAt(selectedIndex)
                 savePresetsToPrefs()
 

@@ -10,7 +10,6 @@ import android.os.Build
 import android.os.Process
 import android.util.Log
 import androidx.annotation.RequiresApi
-import kotlin.math.abs
 
 @RequiresApi(Build.VERSION_CODES.Q)
 class AudioAnalyzer(
@@ -22,157 +21,123 @@ class AudioAnalyzer(
         private const val TAG = "AudioAnalyzer"
         private const val SAMPLE_RATE_HZ = 8000
         private const val DEFAULT_BUFFER_BYTES = 512
-        private const val THREAD_JOIN_TIMEOUT_MS = 200L
     }
 
-    private var audioRecord: AudioRecord? = null
-    private var captureThread: Thread? = null
-    private var routingListener: AudioRouting.OnRoutingChangedListener? = null
-
-    @Volatile
-    private var running = false
-
-    private var sampleBuffer = ShortArray(256)
+    private val sessionLock = Any()
+    private var activeSession: AudioCaptureSession? = null
 
     fun start() {
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) return
-        if (running) return
+        synchronized(sessionLock) {
+            if (activeSession != null) return
+            var record: AudioRecord? = null
+            try {
+                val config = AudioPlaybackCaptureConfiguration.Builder(mediaProjection)
+                    .addMatchingUsage(AudioAttributes.USAGE_MEDIA)
+                    .addMatchingUsage(AudioAttributes.USAGE_GAME)
+                    .addMatchingUsage(AudioAttributes.USAGE_UNKNOWN)
+                    .build()
 
-        try {
-            val config = AudioPlaybackCaptureConfiguration.Builder(mediaProjection)
-                .addMatchingUsage(AudioAttributes.USAGE_MEDIA)
-                .addMatchingUsage(AudioAttributes.USAGE_GAME)
-                .addMatchingUsage(AudioAttributes.USAGE_UNKNOWN)
-                .build()
+                val channelConfig = AudioFormat.CHANNEL_IN_MONO
+                val encoding = AudioFormat.ENCODING_PCM_16BIT
+                val minBufferSize = AudioRecord.getMinBufferSize(SAMPLE_RATE_HZ, channelConfig, encoding)
+                check(minBufferSize > 0) { "Unsupported audio capture format: $minBufferSize" }
+                val bufferBytes = maxOf(DEFAULT_BUFFER_BYTES, minBufferSize)
+                val recorder = AudioRecord.Builder()
+                    .setAudioPlaybackCaptureConfig(config)
+                    .setAudioFormat(
+                        AudioFormat.Builder()
+                            .setEncoding(encoding)
+                            .setSampleRate(SAMPLE_RATE_HZ)
+                            .setChannelMask(channelConfig)
+                            .build()
+                    )
+                    .setBufferSizeInBytes(bufferBytes)
+                    .build()
+                record = recorder
+                check(recorder.state == AudioRecord.STATE_INITIALIZED) { "AudioRecord failed to initialize" }
 
-            val sampleRate = SAMPLE_RATE_HZ
-            val channelConfig = AudioFormat.CHANNEL_IN_MONO
-            val encoding = AudioFormat.ENCODING_PCM_16BIT
-            val minBufferSize = AudioRecord.getMinBufferSize(sampleRate, channelConfig, encoding)
-            val bufferSize = maxOf(DEFAULT_BUFFER_BYTES, minBufferSize)
-            sampleBuffer = ShortArray((bufferSize / 2).coerceAtLeast(128))
-
-            audioRecord = AudioRecord.Builder()
-                .setAudioPlaybackCaptureConfig(config)
-                .setAudioFormat(
-                    AudioFormat.Builder()
-                        .setEncoding(encoding)
-                        .setSampleRate(sampleRate)
-                        .setChannelMask(channelConfig)
-                        .build()
-                )
-                .setBufferSizeInBytes(bufferSize)
-                .build()
-
-            val record = audioRecord
-            if (record?.state != AudioRecord.STATE_INITIALIZED) {
-                Log.w(TAG, "AudioRecord failed to initialize")
-                cleanup()
-                return
-            }
-
-            routingListener = AudioRouting.OnRoutingChangedListener { route ->
-                val audioRoute = route as? AudioRecord ?: return@OnRoutingChangedListener
-                if (HardwareDeviceBlacklist.isBlockedMicrophoneDevice(audioRoute.routedDevice)) {
-                    Log.w(TAG, "Blocked physical microphone route detected; stopping capture")
-                    running = false
-                    cleanup()
+                val skipInterval = when {
+                    performanceProfile.intervalMs >= 32L -> 3
+                    performanceProfile.intervalMs >= 16L -> 1
+                    else -> 0
                 }
-            }
-            routingListener?.let { listener ->
-                record.addOnRoutingChangedListener(listener, null)
-            }
-
-            running = true
-
-            captureThread = Thread({
-                Process.setThreadPriority(Process.THREAD_PRIORITY_URGENT_AUDIO)
-
-                try {
-                    record.startRecording()
-
-                    if (HardwareDeviceBlacklist.isBlockedMicrophoneDevice(record.routedDevice)) {
-                        Log.w(TAG, "Initial route resolved to blocked microphone; aborting capture")
-                        running = false
-                        cleanup()
-                        return@Thread
+                lateinit var session: AudioCaptureSession
+                val routeListener = AudioRouting.OnRoutingChangedListener { route ->
+                    val current = synchronized(sessionLock) { activeSession === session }
+                    if (!current) return@OnRoutingChangedListener
+                    val routedRecord = route as? AudioRecord ?: return@OnRoutingChangedListener
+                    // A queued route event can race recorder release, even after listener removal.
+                    val blocked = runCatching {
+                        HardwareDeviceBlacklist.isBlockedMicrophoneDevice(routedRecord.routedDevice)
+                    }.getOrDefault(false)
+                    if (blocked) {
+                        Log.w(TAG, "Blocked physical microphone route detected; stopping capture")
+                        stopSession(session)
                     }
-
-                    var skip = 0
-                    val skipInterval = when {
-                        performanceProfile.intervalMs >= 32L -> 3
-                        performanceProfile.intervalMs >= 16L -> 1
-                        else -> 0
-                    }
-
-                    while (running) {
-                        val read = record.read(sampleBuffer, 0, sampleBuffer.size)
-
-                        if (read > 0) {
-                            if (skip > 0) {
-                                skip--
-                                continue
-                            }
-                            skip = skipInterval
-
-                            var max = 0
-                            var i = 0
-                            val limit = minOf(read, sampleBuffer.size)
-                            while (i < limit) {
-                                val abs = abs(sampleBuffer[i].toInt())
-                                if (abs > max) max = abs
-                                i++
-                            }
-
-                            val intensity = (max.toFloat() / Short.MAX_VALUE * 5f).coerceIn(0f, 1f)
-                            callback(intensity)
+                }
+                val source = object : AudioCaptureSession.Source {
+                    override fun start() {
+                        Process.setThreadPriority(Process.THREAD_PRIORITY_URGENT_AUDIO)
+                        recorder.addOnRoutingChangedListener(routeListener, null)
+                        recorder.startRecording()
+                        check(!HardwareDeviceBlacklist.isBlockedMicrophoneDevice(recorder.routedDevice)) {
+                            "Initial audio route resolved to a blocked microphone"
                         }
                     }
-                } catch (e: Exception) {
-                    Log.w(TAG, "Audio capture loop failed", e)
+
+                    override fun read(buffer: ShortArray): Int = recorder.read(buffer, 0, buffer.size)
+
+                    override fun stop() {
+                        runCatching { recorder.removeOnRoutingChangedListener(routeListener) }
+                        if (recorder.recordingState == AudioRecord.RECORDSTATE_RECORDING) recorder.stop()
+                    }
+
+                    override fun release() = recorder.release()
                 }
-            }, "AudioCapture")
-
-            captureThread?.start()
-
-        } catch (e: Exception) {
-            Log.w(TAG, "Audio analyzer failed to start", e)
-            running = false
-            cleanup()
+                session = AudioCaptureSession(
+                    source, (bufferBytes / 2).coerceAtLeast(128), skipInterval,
+                    onIntensity = { intensity ->
+                        synchronized(sessionLock) {
+                            if (activeSession === session) callback(intensity)
+                        }
+                    },
+                    onFailure = { error -> Log.w(TAG, "Audio capture failed", error) },
+                    onFinished = { finished ->
+                        synchronized(sessionLock) {
+                            if (activeSession === finished) activeSession = null
+                        }
+                    }
+                )
+                activeSession = session
+                session.start()
+            } catch (error: Exception) {
+                Log.w(TAG, "Audio analyzer failed to start", error)
+                val failedSession = activeSession
+                activeSession = null
+                if (failedSession != null) failedSession.stop()
+                else runCatching { record?.release() }
+                silence()
+            }
         }
     }
 
     fun stop() {
-        running = false
-
-        captureThread?.let { thread ->
-            thread.interrupt()
-            runCatching { thread.join(THREAD_JOIN_TIMEOUT_MS) }
-            if (thread.isAlive) {
-                Log.w(TAG, "Audio capture thread did not stop within timeout")
-            }
+        val session = synchronized(sessionLock) {
+            activeSession.also { activeSession = null }
         }
-        captureThread = null
-
-        cleanup()
+        session?.stop()
     }
 
-    private fun cleanup() {
-        try {
-            audioRecord?.let { record ->
-                routingListener?.let { listener ->
-                    runCatching { record.removeOnRoutingChangedListener(listener) }
-                }
-                if (record.recordingState == AudioRecord.RECORDSTATE_RECORDING) {
-                    record.stop()
-                }
-                record.release()
-            }
-        } catch (e: Exception) {
-            Log.w(TAG, "Audio record cleanup failed", e)
+    private fun stopSession(session: AudioCaptureSession) {
+        synchronized(sessionLock) {
+            if (activeSession !== session) return
+            activeSession = null
+            silence()
         }
+        session.stop()
+    }
 
-        audioRecord = null
-        routingListener = null
+    private fun silence() {
+        runCatching { callback(0f) }.onFailure { Log.w(TAG, "Audio consumer failed", it) }
     }
 }
