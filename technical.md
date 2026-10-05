@@ -28,6 +28,8 @@ removed from the public release list. Their implementation remains in Git histor
 - Existing DuoFrost APKs share this signing certificate SHA-256:
   `a0402863156665d4c6401bbb4a632c574978aca7000281196fc3cfa2cfc3b201`.
 - Version code must increase for a rebuilt release; the retained Version 2 build uses 22.
+- Current source/test version: `2.1.0`, version code `23`, source tag `v2.1.0`.
+  Debug APKs display `2.1.0-debug`; the public signed APK still displays `1.5.1`.
 
 ## Build and automated verification
 
@@ -48,10 +50,12 @@ requires recovering that key or explicitly documenting a signing migration.
 The publication cleanup changes documentation and release presentation;
 it does not add lighting behavior.
 
-## Unreleased source improvements — 2026-10-05
+## DuoFrost 2.1.0 — source and test version (2026-10-05)
 
-These changes follow the public `v2` snapshot. They are not included in the
-retained, signed Version 2 APK and do not create a third public release.
+Version `2.1.0` (code `23`, source tag `v2.1.0`) follows the public `v2` snapshot.
+Its changes are available in source and separate debug test builds. They are not
+included in the retained, signed Version 2 APK and do not create a third public
+APK release.
 
 - Custom sleep timer entry accepts any whole number from 1 to 120 minutes, with
   the existing quick choices retained. Invalid input and cancellation preserve

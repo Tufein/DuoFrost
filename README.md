@@ -8,6 +8,10 @@ An independent, open-source continuation of [BiFrost](https://github.com/Pollux-
 
 **[Download DuoFrost](https://github.com/Tufein/DuoFrost/releases/latest)** · [What's changed](CHANGELOG.md) · [Report a problem](https://github.com/Tufein/DuoFrost/issues)
 
+**Source/test version: 2.1.0.** This update adds custom sleep timers and fixes audio,
+preset imports and exports. The public APK above remains Version 2.
+See [2.1.0 details](technical.md#duofrost-210--source-and-test-version-2026-10-05).
+
 ![DuoFrost preset selection](assets/screenshots/home.png)
 
 <details>

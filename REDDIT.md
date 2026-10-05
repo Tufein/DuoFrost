@@ -1,8 +1,8 @@
-# DuoFrost fix update — audio stability, safer presets and custom sleep timers
+# DuoFrost 2.1.0 fix update — audio stability, safer presets and custom sleep timers
 
 Hey everyone,
 
-I've been working on a fix update for DuoFrost, my open-source BiFrost fork for LED control on AYN devices.
+I've been working on DuoFrost 2.1.0, a fix update for my open-source BiFrost fork for LED control on AYN devices.
 
 Here's what I've improved:
 
@@ -13,9 +13,13 @@ Here's what I've improved:
 - Sleep timers accept your own duration from 1 to 120 minutes. The existing quick choices are still there.
 - Failed backup, theme and preset exports show a failure instead of claiming the file was saved.
 
-These fixes are on GitHub's main branch. The public DuoFrost 2 APK is unchanged; this is currently a source update.
+Version 2.1.0 is available as source and a separate debug test build. The public DuoFrost 2 APK is unchanged.
 
 Source: https://github.com/Tufein/DuoFrost
+
+2.1.0 source: https://github.com/Tufein/DuoFrost/tree/v2.1.0
+
+Debug test builds: https://github.com/Tufein/DuoFrost/actions/workflows/android.yml
 
 Credit to Pollux / Pollux-MoonBench and the BiFrost contributors for the original app. DuoFrost is GPLv3, and forks and contributions are welcome.
 
