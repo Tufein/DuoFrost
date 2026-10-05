@@ -24,4 +24,7 @@
         <item name="strokeColor">@color/bifrost_outline</item>
         <item name="cornerRadius">12dp</item>
     </style>
+    <style name="ThemeOverlay.DuoFrost.Dialog" parent="ThemeOverlay.Material3.MaterialAlertDialog">
+        <item name="colorPrimary">@color/bifrost_accent_light</item>
+    </style>
 </resources>
