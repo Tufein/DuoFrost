@@ -118,5 +118,8 @@ This document contains instructions for autonomous coding agents.
     control IDs stay unique and settings keep scroll room. Card setters run on
     every scroll frame; skip unchanged borders and backgrounds.
 38. The interface refresh and landscape work prepared as 2.2.0 ship as the 2.3.0
-    pre-release (code 24), as the user decided on 2026-10-06. 2.1.0 remains the
+    pre-release (code 25), as the user decided on 2026-10-06. 2.1.0 remains the
     latest stable release until the user promotes 2.3.0. Sign it with the 2.1.0 key.
+
+39. A release version code must exceed all earlier distributed production-signed
+    builds, including previews, so upgrades preserve the same app and signing key.

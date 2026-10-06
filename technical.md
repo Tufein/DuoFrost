@@ -26,11 +26,12 @@ removed from the public release list. Their implementation remains in Git histor
 
 ## DuoFrost 2.3.0 pre-release
 
-Version `2.3.0`, version code `24`, is a pre-release; the latest stable public
+Version `2.3.0`, version code `25`, is a pre-release; the latest stable public
 release remains `2.1.0`. It combines the interface refresh (dashboard, searchable
 preset library, four editor destinations; see [docs/gui-refresh.md](docs/gui-refresh.md))
-with the landscape work that was prepared separately as `2.2.0`. No `2.2.0` was
-published. The refresh's own responsive home layout replaces the earlier
+with the landscape work that was prepared separately as `2.2.0`. `2.2.0` was not
+published as a public release. The refresh's own responsive home layout replaces
+the earlier
 landscape-only layout variants: at a window width of 720dp or more the dashboard
 and library sit side by side, narrower windows stack them.
 
@@ -39,7 +40,13 @@ change, because `updateCoverFlowCardTransforms()` runs on every scroll frame.
 Robolectric inflates and measures `activity_main` at 800×320 and 640×280
 landscape and 400×800 portrait, checking unique control IDs and settings scroll
 room. Device frame rates and AYN LED behavior still require hardware validation.
-Production APKs must use the existing 2.1.0 private signing key.
+Production APKs use the existing 2.1.0 private signing key. The 2.3.0 build
+passed 214 JVM tests, five Android instrumentation tests, the optimized signed
+release build and critical release lint. A fresh Android 15 emulator confirmed
+the in-place update from 2.1.0 with saved presets intact and supplied the current
+screenshots. Device
+LED output is not emulated. Version code 25 also supersedes the signed 2.2.0
+preview (code 24).
 
 ## Android identity and upgrades
 
@@ -52,9 +59,10 @@ Production APKs must use the existing 2.1.0 private signing key.
   `a0402863156665d4c6401bbb4a632c574978aca7000281196fc3cfa2cfc3b201`.
 - Production version `2.1.0` uses this new signing certificate SHA-256:
   `0863ff52a003ec13c5997f8f23fe24fd69f4118c0644506641edd198d87aaa2d`.
-- Current production version: `2.1.0`, version code `23`, tag `v2.1.0`.
+- Latest stable production version: `2.1.0`, version code `23`, tag `v2.1.0`.
+- Current production pre-release: `2.3.0`, version code `25`, tag `v2.3.0`.
   Future updates must increment the version code and retain the new release key.
-  Debug builds still display `2.1.0-debug` and are separate installations.
+  Current pre-release debug builds display `2.3.0-debug` and are separate installations.
 
 ### One-time signing migration
 

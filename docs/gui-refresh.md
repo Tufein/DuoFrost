@@ -6,7 +6,7 @@ The public 2.1.0 release and the original Version 1 and Version 2 remain availab
 ## What changed
 
 - A home dashboard shows lighting status and the selected preset, with direct access to maximum output, mute, the sleep timer and capture recovery.
-- Presets have flat, readable cards with visible selection and keyboard focus. Browsing never changes lighting; a click applies a preset and a hold opens its editor.
+- Presets have flat, readable cards with visible selection and keyboard focus. Browsing never changes lighting; in manual mode, a click applies a preset and a hold opens its editor.
 - Local search finds presets by name or effect, preserving their storage indices. Filtering cannot change the selected preset or saved lighting.
 - The editor has four clear destinations: Lighting, Device, Appearance and Wallpaper. Larger text and controls replace dense uppercase labels and tiny toolbar icons.
 - Preset tools scroll with the editor content, leaving more space on short screens. On wide windows, the dashboard and library sit side by side; narrow windows stack them.
@@ -17,7 +17,7 @@ Existing presets, themes, app profiles, backups, widgets and lighting effects st
 
 ## Preview
 
-Actual captures from an Android emulator, with sample presets.
+Actual captures from the signed 2.3.0 APK in an Android emulator, with sample presets.
 
 ![Dashboard and searchable preset library](../assets/screenshots/2.3.0/dashboard.png)
 
@@ -42,6 +42,6 @@ Default palette contrast is 15.32:1 for main text, 8.25:1 for secondary text, 4.
 
 ## Installation and validation
 
-The signed 2.3.0 APK uses the same private release certificate as 2.1.0. It can update 2.1.0 in place. For older installations, keep the existing one-time full-backup and reinstall procedure. The interface work does not replace a public release automatically.
+The signed 2.3.0 APK uses the same private release certificate as 2.1.0. It can update 2.1.0 in place. For older installations, keep the existing one-time full-backup and reinstall procedure. 2.3.0 is published as a pre-release; 2.1.0 remains the latest stable release.
 
-211 JVM tests passed. The signed release build and critical release lint passed. Five Android instrumentation tests passed on an Android 15 emulator. Automated checks cover preset filtering and draft serialization, plus Android interactions for search and selection, destination visibility, output-limit synchronization, app-profile mode and saving edits after recreation. Manual checks covered narrow portrait and wide/short landscape windows, 200% font size, palette switching, schedules, plugins and the sleep-timer dialog. Screenshots show the real Android emulator interface with sample presets. Physical LED output and firmware-specific background behavior need device testing.
+214 JVM tests passed for 2.3.0, including three layout tests for short landscape and portrait windows. The signed release build and critical release lint passed. Five Android instrumentation tests passed on an Android 15 emulator. Automated checks cover preset filtering and draft serialization, plus Android interactions for search and selection, destination visibility, output-limit synchronization, app-profile mode and saving edits after recreation. Manual checks covered narrow portrait and wide/short landscape windows, 200% font size, palette switching, schedules, plugins and the sleep-timer dialog. Screenshots show the real Android emulator interface with sample presets. Physical LED output and firmware-specific background behavior need device testing.
