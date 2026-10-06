@@ -123,3 +123,7 @@ This document contains instructions for autonomous coding agents.
 
 39. A release version code must exceed all earlier distributed production-signed
     builds, including previews, so upgrades preserve the same app and signing key.
+
+40. The maintainer explicitly requested MainActivity excludeFromRecents=true for
+    2.3.0 on 2026-10-06. Preserve launcher reopening and existing singleTop intent
+    handling. Recents exclusion must not be described as a keep-alive guarantee.

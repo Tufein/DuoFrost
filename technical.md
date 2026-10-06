@@ -40,6 +40,11 @@ change, because `updateCoverFlowCardTransforms()` runs on every scroll frame.
 Robolectric inflates and measures `activity_main` at 800×320 and 640×280
 landscape and 400×800 portrait, checking unique control IDs and settings scroll
 room. Device frame rates and AYN LED behavior still require hardware validation.
+On 2026-10-06 the maintainer explicitly requested `excludeFromRecents=true`
+on MainActivity. The launcher entry and `singleTop` behavior are retained.
+This hides the task from Android Recents; it does not grant process-lifetime
+or battery-management exemptions.
+
 Production APKs use the existing 2.1.0 private signing key. The 2.3.0 build
 passed 214 JVM tests, five Android instrumentation tests, the optimized signed
 release build and critical release lint. A fresh Android 15 emulator confirmed
