@@ -1748,10 +1748,22 @@ class MainActivity : AppCompatActivity() {
             card.scaleY = 1f
             card.alpha = 1f
             card.isSelected = selected
-            card.strokeWidth = dpToPx(if (selected || card.hasFocus()) 2 else 1)
-            card.setStrokeColor(if (selected || card.hasFocus()) selectedUiTheme.accentLightColor else themeOutline())
-            card.setCardBackgroundColor(selectedUiTheme.surfaceColor)
+            val emphasized = selected || card.hasFocus()
+            setCoverFlowStroke(
+                card,
+                dpToPx(if (emphasized) 2 else 1),
+                if (emphasized) selectedUiTheme.accentLightColor else themeOutline()
+            )
+            if (card.cardBackgroundColor.defaultColor != selectedUiTheme.surfaceColor) {
+                card.setCardBackgroundColor(selectedUiTheme.surfaceColor)
+            }
         }
+    }
+
+    // Runs on every scroll frame; card setters invalidate even when values are unchanged.
+    private fun setCoverFlowStroke(card: MaterialCardView, width: Int, color: Int) {
+        if (card.strokeWidth != width) card.strokeWidth = width
+        if (card.strokeColorStateList?.defaultColor != color) card.setStrokeColor(color)
     }
 
     private fun syncAppProfileSwitches(isChecked: Boolean) {

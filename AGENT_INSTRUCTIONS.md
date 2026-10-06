@@ -114,3 +114,9 @@ This document contains instructions for autonomous coding agents.
     Respect system bars, cutouts and IME insets; keep short-screen content scrollable.
     Use readable text, 48dp controls and contrasting swatch labels. Dashboard and
     editor output ceilings share the same preference and minimal update command.
+37. Inflate activity_main in short landscape and portrait with LandscapeLayoutTest:
+    control IDs stay unique and settings keep scroll room. Card setters run on
+    every scroll frame; skip unchanged borders and backgrounds.
+38. The interface refresh and landscape work prepared as 2.2.0 ship as the 2.3.0
+    pre-release (code 24), as the user decided on 2026-10-06. 2.1.0 remains the
+    latest stable release until the user promotes 2.3.0. Sign it with the 2.1.0 key.

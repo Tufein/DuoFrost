@@ -57,7 +57,7 @@ Ambient and audio effects need capture permission. These effects process samples
 - **[Version 2](https://github.com/Tufein/DuoFrost/releases/tag/v2):** the original release with widgets, timer quick choices, mute, brightness limits, scheduling and background controls. Its original signed APK retains Android version 1.5.1.
 - **[Version 1](https://github.com/Tufein/DuoFrost/releases/tag/v1.0.0):** the first DuoFrost release, focused on ambient color accuracy and capture stability.
 
-A **2.2.0 interface refresh** is in development, focused on a clearer dashboard, searchable presets and easier settings. [Preview the new interface](docs/gui-refresh.md).
+A **2.3.0 pre-release** for testing brings a clearer dashboard, searchable presets and easier settings, including on short landscape screens. 2.1.0 remains the latest stable release. [Preview the new interface](docs/gui-refresh.md).
 
 See the [changelog](CHANGELOG.md) for details and [technical.md](technical.md) for build instructions, implementation notes and Android behavior.
 

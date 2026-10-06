@@ -24,6 +24,23 @@ object was archived before the tag was finalized for the public release.
 Intermediate development releases are archived locally by the maintainer and
 removed from the public release list. Their implementation remains in Git history.
 
+## DuoFrost 2.3.0 pre-release
+
+Version `2.3.0`, version code `24`, is a pre-release; the latest stable public
+release remains `2.1.0`. It combines the interface refresh (dashboard, searchable
+preset library, four editor destinations; see [docs/gui-refresh.md](docs/gui-refresh.md))
+with the landscape work that was prepared separately as `2.2.0`. No `2.2.0` was
+published. The refresh's own responsive home layout replaces the earlier
+landscape-only layout variants: at a window width of 720dp or more the dashboard
+and library sit side by side, narrower windows stack them.
+
+Card-border and background setters on library cards run only when their values
+change, because `updateCoverFlowCardTransforms()` runs on every scroll frame.
+Robolectric inflates and measures `activity_main` at 800×320 and 640×280
+landscape and 400×800 portrait, checking unique control IDs and settings scroll
+room. Device frame rates and AYN LED behavior still require hardware validation.
+Production APKs must use the existing 2.1.0 private signing key.
+
 ## Android identity and upgrades
 
 - Application ID and API namespace: `io.github.tufein.duofrost`.
