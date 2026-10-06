@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="gui_editor_title">Edit lighting</string>
+    <string name="gui_editor_subtitle">Adjust a preset to suit your device</string>
+    <string name="gui_editor_done">Done</string>
+    <string name="gui_editor_preset">Selected preset</string>
+    <string name="gui_editor_new">New</string>
+    <string name="gui_editor_save">Save</string>
+    <string name="gui_editor_artwork">Artwork</string>
+    <string name="gui_editor_delete">Delete</string>
+    <string name="gui_editor_lighting">Lighting</string>
+    <string name="gui_editor_device">Device</string>
+    <string name="gui_editor_appearance">Appearance</string>
+    <string name="gui_editor_wallpaper">Wallpaper</string>
+    <string name="gui_editor_background_heading">Background lighting</string>
+    <string name="gui_editor_power_heading">Power &amp; battery</string>
+    <string name="gui_editor_output_heading">Brightness limits &amp; quick controls</string>
+    <string name="gui_editor_integrations_heading">Integrations</string>
+    <string name="gui_editor_data_heading">Backup &amp; restore</string>
+    <string name="gui_editor_data_description">Save your presets, artwork and settings, or restore a saved backup.</string>
+    <string name="gui_editor_keep_running">Keep running in background</string>
+    <string name="gui_editor_auto_start">Start automatically</string>
+    <string name="gui_editor_battery_saver">Dim LEDs in Battery Saver</string>
+</resources>

@@ -1,27 +1,36 @@
 <?xml version="1.0" encoding="utf-8"?>
-<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+<ScrollView
+    xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:fillViewport="true"
     android:background="@color/bifrost_bg">
+
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="vertical"
         android:padding="24dp">
+
         <TextView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:text="@string/credits_title"
             android:textColor="@color/bifrost_text"
-            android:textSize="24sp"
-            android:textStyle="bold" />
+            android:textSize="22sp"
+            android:textStyle="bold"
+            android:accessibilityHeading="true"
+            android:lineSpacingExtra="3dp" />
+
         <TextView
             android:id="@+id/creditsVersion"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="8dp"
-            android:textColor="@color/bifrost_text_secondary" />
+            android:textColor="@color/bifrost_text_secondary"
+            android:lineSpacingExtra="3dp"
+            android:textSize="14sp" />
+
         <TextView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -29,22 +38,36 @@
             android:text="@string/credits_body"
             android:textColor="@color/bifrost_text"
             android:textSize="16sp"
-            android:textIsSelectable="true" />
+            android:textIsSelectable="true"
+            android:lineSpacingExtra="3dp" />
+
         <com.google.android.material.button.MaterialButton
             android:id="@+id/creditsRepository"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="24dp"
-            android:text="@string/credits_repository" />
+            android:text="@string/credits_repository"
+            android:textAllCaps="false"
+            android:textSize="14sp"
+            android:minHeight="48dp" />
+
         <com.google.android.material.button.MaterialButton
             android:id="@+id/creditsLicense"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="@string/credits_license" />
+            android:text="@string/credits_license"
+            android:textAllCaps="false"
+            android:textSize="14sp"
+            android:minHeight="48dp" />
+
         <com.google.android.material.button.MaterialButton
             android:id="@+id/creditsClose"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="@android:string/ok" />
+            android:text="@string/gui_back_to_lighting"
+            android:textAllCaps="false"
+            android:textSize="14sp"
+            android:minHeight="48dp"
+            style="@style/Widget.Material3.Button.TextButton" />
     </LinearLayout>
 </ScrollView>

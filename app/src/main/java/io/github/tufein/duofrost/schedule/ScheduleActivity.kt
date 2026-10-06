@@ -1,6 +1,5 @@
 package io.github.tufein.duofrost.schedule
 
-import android.app.AlertDialog
 import android.app.TimePickerDialog
 import android.content.Context
 import android.os.Bundle
@@ -8,16 +7,20 @@ import android.text.InputType
 import android.view.Gravity
 import android.view.View
 import android.widget.ArrayAdapter
-import android.widget.Button
-import android.widget.CheckBox
-import android.widget.EditText
 import android.widget.LinearLayout
 import android.widget.NumberPicker
 import android.widget.ScrollView
 import android.widget.Spinner
 import android.widget.TextView
 import android.widget.Toast
+import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
+import com.google.android.material.checkbox.MaterialCheckBox
+import com.google.android.material.dialog.MaterialAlertDialogBuilder
+import com.google.android.material.textfield.TextInputEditText
+import com.google.android.material.textfield.TextInputLayout
+import io.github.tufein.duofrost.R
+import io.github.tufein.duofrost.ui.SecondaryScreenUi
 import org.json.JSONArray
 import java.time.DayOfWeek
 import java.time.MonthDay
@@ -46,47 +49,19 @@ class ScheduleActivity : AppCompatActivity() {
 
 
     private fun buildRoot(): View {
-        val scroll = ScrollView(this)
-        val root = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            setPadding(dp(16), dp(16), dp(16), dp(16))
-        }
-        scroll.addView(root)
+        val (scroll, root) = SecondaryScreenUi.screen(this, "Schedule",
+            "Choose when your lighting runs. When the schedule is enabled, lights stay off " +
+                "outside your rules. Dated rules take priority; otherwise the first matching rule applies.")
 
-        root.addView(TextView(this).apply {
-            text = "Schedule"
-            textSize = 22f
-            setPadding(0, 0, 0, dp(4))
-        })
-        root.addView(TextView(this).apply {
-            text = "Play a preset, or switch the LEDs off, between set hours — " +
-                "on chosen days, optionally only during part of the year. A rule limited to dates " +
-                "wins over an all-year rule; otherwise the first matching rule wins. " +
-                "While the schedule is on, any hour no rule covers is dark."
-            textSize = 13f
-            alpha = 0.7f
-            setPadding(0, 0, 0, dp(12))
+        root.addView(SecondaryScreenUi.toggle(this, "Enable schedule", ScheduleStore.isEnabled(prefs)) { checked ->
+            ScheduleStore.setEnabled(prefs, checked)
+            ScheduleApplier.apply(this)
         })
 
-        root.addView(CheckBox(this).apply {
-            text = "Enable the schedule"
-            isChecked = ScheduleStore.isEnabled(prefs)
-            setOnCheckedChangeListener { _, checked ->
-                ScheduleStore.setEnabled(prefs, checked)
-                ScheduleApplier.apply(this@ScheduleActivity)
-            }
-        })
+        root.addView(SecondaryScreenUi.action(this, "Add a rule", primary = true) { showRuleEditor(null) })
 
-        root.addView(Button(this).apply {
-            text = "Add a rule"
-            setOnClickListener { showRuleEditor(null) }
-        })
-
-        emptyLabel = TextView(this).apply {
-            text = "No rules yet."
-            textSize = 13f
-            alpha = 0.7f
-            setPadding(0, dp(12), 0, 0)
+        emptyLabel = SecondaryScreenUi.body(this, "No rules yet. Add one to choose a preset and its active hours.").apply {
+            setPadding(0, dp(24), 0, 0)
         }
         root.addView(emptyLabel)
 
@@ -109,19 +84,11 @@ class ScheduleActivity : AppCompatActivity() {
     }
 
     private fun buildRuleRow(index: Int, rule: ScheduleRule): View {
-        val row = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            setPadding(0, dp(12), 0, dp(12))
-        }
-
-        row.addView(TextView(this).apply {
-            text = rule.label.ifBlank { describeAction(rule.action) }
-            textSize = 16f
-        })
-        row.addView(TextView(this).apply {
-            text = describe(rule)
-            textSize = 13f
-            alpha = 0.7f
+        val (card, row) = SecondaryScreenUi.card(this)
+        row.addView(SecondaryScreenUi.body(this, rule.label.ifBlank { describeAction(rule.action) }, secondary = false))
+        row.addView(SecondaryScreenUi.body(this, describe(rule)).apply { setPadding(0, dp(8), 0, dp(8)) })
+        row.addView(SecondaryScreenUi.toggle(this, "Enabled", rule.enabled) { checked ->
+            replace(index, rule.copy(enabled = checked))
         })
 
         val controls = LinearLayout(this).apply {
@@ -129,37 +96,27 @@ class ScheduleActivity : AppCompatActivity() {
             gravity = Gravity.CENTER_VERTICAL
         }
 
-        controls.addView(CheckBox(this).apply {
-            text = "On"
-            isChecked = rule.enabled
-            setOnCheckedChangeListener { _, checked ->
-                replace(index, rule.copy(enabled = checked))
-            }
-        })
-        controls.addView(Button(this).apply {
-            text = "Edit"
-            setOnClickListener { showRuleEditor(index) }
-        })
-        controls.addView(Button(this).apply {
-            text = "Delete"
-            setOnClickListener {
-                rules.removeAt(index)
-                persist()
-            }
+        controls.addView(SecondaryScreenUi.action(this, "Edit") { showRuleEditor(index) })
+        controls.addView(SecondaryScreenUi.action(this, "Delete") {
+            rules.removeAt(index)
+            persist()
         })
         if (index > 0) {
-            controls.addView(Button(this).apply {
-                text = "▲"
-                setOnClickListener {
-                    val moved = rules.removeAt(index)
-                    rules.add(index - 1, moved)
-                    persist()
-                }
+            controls.addView(SecondaryScreenUi.action(this, "Move up") {
+                val moved = rules.removeAt(index)
+                rules.add(index - 1, moved)
+                persist()
             })
+        }
+        for (childIndex in 0 until controls.childCount) {
+            controls.getChildAt(childIndex).layoutParams = LinearLayout.LayoutParams(0,
+                LinearLayout.LayoutParams.WRAP_CONTENT, 1f).apply {
+                if (childIndex > 0) marginStart = dp(8)
+            }
         }
 
         row.addView(controls)
-        return row
+        return card
     }
 
     private fun describe(rule: ScheduleRule): String {
@@ -210,17 +167,23 @@ class ScheduleActivity : AppCompatActivity() {
 
         val content = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            setPadding(dp(20), dp(12), dp(20), 0)
+            setPadding(dp(24), dp(16), dp(24), dp(16))
         }
 
-        val labelField = EditText(this).apply {
-            hint = "Name (optional)"
+        val labelField = TextInputEditText(this).apply {
             inputType = InputType.TYPE_CLASS_TEXT
+            textSize = 16f
+            minHeight = dp(48)
+            setTextColor(SecondaryScreenUi.color(this@ScheduleActivity, R.color.bifrost_text))
             setText(existing?.label.orEmpty())
         }
-        content.addView(labelField)
+        content.addView(TextInputLayout(this).apply {
+            hint = "Name (optional)"
+            boxBackgroundMode = TextInputLayout.BOX_BACKGROUND_OUTLINE
+            addView(labelField)
+        })
 
-        val startButton = Button(this).apply { text = "From ${formatMinute(startMinute)}" }
+        val startButton = SecondaryScreenUi.action(this, "From ${formatMinute(startMinute)}") {}
         startButton.setOnClickListener {
             pickTime(startMinute) { picked ->
                 startMinute = picked
@@ -229,7 +192,7 @@ class ScheduleActivity : AppCompatActivity() {
         }
         content.addView(startButton)
 
-        val endButton = Button(this).apply { text = "Until ${formatMinute(endMinute)}" }
+        val endButton = SecondaryScreenUi.action(this, "Until ${formatMinute(endMinute)}") {}
         endButton.setOnClickListener {
             pickTime(endMinute) { picked ->
                 endMinute = picked
@@ -238,21 +201,18 @@ class ScheduleActivity : AppCompatActivity() {
         }
         content.addView(endButton)
 
-        content.addView(TextView(this).apply {
-            text = "An end earlier than the start runs through midnight, " +
-                "using the day it starts. Equal times cover the whole day."
-            textSize = 12f
-            alpha = 0.7f
-        })
+        content.addView(SecondaryScreenUi.body(this,
+            "An end before the start continues overnight, using the starting day. Equal times cover the full day.")
+            .apply { setPadding(0, dp(8), 0, dp(16)) })
 
-        content.addView(TextView(this).apply {
-            text = "Days"
-            setPadding(0, dp(12), 0, 0)
-        })
+        content.addView(SecondaryScreenUi.body(this, "Days", secondary = false))
         val selectedDays = existing?.daysOfWeek ?: ScheduleRule.ALL_DAYS
         val dayCheckboxes = DayOfWeek.values().map { day ->
-            day to CheckBox(this).apply {
+            day to MaterialCheckBox(this).apply {
                 text = day.getDisplayName(TextStyle.FULL, Locale.getDefault())
+                textSize = 16f
+                minHeight = dp(48)
+                setTextColor(SecondaryScreenUi.color(this@ScheduleActivity, R.color.bifrost_text))
                 isChecked = day in selectedDays
                 content.addView(this)
             }
@@ -260,6 +220,7 @@ class ScheduleActivity : AppCompatActivity() {
 
         val actionLabels = presetNames + OFF_LABEL
         val actionSpinner = Spinner(this).apply {
+            minimumHeight = dp(48)
             adapter = ArrayAdapter(
                 this@ScheduleActivity,
                 android.R.layout.simple_spinner_dropdown_item,
@@ -272,10 +233,11 @@ class ScheduleActivity : AppCompatActivity() {
             }
             setSelection(current.coerceAtLeast(0))
         }
-        content.addView(TextView(this).apply { text = "Do:" ; setPadding(0, dp(8), 0, 0) })
+        content.addView(SecondaryScreenUi.body(this, "Lighting action", secondary = false)
+            .apply { setPadding(0, dp(16), 0, dp(8)) })
         content.addView(actionSpinner)
 
-        val seasonButton = Button(this)
+        val seasonButton = SecondaryScreenUi.action(this, "All year round") {}
         fun renderSeason() {
             seasonButton.text = window
                 ?.let { "Only ${formatMonthDay(it.start)} → ${formatMonthDay(it.end)}" }
@@ -296,14 +258,10 @@ class ScheduleActivity : AppCompatActivity() {
             }
         }
         content.addView(seasonButton)
-        content.addView(TextView(this).apply {
-            text = "Tap again to clear the season."
-            textSize = 12f
-            alpha = 0.7f
-        })
+        content.addView(SecondaryScreenUi.body(this, "Tap a date range again to use all year."))
 
         val editorScroll = ScrollView(this).apply { addView(content) }
-        val dialog = AlertDialog.Builder(this)
+        val dialog = MaterialAlertDialogBuilder(this)
             .setTitle(if (existing == null) "New rule" else "Edit rule")
             .setView(editorScroll)
             .setNegativeButton("Cancel", null)
@@ -354,11 +312,13 @@ class ScheduleActivity : AppCompatActivity() {
 
     private fun pickMonthDay(title: String, onPicked: (MonthDay) -> Unit) {
         val monthPicker = NumberPicker(this).apply {
+            contentDescription = "Month"
             minValue = 1
             maxValue = 12
             value = 1
         }
         val dayPicker = NumberPicker(this).apply {
+            contentDescription = "Day"
             minValue = 1
             maxValue = 31
             value = 1
@@ -375,7 +335,7 @@ class ScheduleActivity : AppCompatActivity() {
             addView(dayPicker)
         }
 
-        AlertDialog.Builder(this)
+        MaterialAlertDialogBuilder(this)
             .setTitle(title)
             .setView(row)
             .setNegativeButton("Cancel", null)

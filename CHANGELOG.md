@@ -1,5 +1,18 @@
 # DuoFrost changelog
 
+## 2.3.0 pre-release
+
+An interface update for testing before the next full release. Version 2.1.0 remains the latest stable release. The interface refresh and landscape work prepared as 2.2.0 were combined and are published together as 2.3.0; 2.2.0 remained an unpublished preview.
+
+- A clear lighting dashboard with direct output, mute, timer and capture controls.
+- A searchable preset library with readable cards, visible selection and keyboard focus. Browsing or searching never applies a preset.
+- Reorganized Lighting, Device, Appearance and Wallpaper pages with larger controls and calmer styling throughout the app.
+- Layouts adapt to narrow and wide windows, including short landscape screens. Wide windows place the dashboard and preset library side by side; narrow windows stack them. Unsaved lighting edits and your place in the interface survive screen recreation.
+- Scrolling the preset library no longer redraws unchanged card borders on every frame.
+- The app window stays out of the recent-apps list. Reopen DuoFrost from its app icon.
+
+[Release and APK](https://github.com/Tufein/DuoFrost/releases/tag/v2.3.0) · [Screenshots and design notes](docs/gui-refresh.md). The production APK uses the 2.1.0 signing key and updates 2.1.0 in place. A debug APK installs separately and is not a production update.
+
 ## 2.1.0 fix update
 
 A separate fix update following Version 2, promoted to the latest full release on 2026-10-06. The original Version 1 and Version 2 releases remain available.

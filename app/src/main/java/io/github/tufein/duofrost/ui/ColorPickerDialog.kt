@@ -8,9 +8,9 @@ import android.text.TextWatcher
 import android.view.View
 import android.widget.EditText
 import android.widget.SeekBar
-import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
+import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import io.github.tufein.duofrost.R
 
 class ColorPickerDialog {
@@ -91,7 +91,7 @@ class ColorPickerDialog {
             }
         })
 
-        val dialog = AlertDialog.Builder(activity)
+        val dialog = MaterialAlertDialogBuilder(activity)
             .setView(dialogView)
             .setPositiveButton("OK") { _, _ ->
                 val color = Color.rgb(seekR.progress, seekG.progress, seekB.progress)

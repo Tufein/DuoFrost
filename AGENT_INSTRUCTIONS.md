@@ -102,3 +102,28 @@ This document contains instructions for autonomous coding agents.
 33. Custom sleep timer input must validate the original whole-number value in
     the existing supported range; never silently truncate pasted values. Invalid
     input and Cancel preserve the current timer. Use theme-aware input colors.
+34. Browsing or filtering the preset library must never apply a lighting preset.
+    Filtered cards retain original storage indices and require explicit selection.
+    Read app-profile mode at click time; keep selected borders synchronized.
+35. Preserve editor drafts, destination and search across activity recreation,
+    without serializing capture grants or runtime state. Programmatic Spinner and
+    slider synchronization must not mutate drafts or issue lighting commands.
+    Skip already-selected Spinner callbacks and update slider models only for
+    user input. Keep unconsumed widget/tile/capture requests after recreation.
+36. Hide the home view from focus and accessibility while the editor is visible.
+    Respect system bars, cutouts and IME insets; keep short-screen content scrollable.
+    Use readable text, 48dp controls and contrasting swatch labels. Dashboard and
+    editor output ceilings share the same preference and minimal update command.
+37. Inflate activity_main in short landscape and portrait with LandscapeLayoutTest:
+    control IDs stay unique and settings keep scroll room. Card setters run on
+    every scroll frame; skip unchanged borders and backgrounds.
+38. The interface refresh and landscape work prepared as 2.2.0 ship as the 2.3.0
+    pre-release (code 25), as the user decided on 2026-10-06. 2.1.0 remains the
+    latest stable release until the user promotes 2.3.0. Sign it with the 2.1.0 key.
+
+39. A release version code must exceed all earlier distributed production-signed
+    builds, including previews, so upgrades preserve the same app and signing key.
+
+40. The maintainer explicitly requested MainActivity excludeFromRecents=true for
+    2.3.0 on 2026-10-06. Preserve launcher reopening and existing singleTop intent
+    handling. Recents exclusion must not be described as a keep-alive guarantee.

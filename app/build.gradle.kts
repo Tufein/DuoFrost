@@ -15,8 +15,8 @@ android {
         applicationId = "io.github.tufein.duofrost"
         minSdk = 33
         targetSdk = 36
-        versionCode = 23
-        versionName = "2.1.0"
+        versionCode = 25
+        versionName = "2.3.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -58,6 +58,10 @@ android {
             }
         }
     }
+    testOptions {
+        unitTests.isIncludeAndroidResources = true
+    }
+
     buildFeatures {
         buildConfig = true
     }
@@ -79,6 +83,7 @@ dependencies {
     implementation(libs.androidx.constraintlayout)
     implementation(libs.androidx.material3)
     testImplementation(libs.junit)
+    testImplementation("org.robolectric:robolectric:4.16.1")
     // Real org.json on the JVM test classpath (Android's is a throwing stub),
     // so plugin-catalogue parsing can be unit-tested.
     testImplementation("org.json:json:20240303")

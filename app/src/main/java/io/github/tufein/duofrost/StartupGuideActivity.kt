@@ -7,6 +7,7 @@ import android.os.Bundle
 import android.provider.Settings
 import android.util.Log
 import android.view.View
+import android.view.ViewGroup
 import android.widget.Button
 import com.google.android.material.button.MaterialButton
 import android.widget.TextView
@@ -15,6 +16,7 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
 import io.github.tufein.duofrost.services.AppProfileManager
 import io.github.tufein.duofrost.services.DuoFrostAccessibilityService
+import io.github.tufein.duofrost.ui.SecondaryScreenUi
 
 class StartupGuideActivity : AppCompatActivity() {
 
@@ -39,6 +41,7 @@ class StartupGuideActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_startup_guide)
+        SecondaryScreenUi.applyInsets(findViewById<ViewGroup>(android.R.id.content).getChildAt(0))
         appProfileManager = AppProfileManager(getSharedPreferences("bifrost_prefs", MODE_PRIVATE))
 
         pageNotification = findViewById(R.id.pageNotification)
@@ -100,15 +103,15 @@ class StartupGuideActivity : AppCompatActivity() {
         val progressText = when {
             !notifGranted -> {
                 pageNotification.visibility = View.VISIBLE
-                "Step 1/3 - Enable notifications"
+                getString(R.string.gui_setup_step_notifications)
             }
             !accessibilityEnabled -> {
                 pageAccessibility.visibility = View.VISIBLE
-                "Step 2/3 - Enable accessibility capture"
+                getString(R.string.gui_setup_step_accessibility)
             }
             !usageGranted -> {
                 pageUsage.visibility = View.VISIBLE
-                "Step 3/3 - Enable usage access"
+                getString(R.string.gui_setup_step_usage)
             }
             else -> {
                 pageDone.visibility = View.VISIBLE
@@ -143,5 +146,3 @@ class StartupGuideActivity : AppCompatActivity() {
             .apply()
     }
 }
-
-

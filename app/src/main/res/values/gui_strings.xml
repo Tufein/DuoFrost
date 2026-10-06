@@ -1,0 +1,28 @@
+<resources>
+    <string name="gui_tagline">Lighting for AYN devices</string>
+    <string name="gui_settings">Settings</string>
+    <string name="gui_selected_preset">Selected preset</string>
+    <string name="gui_lighting">Lighting</string>
+    <string name="gui_lights_running">Lighting is running</string>
+    <string name="gui_lights_stopped">Lighting is off</string>
+    <string name="gui_lights_muted">Lighting is muted</string>
+    <string name="gui_capture_waiting">Capture permission needed</string>
+    <string name="gui_capture_resume">Grant capture permission</string>
+    <string name="gui_edit_lighting">Edit lighting</string>
+    <string name="gui_device_settings">Device settings</string>
+    <string name="gui_app_profiles">Switch by app</string>
+    <string name="gui_app_profiles_on">App profiles control the active preset</string>
+    <string name="gui_manual_mode">Choose a preset below to change your look</string>
+    <string name="gui_max_output">Maximum output</string>
+    <string name="gui_max_output_help">Brightness ceiling for all effects</string>
+    <string name="gui_presets">Your presets</string>
+    <string name="gui_search_presets">Search presets</string>
+    <string name="gui_new_preset">New preset</string>
+    <string name="gui_no_matches">No presets match your search</string>
+    <string name="gui_preset_hint">Select to apply · Hold to edit</string>
+    <plurals name="gui_preset_count"><item quantity="one">%d preset</item><item quantity="other">%d presets</item></plurals>
+    <string name="gui_edit_preset_accessibility">%1$s, %2$s. Select to apply; hold to edit.</string>
+    <string name="gui_preset_active">Selected</string>
+    <string name="gui_animation">Effect: %s</string>
+    <string name="gui_profile">Performance: %s</string>
+</resources>

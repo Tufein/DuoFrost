@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <item name="appProfileDefaultSwitch" type="id" />
+    <item type="id" name="gui_textRole" />
 </resources>
 

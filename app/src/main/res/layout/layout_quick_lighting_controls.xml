@@ -1,16 +1,9 @@
-<?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical">
-    <TextView android:id="@+id/quickLightingStatus" android:layout_width="match_parent" android:layout_height="wrap_content"
-        android:textColor="@color/bifrost_text_secondary" android:textSize="12sp" android:layout_marginTop="12dp" />
-    <com.google.android.material.button.MaterialButton android:id="@+id/muteLightingButton"
-        android:layout_width="match_parent" android:layout_height="wrap_content" android:text="@string/mute_lighting" />
-    <com.google.android.material.button.MaterialButton android:id="@+id/sleepTimerButton"
-        android:layout_width="match_parent" android:layout_height="wrap_content" android:text="@string/sleep_timer_title" />
-    <TextView android:layout_width="match_parent" android:layout_height="wrap_content"
-        android:text="@string/sleep_timer_description" android:textColor="@color/bifrost_text_secondary" android:textSize="11sp" />
-    <com.google.android.material.button.MaterialButton android:id="@+id/ledTestButton"
-        android:layout_width="match_parent" android:layout_height="wrap_content" android:text="@string/led_test_title" />
-    <TextView android:layout_width="match_parent" android:layout_height="wrap_content"
-        android:text="@string/widget_add_description" android:textColor="@color/bifrost_text_secondary" android:textSize="11sp" />
+<?xml version='1.0' encoding='utf-8'?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android" android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical">
+    <TextView android:id="@+id/quickLightingStatus" android:layout_width="match_parent" android:layout_height="wrap_content" android:textColor="@color/bifrost_text_secondary" android:textSize="14sp" android:layout_marginTop="12dp" />
+    <com.google.android.material.button.MaterialButton android:id="@+id/muteLightingButton" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="@string/mute_lighting" android:minHeight="48dp" android:textAllCaps="false" android:textSize="14sp" />
+    <com.google.android.material.button.MaterialButton android:id="@+id/sleepTimerButton" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="@string/sleep_timer_title" android:minHeight="48dp" android:textAllCaps="false" android:textSize="14sp" />
+    <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:text="@string/sleep_timer_description" android:textColor="@color/bifrost_text_secondary" android:textSize="14sp" />
+    <com.google.android.material.button.MaterialButton android:id="@+id/ledTestButton" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="@string/led_test_title" android:minHeight="48dp" android:textAllCaps="false" android:textSize="14sp" />
+    <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:text="@string/widget_add_description" android:textColor="@color/bifrost_text_secondary" android:textSize="14sp" />
 </LinearLayout>

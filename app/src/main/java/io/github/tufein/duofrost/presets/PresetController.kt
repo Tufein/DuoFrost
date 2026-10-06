@@ -13,6 +13,7 @@ import android.widget.TextView
 import androidx.annotation.LayoutRes
 import androidx.appcompat.app.AppCompatActivity
 import com.google.android.material.button.MaterialButton
+import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.google.android.material.textfield.TextInputEditText
 import com.google.android.material.textfield.TextInputLayout
 import io.github.tufein.duofrost.animations.FadeTransitionAnimation
@@ -323,7 +324,7 @@ class PresetController(
                     position: Int,
                     id: Long
                 ) {
-                    if (isUpdatingFromPreset()) return
+                    if (isUpdatingFromPreset() || position == selectedIndex) return
                     applyPresetAt(position, syncSpinner = false)
                 }
 
@@ -688,7 +689,7 @@ class PresetController(
 
         customImageButton.visibility = if (showCustomImageOption) View.VISIBLE else View.GONE
 
-        val dialog = androidx.appcompat.app.AlertDialog.Builder(activity)
+        val dialog = MaterialAlertDialogBuilder(activity)
             .setView(view)
             .setPositiveButton(positiveButtonLabel) { _, _ ->
                 val resolvedName = if (showNameInput) {

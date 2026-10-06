@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="gui_back_to_lighting">Back to lighting</string>
+    <string name="gui_setup_title">Welcome to DuoFrost</string>
+    <string name="gui_setup_notification_description">Allow notifications to see your lighting status and keep controls within reach.</string>
+    <string name="gui_setup_accessibility_title">Screen color access</string>
+    <string name="gui_setup_accessibility_description">Enable DuoFrost in Accessibility to use screen colors in Ambient mode without repeated capture prompts.</string>
+    <string name="gui_setup_usage_description">Allow usage access if you want presets to change automatically when you open an app.</string>
+    <string name="gui_setup_complete_title">You’re ready</string>
+    <string name="gui_setup_complete_description">Choose a preset, adjust your lighting, and make it your own.</string>
+    <string name="gui_setup_later">Set up later</string>
+    <string name="gui_setup_step_notifications">Step 1 of 3 · Notifications</string>
+    <string name="gui_setup_step_accessibility">Step 2 of 3 · Screen colors</string>
+    <string name="gui_setup_step_usage">Step 3 of 3 · App profiles</string>
+    <string name="gui_dialog_assign_app">Assign a preset</string>
+    <string name="gui_dialog_assign_app_description">Choose an app to use your current preset.</string>
+    <string name="gui_dialog_app_profiles">App profiles</string>
+    <string name="gui_dialog_app_profiles_description">Tap an app to remove its assigned preset.</string>
+    <string name="gui_dialog_color_title">Choose a color</string>
+    <string name="gui_color_red">Red</string>
+    <string name="gui_color_green">Green</string>
+    <string name="gui_color_blue">Blue</string>
+    <string name="gui_color_hex">Hex color</string>
+    <string name="gui_dialog_save_preset">Save preset</string>
+    <string name="gui_dialog_save_preset_description">Give this lighting setup a name for quick access.</string>
+    <string name="gui_preset_artwork_title">Customize preset</string>
+    <string name="gui_preset_artwork_description">Choose an icon, enter an emoji, or use your own image.</string>
+    <string name="gui_upload_image">Upload image</string>
+    <string name="gui_use_saved_icon">Use saved icon</string>
+    <string name="gui_apply">Apply</string>
+    <string name="gui_done">Done</string>
+    <string name="gui_preset_preview">Preset artwork preview</string>
+</resources>

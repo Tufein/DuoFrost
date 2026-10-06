@@ -1,22 +1,12 @@
-<?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    android:layout_width="match_parent" android:layout_height="match_parent"
-    android:orientation="vertical" android:padding="12dp" android:background="@drawable/widget_background">
-    <TextView android:layout_width="match_parent" android:layout_height="wrap_content"
-        android:text="DuoFrost" android:textColor="#FFFFFF" android:textStyle="bold" android:textSize="16sp" />
-    <TextView android:id="@+id/widgetStatus" android:layout_width="match_parent" android:layout_height="wrap_content"
-        android:textColor="#CCCCDD" android:textSize="12sp" />
+<?xml version='1.0' encoding='utf-8'?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android" android:layout_width="match_parent" android:layout_height="match_parent" android:orientation="vertical" android:padding="12dp" android:background="@drawable/widget_background">
+    <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:text="DuoFrost" android:textColor="#FFFFFF" android:textStyle="bold" android:textSize="16sp" />
+    <TextView android:id="@+id/widgetStatus" android:layout_width="match_parent" android:layout_height="wrap_content" android:textColor="#CCCCDD" android:textSize="14sp" />
     <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal">
-        <Button android:id="@+id/widgetStart" android:layout_width="0dp" android:layout_height="48dp"
-            android:layout_weight="1" android:text="@string/widget_start" android:textColor="#FFFFFF" android:backgroundTint="#39344D" />
-        <Button android:id="@+id/widgetStop" android:layout_width="0dp" android:layout_height="48dp"
-            android:layout_weight="1" android:text="@string/widget_stop" android:textColor="#FFFFFF" android:backgroundTint="#39344D" />
+        <Button android:id="@+id/widgetStart" android:layout_width="0dp" android:layout_height="48dp" android:layout_weight="1" android:text="@string/widget_start" android:textColor="#FFFFFF" android:backgroundTint="#39344D" android:minHeight="48dp" android:textAllCaps="false" android:textSize="14sp" />
+        <Button android:id="@+id/widgetStop" android:layout_width="0dp" android:layout_height="48dp" android:layout_weight="1" android:text="@string/widget_stop" android:textColor="#FFFFFF" android:backgroundTint="#39344D" android:minHeight="48dp" android:textAllCaps="false" android:textSize="14sp" />
     </LinearLayout>
-    <Button android:id="@+id/widgetMute" android:layout_width="match_parent" android:layout_height="48dp"
-        android:text="@string/widget_mute" android:textColor="#FFFFFF" android:backgroundTint="#39344D" />
-    <Button android:id="@+id/widgetFavorite" android:layout_width="match_parent" android:layout_height="48dp"
-        android:singleLine="true" android:ellipsize="end" android:text="@string/widget_choose_preset"
-        android:textColor="#FFFFFF" android:backgroundTint="#59417F" />
-    <Button android:id="@+id/widgetConfigure" android:layout_width="match_parent" android:layout_height="48dp"
-        android:text="@string/widget_change_preset" android:textColor="#FFFFFF" android:backgroundTint="#39344D" />
+    <Button android:id="@+id/widgetMute" android:layout_width="match_parent" android:layout_height="48dp" android:text="@string/widget_mute" android:textColor="#FFFFFF" android:backgroundTint="#39344D" android:minHeight="48dp" android:textAllCaps="false" android:textSize="14sp" />
+    <Button android:id="@+id/widgetFavorite" android:layout_width="match_parent" android:layout_height="48dp" android:singleLine="true" android:ellipsize="end" android:text="@string/widget_choose_preset" android:textColor="#FFFFFF" android:backgroundTint="#59417F" android:minHeight="48dp" android:textAllCaps="false" android:textSize="14sp" />
+    <Button android:id="@+id/widgetConfigure" android:layout_width="match_parent" android:layout_height="48dp" android:text="@string/widget_change_preset" android:textColor="#FFFFFF" android:backgroundTint="#39344D" android:minHeight="48dp" android:textAllCaps="false" android:textSize="14sp" />
 </LinearLayout>

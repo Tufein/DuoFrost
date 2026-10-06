@@ -56,8 +56,8 @@
     <string name="ragnarok_warning_body">RAGNAROK sends LED commands as fast as possible and can overwhelm your device. Use only if you understand the risks.</string>
     <string name="ragnarok_warning_confirm">I understand</string>
 
-    <string name="beta_alert_title">DUOFROST BETA WARNING</string>
-    <string name="beta_alert_subtitle">This app is currently in beta and may cause crashes or unstable behavior.</string>
+    <string name="beta_alert_title">Welcome to DuoFrost</string>
+    <string name="beta_alert_subtitle">Choose your lighting, then enable only the permissions you need.</string>
     <string name="beta_alert_body">DuoFrost is free software. Source code and releases are available at https://github.com/Tufein/DuoFrost.</string>
     <string name="alert_action_ok">OK</string>
 
