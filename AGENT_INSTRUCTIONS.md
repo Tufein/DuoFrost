@@ -102,3 +102,8 @@ This document contains instructions for autonomous coding agents.
 33. Custom sleep timer input must validate the original whole-number value in
     the existing supported range; never silently truncate pasted values. Invalid
     input and Cancel preserve the current timer. Use theme-aware input colors.
+
+34. Landscape home must leave room for preset tiles instead of stacking fixed-height
+    cards into a short viewport. Keep shared control IDs unique across included
+    layouts, and run LandscapeLayoutTest for portrait and short landscape sizes.
+    Avoid reapplying unchanged MaterialCardView borders on every scroll frame.

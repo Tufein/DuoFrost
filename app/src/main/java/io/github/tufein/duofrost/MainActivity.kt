@@ -254,7 +254,6 @@ class MainActivity : AppCompatActivity() {
         private const val SETTINGS_OPEN_DURATION_MS = 300L
         private const val SETTINGS_CLOSE_DURATION_MS = 210L
         private const val SETTINGS_HOME_DIM_ALPHA = 0.84f
-        private const val COVER_FLOW_TILE_SIZE_DP = 176
         private const val COVER_FLOW_TILE_GAP_DP = 10
         private const val COVER_FLOW_CREATE_TAG = -1
         private const val COVER_FLOW_SNAP_SETTLE_DELAY_MS = 100L
@@ -1376,7 +1375,9 @@ class MainActivity : AppCompatActivity() {
         if (!::presetController.isInitialized) return
         if (::appProfileManager.isInitialized && appProfileManager.isEnabled) return
 
-        cancelPendingCoverFlowSnap()
+        // One pending check follows the fling until it settles; scroll frames
+        // should not allocate and cancel another Runnable each time.
+        if (coverFlowSnapRunnable != null) return
         lastCoverFlowScrollXForSnap = presetCoverFlowScroll.scrollX
 
         coverFlowSnapRunnable = object : Runnable {
@@ -1553,7 +1554,7 @@ class MainActivity : AppCompatActivity() {
 
         val autoSwitchEnabled = ::appProfileManager.isInitialized && appProfileManager.isEnabled
         val presets = presetController.getPresets()
-        val tileSizePx = dpToPx(COVER_FLOW_TILE_SIZE_DP)
+        val tileSizePx = resources.getDimensionPixelSize(R.dimen.bifrost_cover_flow_tile_size)
         val tileGapPx = dpToPx(COVER_FLOW_TILE_GAP_DP)
         if (presets.isEmpty()) {
             presetCoverFlowContainer.removeAllViews()
@@ -1964,8 +1965,7 @@ class MainActivity : AppCompatActivity() {
                     card.scaleX = 1f
                     card.scaleY = 1f
                     card.alpha = if (autoSwitchEnabled) 0.5f else 0.88f
-                    card.strokeWidth = dpToPx(1)
-                    card.setStrokeColor(accentColor)
+                    setCoverFlowStroke(card, dpToPx(1), accentColor)
                     continue
                 }
                 val isSelected = index == selectedCoverFlowIndex
@@ -1978,11 +1978,13 @@ class MainActivity : AppCompatActivity() {
                 }
 
                 if (autoSwitchEnabled) {
-                    card.strokeWidth = dpToPx(1)
-                    card.setStrokeColor(secondaryColor)
+                    setCoverFlowStroke(card, dpToPx(1), secondaryColor)
                 } else {
-                    card.strokeWidth = if (isSelected) dpToPx(2) else dpToPx(1)
-                    card.setStrokeColor(if (isSelected) accentColor else secondaryColor)
+                    setCoverFlowStroke(
+                        card,
+                        if (isSelected) dpToPx(2) else dpToPx(1),
+                        if (isSelected) accentColor else secondaryColor
+                    )
                 }
             }
             return
@@ -1998,8 +2000,7 @@ class MainActivity : AppCompatActivity() {
                 card.scaleX = scale
                 card.scaleY = scale
                 card.alpha = if (autoSwitchEnabled) 0.46f else 0.78f + (0.2f * (1f - normalizedDistance))
-                card.strokeWidth = dpToPx(1)
-                card.setStrokeColor(accentColor)
+                setCoverFlowStroke(card, dpToPx(1), accentColor)
                 continue
             }
             val cardCenterX = card.left + (card.width / 2f)
@@ -2017,13 +2018,21 @@ class MainActivity : AppCompatActivity() {
             }
 
             if (autoSwitchEnabled) {
-                card.strokeWidth = dpToPx(1)
-                card.setStrokeColor(secondaryColor)
+                setCoverFlowStroke(card, dpToPx(1), secondaryColor)
             } else {
-                card.strokeWidth = if (isSelected) dpToPx(2) else dpToPx(1)
-                card.setStrokeColor(if (isSelected) accentColor else secondaryColor)
+                setCoverFlowStroke(
+                    card,
+                    if (isSelected) dpToPx(2) else dpToPx(1),
+                    if (isSelected) accentColor else secondaryColor
+                )
             }
         }
+    }
+
+    // Border setters invalidate the drawable even when values are unchanged.
+    private fun setCoverFlowStroke(card: MaterialCardView, width: Int, color: Int) {
+        if (card.strokeWidth != width) card.strokeWidth = width
+        if (card.strokeColorStateList?.defaultColor != color) card.setStrokeColor(color)
     }
 
     private fun isPresetCardIndex(index: Int, presetCount: Int): Boolean {

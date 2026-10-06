@@ -1,5 +1,16 @@
 # DuoFrost changelog
 
+## 2.2.0 pre-release
+
+Landscape interface improvements for testing before the next full release. Version 2.1.0 remains the latest stable release.
+
+- Preset artwork and active-preset details sit side by side in landscape, with smaller tiles that fit short screens.
+- Backup/restore actions and settings tabs share one landscape navigation row, leaving more space for settings.
+- Swiping the preset carousel avoids redundant card-border redraws and repeated snap-task allocation.
+- Shared layout fragments preserve all controls in both orientations; automated layout checks cover portrait and short landscape screens.
+
+Production updates must retain the 2.1.0 signing key. A debug APK installs separately and is not a production update.
+
 ## 2.1.0 fix update
 
 A separate fix update following Version 2, promoted to the latest full release on 2026-10-06. The original Version 1 and Version 2 releases remain available.

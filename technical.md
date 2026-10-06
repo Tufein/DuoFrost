@@ -24,6 +24,22 @@ object was archived before the tag was finalized for the public release.
 Intermediate development releases are archived locally by the maintainer and
 removed from the public release list. Their implementation remains in Git history.
 
+## DuoFrost 2.2.0 pre-release
+
+Version `2.2.0`, version code `24`, prepares a landscape UI update. The latest
+stable public release remains `2.1.0`. Landscape uses a horizontal carousel/details
+layout and 144dp preset tiles; portrait retains 176dp tiles and its stacked layout.
+Settings navigation places backup/restore beside the four tabs in landscape.
+Card-border setters run only when their values change during carousel scrolling.
+One pending settle check is reused through a fling instead of replacing a
+Runnable on every scroll event.
+
+Robolectric inflates and measures the real resource variants at 800×320 and
+640×280 landscape, plus 400×800 portrait. Tests check tile clearance, settings
+viewport space and unique control IDs. Device frame-rate and AYN LED behavior
+still require hardware validation. Production APKs must use the existing 2.1.0
+private signing key; no replacement key is created for this pre-release.
+
 ## Android identity and upgrades
 
 - Application ID and API namespace: `io.github.tufein.duofrost`.

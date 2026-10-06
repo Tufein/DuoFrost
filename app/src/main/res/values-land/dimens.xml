@@ -8,4 +8,5 @@
     <dimen name="bifrost_cover_flow_min_height">100dp</dimen>
     <dimen name="bifrost_active_preset_title_size">18sp</dimen>
     <dimen name="bifrost_active_preset_meta_size">11sp</dimen>
+    <dimen name="bifrost_cover_flow_tile_size">144dp</dimen>
 </resources>

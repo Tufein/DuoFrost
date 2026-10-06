@@ -12,7 +12,7 @@
         android:layout_height="wrap_content"
         android:orientation="horizontal"
         android:gravity="center_vertical"
-        android:layout_marginBottom="12dp">
+        android:layout_marginBottom="@dimen/bifrost_spacing_md">
 
             <Spinner
                 android:id="@+id/presetSpinner"
@@ -113,110 +113,7 @@
                 app:strokeWidth="1dp" />
     </LinearLayout>
 
-    <LinearLayout
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:orientation="horizontal"
-        android:layout_marginBottom="12dp">
-
-        <com.google.android.material.button.MaterialButton
-            android:id="@+id/exportPresetsButton"
-            android:layout_width="0dp"
-            android:layout_height="40dp"
-            android:layout_weight="1"
-            android:layout_marginEnd="4dp"
-            android:text="BACKUP"
-            android:textSize="11sp"
-            android:letterSpacing="0.05"
-            android:textColor="@color/bifrost_text"
-            android:backgroundTint="@color/bifrost_surface"
-            app:cornerRadius="10dp"
-            app:strokeWidth="1dp"
-            app:strokeColor="@color/bifrost_accent" />
-
-        <com.google.android.material.button.MaterialButton
-            android:id="@+id/importPresetsButton"
-            android:layout_width="0dp"
-            android:layout_height="40dp"
-            android:layout_weight="1"
-            android:layout_marginStart="4dp"
-            android:text="RESTORE"
-            android:textSize="11sp"
-            android:letterSpacing="0.05"
-            android:textColor="@color/bifrost_text"
-            android:backgroundTint="@color/bifrost_surface"
-            app:cornerRadius="10dp"
-            app:strokeWidth="1dp"
-            app:strokeColor="@color/bifrost_accent" />
-    </LinearLayout>
-
-    <LinearLayout
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginBottom="12dp"
-        android:orientation="horizontal">
-
-        <com.google.android.material.button.MaterialButton
-            android:id="@+id/tabUiSettings"
-            android:layout_width="0dp"
-            android:layout_height="40dp"
-            android:layout_weight="1"
-            android:layout_marginEnd="4dp"
-            android:text="UI SETTINGS"
-            android:textColor="@color/bifrost_text"
-            android:textSize="10sp"
-            android:letterSpacing="0.05"
-            android:backgroundTint="@color/bifrost_surface"
-            app:cornerRadius="10dp"
-            app:strokeWidth="1dp"
-            app:strokeColor="@color/bifrost_accent" />
-
-        <com.google.android.material.button.MaterialButton
-            android:id="@+id/tabBehaviorSettings"
-            android:layout_width="0dp"
-            android:layout_height="40dp"
-            android:layout_weight="1"
-            android:layout_marginStart="2dp"
-            android:layout_marginEnd="2dp"
-            android:text="BEHAVIOUR"
-            android:textColor="@color/bifrost_text"
-            android:textSize="10sp"
-            android:letterSpacing="0.05"
-            android:backgroundTint="@color/bifrost_surface"
-            app:cornerRadius="10dp"
-            app:strokeWidth="1dp"
-            app:strokeColor="@color/bifrost_accent" />
-
-        <com.google.android.material.button.MaterialButton
-            android:id="@+id/tabThemesSettings"
-            android:layout_width="0dp"
-            android:layout_height="40dp"
-            android:layout_weight="1"
-            android:layout_marginStart="4dp"
-            android:text="THEMES"
-            android:textColor="@color/bifrost_text"
-            android:textSize="10sp"
-            android:letterSpacing="0.05"
-            android:backgroundTint="@color/bifrost_surface"
-            app:cornerRadius="10dp"
-            app:strokeWidth="1dp"
-            app:strokeColor="@color/bifrost_accent" />
-
-        <com.google.android.material.button.MaterialButton
-            android:id="@+id/liveWallpaperTabButton"
-            android:layout_width="0dp"
-            android:layout_height="40dp"
-            android:layout_weight="1"
-            android:layout_marginStart="4dp"
-            android:text="WALLPAPER"
-            android:textColor="@color/bifrost_text"
-            android:textSize="10sp"
-            android:letterSpacing="0.05"
-            android:backgroundTint="@color/bifrost_surface"
-            app:cornerRadius="10dp"
-            app:strokeWidth="1dp"
-            app:strokeColor="@color/bifrost_accent" />
-    </LinearLayout>
+    <include layout="@layout/layout_settings_navigation" />
 
     <ScrollView
         android:id="@+id/mainSettingsScroll"
