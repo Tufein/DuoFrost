@@ -28,16 +28,18 @@ class AppProfileManager(private val prefs: SharedPreferences) {
         private const val TAG = "BIBI"
         private const val PREF_KEY_MAPPINGS = "app_profile_mappings"
         private const val PREF_KEY_AUTO_SWITCH_ENABLED = "auto_switch_enabled"
+        private const val PREF_KEY_GAME_SCENE_ENABLED = "game_scene_enabled"
+        private const val PREF_KEY_GAME_SCENE_PRESET = "game_scene_preset"
         private const val PREF_KEY_PENDING_PROJECTION_PACKAGE = "pending_projection_package"
         private const val PREF_KEY_PENDING_PROJECTION_PRESET = "pending_projection_preset"
         private const val PREF_KEY_PENDING_PROJECTION_NOTIFIED = "pending_projection_notified"
         private const val FOREGROUND_QUERY_WINDOW_MS = 2500L
         private const val FOREGROUND_QUERY_CACHE_MS = 350L
         private const val HOME_PACKAGES_CACHE_MS = 10_000L
+        private const val APPLICATION_CATEGORY_GAME = 0
+        private const val INTENT_CATEGORY_GAME = "android.intent.category.GAME"
     }
 
-    @Volatile
-    private var lastForegroundPackage: String? = null
     @Volatile
     private var lastResolvedPresetName: String? = null
     @Volatile
@@ -48,10 +50,45 @@ class AppProfileManager(private val prefs: SharedPreferences) {
     private var cachedForegroundPackage: String? = null
     private var lastHomePackagesQueryAt: Long = 0L
     private var cachedHomePackages: Set<String> = emptySet()
+    private var lastGamePackageQueryAt: Long = 0L
+    private var cachedGamePackageName: String? = null
+    private var cachedGamePackageResult: Boolean = false
+    private var cachedPresetsRaw: String? = null
+    private var cachedPresetArray: JSONArray? = null
 
     var isEnabled: Boolean
         get() = prefs.getBoolean(PREF_KEY_AUTO_SWITCH_ENABLED, false)
         set(value) = prefs.edit().putBoolean(PREF_KEY_AUTO_SWITCH_ENABLED, value).apply()
+
+    var isGameSceneEnabled: Boolean
+        get() = prefs.getBoolean(PREF_KEY_GAME_SCENE_ENABLED, false)
+        set(value) = prefs.edit().putBoolean(PREF_KEY_GAME_SCENE_ENABLED, value).apply()
+
+    val gameScenePresetName: String?
+        get() = prefs.getString(PREF_KEY_GAME_SCENE_PRESET, null)
+            ?.trim()
+            ?.takeIf { it.isNotEmpty() }
+
+    fun setGameScenePreset(name: String?) {
+        prefs.edit().apply {
+            if (name.isNullOrBlank()) remove(PREF_KEY_GAME_SCENE_PRESET)
+            else putString(PREF_KEY_GAME_SCENE_PRESET, name.trim())
+        }.apply()
+    }
+
+    fun renameGameScenePreset(oldName: String, newName: String) {
+        if (gameScenePresetName == oldName && oldName != newName) {
+            setGameScenePreset(newName)
+        }
+    }
+
+    fun clearGameSceneIfMissing(validPresetNames: Collection<String>) {
+        val current = gameScenePresetName ?: return
+        if (current !in validPresetNames) {
+            setGameScenePreset(null)
+            isGameSceneEnabled = false
+        }
+    }
 
     fun getMappings(): Map<String, String> {
         val json = prefs.getString(PREF_KEY_MAPPINGS, null)
@@ -69,7 +106,11 @@ class AppProfileManager(private val prefs: SharedPreferences) {
             val obj = JSONObject(json)
             buildMap {
                 obj.keys().forEach { key ->
-                    put(key, obj.optString(key))
+                    val packageName = key.trim()
+                    val presetName = obj.optString(key).trim()
+                    if (packageName.isNotEmpty() && presetName.isNotEmpty()) {
+                        put(packageName, presetName)
+                    }
                 }
             }
         }.getOrDefault(emptyMap())
@@ -80,8 +121,9 @@ class AppProfileManager(private val prefs: SharedPreferences) {
     }
 
     fun setMapping(packageName: String, presetName: String) {
+        if (packageName.isBlank() || presetName.isBlank()) return
         val mappings = getMappings().toMutableMap()
-        mappings[packageName] = presetName
+        mappings[packageName.trim()] = presetName.trim()
         saveMappings(mappings)
     }
 
@@ -228,8 +270,7 @@ class AppProfileManager(private val prefs: SharedPreferences) {
         }
 
         val currentPackage = getForegroundPackage(context)
-        Log.d(TAG, "checkForSwitch: currentPackage=$currentPackage, lastForegroundPackage=$lastForegroundPackage, lastResolvedPresetName=$lastResolvedPresetName, hasResolvedPresetOnce=$hasResolvedPresetOnce")
-        lastForegroundPackage = currentPackage
+        Log.d(TAG, "checkForSwitch: currentPackage=$currentPackage, lastResolvedPresetName=$lastResolvedPresetName, hasResolvedPresetOnce=$hasResolvedPresetOnce")
 
         val mappings = getMappings()
         val fallbackPresetName = resolveDefaultPresetName()
@@ -242,24 +283,22 @@ class AppProfileManager(private val prefs: SharedPreferences) {
             return null
         }
 
-        val isDuoFrostSelf = currentPackage == context.packageName
-        val isHome = isHomePackage(context, currentPackage)
-        val shouldUseFallback = isDuoFrostSelf || isHome
-        Log.d(TAG, "checkForSwitch: isDuoFrostSelf=$isDuoFrostSelf, isHome=$isHome, shouldUseFallback=$shouldUseFallback")
-
-        val presetName = if (shouldUseFallback) {
-            fallbackPresetName
-        } else {
-            val mappedPreset = mappings[currentPackage]
-            if (mappedPreset != null) {
-                Log.d(TAG, "checkForSwitch: package '$currentPackage' is mapped to preset '$mappedPreset'")
-            } else {
-                Log.d(TAG, "checkForSwitch: package '$currentPackage' has NO mapping → using fallback")
-            }
-            mappedPreset ?: fallbackPresetName
-        }
-
-        Log.d(TAG, "checkForSwitch: resolved presetName='$presetName', lastResolvedPresetName='$lastResolvedPresetName', hasResolvedPresetOnce=$hasResolvedPresetOnce")
+        val homePackages = getHomePackages(context)
+        val isGamePackage = currentPackage != context.packageName &&
+            currentPackage !in homePackages &&
+            isGamePackage(context, currentPackage)
+        val selection = AppProfileSelection.resolve(
+            currentPackage = currentPackage,
+            selfPackage = context.packageName,
+            homePackages = homePackages,
+            mappings = mappings,
+            gameSceneEnabled = isGameSceneEnabled,
+            gameScenePresetName = gameScenePresetName,
+            isGamePackage = isGamePackage,
+            fallbackPresetName = fallbackPresetName
+        )
+        val presetName = selection.presetName
+        Log.d(TAG, "checkForSwitch: resolved presetName='$presetName', source=${selection.source}, gamePackage=$isGamePackage")
 
         if (hasResolvedPresetOnce && presetName == lastResolvedPresetName) {
             Log.d(TAG, "checkForSwitch: same preset as before, returning null (no change)")
@@ -275,16 +314,17 @@ class AppProfileManager(private val prefs: SharedPreferences) {
 
     fun resetLastForegroundPackage() {
         Log.d(TAG, "resetLastForegroundPackage: clearing all tracking state")
-        lastForegroundPackage = null
         lastResolvedPresetName = null
         hasResolvedPresetOnce = false
         cachedForegroundPackage = null
         lastForegroundQueryAt = 0L
         lastHomePackagesQueryAt = 0L
         cachedHomePackages = emptySet()
+        lastGamePackageQueryAt = 0L
+        cachedGamePackageName = null
     }
 
-    private fun isHomePackage(context: Context, packageName: String): Boolean {
+    private fun getHomePackages(context: Context): Set<String> {
         val now = System.currentTimeMillis()
         if (now - lastHomePackagesQueryAt >= HOME_PACKAGES_CACHE_MS || cachedHomePackages.isEmpty()) {
             val homeIntent = Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_HOME)
@@ -295,12 +335,36 @@ class AppProfileManager(private val prefs: SharedPreferences) {
             }.getOrDefault(emptySet())
             lastHomePackagesQueryAt = now
         }
-        return packageName in cachedHomePackages
+        return cachedHomePackages
+    }
+
+    private fun isGamePackage(context: Context, packageName: String): Boolean {
+        val now = System.currentTimeMillis()
+        if (packageName == cachedGamePackageName &&
+            now - lastGamePackageQueryAt < HOME_PACKAGES_CACHE_MS
+        ) {
+            return cachedGamePackageResult
+        }
+
+        val result = runCatching {
+            val info = context.packageManager.getApplicationInfo(packageName, 0)
+            // Android's ApplicationInfo.CATEGORY_GAME value.
+            info.category == APPLICATION_CATEGORY_GAME ||
+                context.packageManager.queryIntentActivities(
+                    Intent(Intent.ACTION_MAIN)
+                        .addCategory(INTENT_CATEGORY_GAME)
+                        .setPackage(packageName),
+                    0
+                ).isNotEmpty()
+        }.getOrDefault(false)
+        cachedGamePackageName = packageName
+        lastGamePackageQueryAt = now
+        cachedGamePackageResult = result
+        return result
     }
 
     private fun resolveDefaultPresetName(): String? {
-        val json = prefs.getString("presets_json", null) ?: return null
-        val array = runCatching { JSONArray(json) }.getOrNull() ?: return null
+        val array = getPresetArray() ?: return null
 
         for (i in 0 until array.length()) {
             val obj = array.optJSONObject(i) ?: continue
@@ -313,8 +377,7 @@ class AppProfileManager(private val prefs: SharedPreferences) {
     }
 
     private fun loadPresetByName(name: String): LedPreset? {
-        val json = prefs.getString("presets_json", null) ?: return null
-        val array = runCatching { JSONArray(json) }.getOrNull() ?: return null
+        val array = getPresetArray() ?: return null
 
         for (i in 0 until array.length()) {
             val obj = array.optJSONObject(i) ?: continue
@@ -370,6 +433,21 @@ class AppProfileManager(private val prefs: SharedPreferences) {
             )
         }
         return null
+    }
+
+    /** Parse the saved preset document once per preference version, not once per tick. */
+    private fun getPresetArray(): JSONArray? {
+        val json = prefs.getString("presets_json", null) ?: run {
+            cachedPresetsRaw = null
+            cachedPresetArray = null
+            return null
+        }
+        if (json == cachedPresetsRaw) return cachedPresetArray
+
+        val parsed = runCatching { JSONArray(json) }.getOrNull()
+        cachedPresetsRaw = json
+        cachedPresetArray = parsed
+        return parsed
     }
 
     // ── Pending projection token ──────────────────────────────────────────

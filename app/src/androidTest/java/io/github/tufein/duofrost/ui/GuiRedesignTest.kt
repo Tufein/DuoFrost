@@ -203,6 +203,17 @@ class GuiRedesignTest {
         assertEquals("Cozy night", prefs.getString("last_preset_name", null))
     }
 
+    @Test fun gameSceneIsVisibleInBehaviorSettingsWithoutStartingLighting() {
+        openLighting()
+        onView(withId(R.id.tabBehaviorSettings)).perform(scrollTo(), click())
+        onView(withId(R.id.gameSceneSwitch)).perform(scrollTo()).check(matches(isDisplayed()))
+        onView(withId(R.id.gameScenePresetText)).perform(scrollTo())
+            .check(matches(withText(R.string.game_scene_no_preset)))
+        onView(withId(R.id.setGameSceneButton)).perform(scrollTo()).check(matches(isDisplayed()))
+        assertFalse(prefs.getBoolean("game_scene_enabled", false))
+        assertFalse(LEDService.isRunning)
+    }
+
     private fun search(query: String) {
         onView(withId(R.id.gui_presetSearch)).perform(scrollTo(), replaceText(query), closeSoftKeyboard())
     }

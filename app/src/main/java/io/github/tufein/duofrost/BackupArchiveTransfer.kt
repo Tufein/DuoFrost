@@ -29,6 +29,8 @@ object BackupArchiveTransfer {
         "last_preset_name",
         "app_profile_mappings",
         "auto_switch_enabled",
+        "game_scene_enabled",
+        "game_scene_preset",
         "pending_projection_package",
         "pending_projection_preset",
         "pending_projection_notified"

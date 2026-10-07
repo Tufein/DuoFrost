@@ -150,6 +150,6 @@
     <string name="background_optimized">Android optimization enabled</string>
     <string name="background_notifications_on">allowed</string>
     <string name="background_notifications_off">blocked — enable them to see capture requests</string>
-    <string name="background_help">Allow background lighting to reduce battery restrictions. In app settings, allow background battery use if your device offers it. Some firmware still stops apps with Clear all; lock DuoFrost in Recents if that option is available. Android Force stop requires opening the app again. After a restart, screen or audio capture needs fresh permission.</string>
+    <string name="background_help">Allow background lighting to reduce battery restrictions. In app settings, allow background battery use if your device offers it. Some firmware still stops apps with Clear all; keep DuoFrost allowed to run in the background. Android Force stop requires opening the app again. After a restart, screen or audio capture needs fresh permission.</string>
     <string name="background_settings_unavailable">Open Android Settings → Apps → DuoFrost to allow background battery use.</string>
 </resources>

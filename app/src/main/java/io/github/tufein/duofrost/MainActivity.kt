@@ -176,6 +176,9 @@ class MainActivity : AppCompatActivity() {
     private lateinit var appProfileSwitch: SwitchMaterial
     private lateinit var homeAppProfileSwitch: SwitchMaterial
     private lateinit var appProfileDefaultSwitch: SwitchMaterial
+    private lateinit var gameSceneSwitch: SwitchMaterial
+    private lateinit var gameScenePresetText: TextView
+    private lateinit var setGameSceneButton: MaterialButton
     private lateinit var coloredLogoSwitch: SwitchMaterial
     private lateinit var assignAppButton: MaterialButton
     private lateinit var manageAppsButton: MaterialButton
@@ -371,6 +374,7 @@ class MainActivity : AppCompatActivity() {
     private var isColoredLogoEnabled: Boolean = false
     private var isSyncingAppProfileSwitches: Boolean = false
     private var isSyncingAppProfileDefaultSwitch: Boolean = false
+    private var isSyncingGameSceneSwitch: Boolean = false
     private var pendingPresetArtworkIndex: Int? = null
     private var presetArtworkSheetDialog: BottomSheetDialog? = null
     private var appProfileSyncRunnable: Runnable? = null
@@ -847,6 +851,9 @@ class MainActivity : AppCompatActivity() {
         )
         check(appProfileDefaultSwitchId != 0) { "Missing appProfileDefaultSwitch id" }
         appProfileDefaultSwitch = findViewById(appProfileDefaultSwitchId)
+        gameSceneSwitch = findViewById(R.id.gameSceneSwitch)
+        gameScenePresetText = findViewById(R.id.gameScenePresetText)
+        setGameSceneButton = findViewById(R.id.setGameSceneButton)
         assignAppButton = findViewById(R.id.assignAppButton)
         manageAppsButton = findViewById(R.id.manageAppsButton)
         modeCard = findViewById(R.id.modeCard)
@@ -1612,6 +1619,9 @@ class MainActivity : AppCompatActivity() {
     private fun refreshCoverFlowFromPresets() {
         if (!::presetController.isInitialized) return
         val presets = presetController.getPresets()
+        if (::appProfileManager.isInitialized) {
+            appProfileManager.clearGameSceneIfMissing(presets.map { it.name })
+        }
         val indices = PresetLibrarySearch.matchingIndices(presets, presetSearchQuery)
         val auto = ::appProfileManager.isInitialized && appProfileManager.isEnabled
         presetCoverFlowContainer.removeAllViews()
@@ -1688,6 +1698,7 @@ class MainActivity : AppCompatActivity() {
         }
         updateCoverFlowCardTransforms()
         syncAppProfileDefaultSwitch()
+        syncGameSceneUi()
         updateManualPresetSwitchingUi(auto)
         refreshHomeDashboard()
     }
@@ -3446,6 +3457,7 @@ class MainActivity : AppCompatActivity() {
     private fun setupAppProfileFeature() {
         syncAppProfileSwitches(appProfileManager.isEnabled)
         updateManualPresetSwitchingUi(appProfileManager.isEnabled)
+        syncGameSceneUi()
 
         appProfileSwitch.setOnCheckedChangeListener { _, isChecked ->
             handleAppProfileToggleChange(isChecked)
@@ -3475,8 +3487,71 @@ class MainActivity : AppCompatActivity() {
             }
         }
 
+        gameSceneSwitch.setOnCheckedChangeListener { _, isChecked ->
+            if (isSyncingGameSceneSwitch) return@setOnCheckedChangeListener
+            if (isChecked && appProfileManager.gameScenePresetName == null) {
+                syncGameSceneUi()
+                Toast.makeText(this, R.string.game_scene_choose_preset, Toast.LENGTH_SHORT).show()
+                return@setOnCheckedChangeListener
+            }
+            if (isChecked && !appProfileManager.isEnabled) {
+                if (!appProfileManager.hasUsageStatsPermission(this)) {
+                    syncGameSceneUi()
+                    Toast.makeText(this, R.string.app_profiles_usage_permission, Toast.LENGTH_LONG).show()
+                    return@setOnCheckedChangeListener
+                }
+                appProfileManager.isEnabled = true
+                syncAppProfileSwitches(true)
+                updateManualPresetSwitchingUi(true)
+            }
+            appProfileManager.isGameSceneEnabled = isChecked
+            appProfileManager.resetLastForegroundPackage()
+            if (LEDService.isRunning) requestImmediateAppProfileResolution()
+            syncGameSceneUi()
+        }
+
         assignAppButton.setOnClickListener { showAppPickerDialog() }
         manageAppsButton.setOnClickListener { showMappingsDialog() }
+        setGameSceneButton.setOnClickListener { setCurrentPresetAsGameScene() }
+    }
+
+    private fun syncGameSceneUi() {
+        val presetName = appProfileManager.gameScenePresetName
+        isSyncingGameSceneSwitch = true
+        gameSceneSwitch.isChecked = appProfileManager.isGameSceneEnabled && presetName != null
+        isSyncingGameSceneSwitch = false
+        gameScenePresetText.text = presetName
+            ?: getString(R.string.game_scene_no_preset)
+        setGameSceneButton.text = if (presetName == null) {
+            getString(R.string.game_scene_set_button)
+        } else {
+            getString(R.string.game_scene_change_button)
+        }
+    }
+
+    private fun setCurrentPresetAsGameScene() {
+        val presetName = getSelectedPresetName()
+        if (presetName.isNullOrBlank()) {
+            Toast.makeText(this, R.string.game_scene_choose_preset, Toast.LENGTH_SHORT).show()
+            return
+        }
+        appProfileManager.setGameScenePreset(presetName)
+        appProfileManager.isGameSceneEnabled = true
+        if (!appProfileManager.isEnabled) {
+            if (!appProfileManager.hasUsageStatsPermission(this)) {
+                appProfileManager.isGameSceneEnabled = false
+                Toast.makeText(this, R.string.app_profiles_usage_permission, Toast.LENGTH_LONG).show()
+                syncGameSceneUi()
+                return
+            }
+            appProfileManager.isEnabled = true
+            syncAppProfileSwitches(true)
+            updateManualPresetSwitchingUi(true)
+        }
+        appProfileManager.resetLastForegroundPackage()
+        if (LEDService.isRunning) requestImmediateAppProfileResolution()
+        syncGameSceneUi()
+        Toast.makeText(this, getString(R.string.game_scene_set_toast, presetName), Toast.LENGTH_SHORT).show()
     }
 
     private fun showAppPickerDialog() {
@@ -3779,7 +3854,9 @@ class MainActivity : AppCompatActivity() {
             },
             onPresetRenamed = { oldName, newName ->
                 appProfileManager.renamePresetInMappings(oldName, newName)
+                appProfileManager.renameGameScenePreset(oldName, newName)
                 DuoFrostWidget.renameFavorite(this, oldName, newName)
+                syncGameSceneUi()
             }
         )
 

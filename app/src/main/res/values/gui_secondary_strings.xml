@@ -16,6 +16,14 @@
     <string name="gui_dialog_assign_app_description">Choose an app to use your current preset.</string>
     <string name="gui_dialog_app_profiles">App profiles</string>
     <string name="gui_dialog_app_profiles_description">Tap an app to remove its assigned preset.</string>
+    <string name="game_scene_title">Game Scene</string>
+    <string name="game_scene_description">Automatically use one lighting preset for games Android identifies as games. Specific app mappings still take priority.</string>
+    <string name="game_scene_no_preset">No game preset selected</string>
+    <string name="game_scene_set_button">Use current preset for games</string>
+    <string name="game_scene_change_button">Change game preset</string>
+    <string name="game_scene_choose_preset">Choose a preset first.</string>
+    <string name="game_scene_set_toast">Game Scene uses %s</string>
+    <string name="app_profiles_usage_permission">Allow Usage access for DuoFrost before enabling automatic app and game scenes.</string>
     <string name="gui_dialog_color_title">Choose a color</string>
     <string name="gui_color_red">Red</string>
     <string name="gui_color_green">Green</string>
