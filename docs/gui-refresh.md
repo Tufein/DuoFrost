@@ -12,7 +12,7 @@ The public 2.1.0 release and the original Version 1 and Version 2 remain availab
 - Preset tools scroll with the editor content, leaving more space on short screens. On wide windows, the dashboard and library sit side by side; narrow windows stack them.
 - Onboarding, schedules, plugins, artwork, backup dialogs, color selection, credits and the LED test share calmer styling and visible navigation.
 - Unsaved lighting edits, the selected editor destination and search survive activity recreation. Restoring the interface does not start lighting or reuse capture grants.
-- The app window is hidden from recent apps. Use the launcher icon to reopen DuoFrost.
+- **Hidden feature — tidy Recent apps:** the app window stays out of Android's Recent apps list automatically. Use the app icon to reopen DuoFrost and Start/Stop to turn lighting on or off.
 
 Existing presets, themes, app profiles, backups, widgets and lighting effects stay compatible. The dashboard uses the existing output, mute and timer commands; it adds no background polling.
 

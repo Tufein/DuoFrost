@@ -42,8 +42,13 @@ landscape and 400×800 portrait, checking unique control IDs and settings scroll
 room. Device frame rates and AYN LED behavior still require hardware validation.
 On 2026-10-06 the maintainer explicitly requested `excludeFromRecents=true`
 on MainActivity. The launcher entry and `singleTop` behavior are retained.
-This hides the task from Android Recents; it does not grant process-lifetime
-or battery-management exemptions.
+This is the automatic **Hidden feature — tidy Recent apps** documented in the
+README and release notes; there is no settings toggle. It hides the MainActivity
+task from Android Recents while retaining the launcher icon and existing
+notification controls. It does not grant process-lifetime or battery-management
+exemptions. The APK's older background-help suggestion to lock DuoFrost in
+Recents is inapplicable with this feature; use Android's background/battery
+settings instead.
 
 Production APKs use the existing 2.1.0 private signing key. The 2.3.0 build
 passed 214 JVM tests, five Android instrumentation tests, the optimized signed
@@ -52,6 +57,33 @@ the in-place update from 2.1.0 with saved presets intact and supplied the curren
 screenshots. Device
 LED output is not emulated. Version code 25 also supersedes the signed 2.2.0
 preview (code 24).
+
+### Recents feature verification — 2026-10-08
+
+The public production APK was downloaded again and verified against SHA-256
+`e5322b82fed440534deefad52e12d6490a7fd83e4412322db45a4492f03dc0f3`
+and the 2.1.0 release certificate. Its compiled manifest retains
+`excludeFromRecents=true`, `singleTop` and the MAIN/LAUNCHER entry.
+
+Fresh Android 15 emulator checks confirmed that DuoFrost has no visible Recents
+card. Reopening from the app icon before task removal retains the selected
+preset, six sample presets and the Device editor destination. With Keep running
+enabled, the foreground lighting service continues while the window is hidden.
+The launcher's Clear all action can remove the excluded activity task too; in
+that test, the service continued and reopening recreated the interface with the
+selected preset and running status intact. Exclusion controls list visibility,
+while the existing background setting controls continuation after task removal.
+With Keep running disabled, ordinary Home/Recents navigation and reopening also
+worked; subsequent actual task removal stopped the service as configured. The
+disabled-setting follow-up did not reach a Clear all click, so it is recorded as
+a task-removal check. Explicit Stop kept the service stopped after app-icon reopening.
+
+Forty focused JVM regression tests passed with no failures or skipped tests:
+service recovery policy and configuration, editor drafts and preset search.
+The current release source also has a successful
+[GitHub Android checks run](https://github.com/Tufein/DuoFrost/actions/runs/37499697441).
+These checks verify Android behavior and service state; the emulator cannot
+verify physical AYN LED output or firmware-specific process management.
 
 ## Android identity and upgrades
 

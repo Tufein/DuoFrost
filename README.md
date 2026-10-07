@@ -59,6 +59,8 @@ Ambient and audio effects need capture permission. These effects process samples
 
 The **[2.3.0 pre-release](https://github.com/Tufein/DuoFrost/releases/tag/v2.3.0)** ([APK](https://github.com/Tufein/DuoFrost/releases/download/v2.3.0/DuoFrost-2.3.0.apk)) for testing brings a clearer dashboard, searchable presets and easier settings, including on short landscape screens. 2.1.0 remains the latest stable release. [Preview the new interface](docs/gui-refresh.md).
 
+**Hidden feature in 2.3.0 — tidy Recent apps:** DuoFrost's window stays out of Android's Recent apps list automatically. Reopen it from its app icon, and use Start/Stop to turn lighting on or off.
+
 See the [changelog](CHANGELOG.md) for details and [technical.md](technical.md) for build instructions, implementation notes and Android behavior.
 
 ## Open source and credits

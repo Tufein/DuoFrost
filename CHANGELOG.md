@@ -9,7 +9,7 @@ An interface update for testing before the next full release. Version 2.1.0 rema
 - Reorganized Lighting, Device, Appearance and Wallpaper pages with larger controls and calmer styling throughout the app.
 - Layouts adapt to narrow and wide windows, including short landscape screens. Wide windows place the dashboard and preset library side by side; narrow windows stack them. Unsaved lighting edits and your place in the interface survive screen recreation.
 - Scrolling the preset library no longer redraws unchanged card borders on every frame.
-- The app window stays out of the recent-apps list. Reopen DuoFrost from its app icon.
+- **Hidden feature — tidy Recent apps:** DuoFrost's window stays out of Android's Recent apps list automatically. Reopen it from its app icon; use Start/Stop to turn lighting on or off.
 
 [Release and APK](https://github.com/Tufein/DuoFrost/releases/tag/v2.3.0) · [Screenshots and design notes](docs/gui-refresh.md). The production APK uses the 2.1.0 signing key and updates 2.1.0 in place. A debug APK installs separately and is not a production update.
 

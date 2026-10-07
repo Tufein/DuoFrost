@@ -8,7 +8,7 @@ I've put out a 2.3.0 pre-release of DuoFrost, my open-source BiFrost fork for LE
 - You can search presets by name or effect. Browsing the library no longer changes your lighting; select a preset to apply it.
 - Settings are organized into Lighting, Device, Appearance and Wallpaper, with larger controls and clearer navigation.
 - The interface adapts to narrow and wide windows, including short landscape screens. Unsaved lighting edits survive screen recreation.
-- DuoFrost stays out of recent apps; reopen it from its app icon.
+- A small **hidden feature:** DuoFrost keeps your Recent apps list tidy by staying out of it. It's built in; reopen DuoFrost from its app icon and use Start/Stop to turn lighting on or off.
 
 **This is a pre-release for testing; 2.1.0 remains the stable release.**
 
