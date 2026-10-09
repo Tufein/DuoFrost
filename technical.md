@@ -24,6 +24,75 @@ object was archived before the tag was finalized for the public release.
 Intermediate development releases are archived locally by the maintainer and
 removed from the public release list. Their implementation remains in Git history.
 
+## DuoFrost 2.5.0-alpha.1 development
+
+The first 2.5.0 development build has Android version `2.5.0-alpha.1`, code `26`,
+on `codex/2.5.0-smart-scenes`. It is not a published release. User-facing setup
+is described in [the alpha guide](docs/2.5.0-alpha.1.md); later work follows
+[the roadmap](docs/roadmap-2.5.0.md).
+
+`SceneEvaluator` is a pure selector for app/game groups, local time/ISO weekdays,
+battery and charging conditions. Overnight rules use the starting day. Higher
+priority wins; equal priority is ordered by stable rule ID, matching the order
+shown in the editor. The active preset rule contributes its own brightness cap;
+all matching modifier-only rules contribute their minimum. Losing preset rules
+do not dim the winner.
+
+`SceneSelectionPolicy` gives a temporary choice precedence, followed by an exact
+legacy app mapping, a Smart Scene rule, the broad Game Scene, the legacy fallback
+and the original manual configuration. `SceneRuntimeController` preserves unsaved
+baseline values separately from the automated scene. When a hold or plugin lease
+ends, current conditions are evaluated again. Metadata and cap-only edits update
+state without restarting an unchanged effect/capture session. Charging overrides
+and battery alerts retain their existing ownership; global mute and all output
+ceilings still constrain hardware writes.
+
+The controller reuses the service's existing tick and preference/battery events;
+it adds no worker, periodic alarm, wake lock or background service start. Editing
+or enabling scenes only saves preferences and emits a private UI refresh event.
+Explicit Stop and sleep expiry clear temporary holds synchronously. Hold deadlines
+use elapsed time plus the device boot count, fail safely when the count is
+unavailable, and are excluded from exported backups. Persistent scene rules and
+groups belong to the Profiles backup category.
+
+`PresetIdentity`, `PresetCodec` and `PresetRepository` provide a shared cached
+format. Saved objects receive unique stable IDs by patching their JSON in place;
+other fields and unrecognised entries survive normalization. Transient unsaved
+editor objects keep an empty identity until saved. New scene rules use IDs;
+legacy app profiles, schedules, widgets and external API requests retain their
+name-based compatibility paths. Managed external/plugin updates preserve preset
+identity and ownership where unambiguous, and appended imports remap collisions.
+
+`ScenesActivity` provides a separate scrollable editor with app-group selection,
+validation, Usage Access guidance and temporary choices. Time/battery rules do
+not need Usage Access. The dashboard displays the selected rule or current
+charging/plugin override. Per-stick independent effects, preview rendering and
+selective import/undo are not part of this first alpha.
+
+### Alpha verification — 2026-10-09
+
+The alpha passed 272 JVM tests and 12 Android instrumentation tests on an
+isolated Android 15 emulator. Coverage includes scene editing and stable preset
+links, dimming-only rules, group edits, temporary precedence, unsaved baseline
+restoration, accepting a new manual configuration, and durable Stop after edits.
+The existing dashboard, search, editor recreation and output-limit flows also
+passed. Legacy name-based mappings and fallback retain the first stored preset
+when names are duplicated, matching the old compatibility path.
+
+Native focus/rectangle scrolling in the shared Scenes, Schedule and Plugins
+screen scaffold now uses a container outside the ScrollView for system/IME
+insets. This keeps scroll targets inside the safe viewport. Scene dialogs use
+the same container; the group editor test requires its entry button to be
+completely displayed after native scrolling.
+
+The optimized, non-debuggable APK passed critical release lint and APK signature
+verification with the existing 2.1.0/2.3.0 certificate (APK Signature Scheme v2).
+Installing that signed APK over 2.3.0 in the emulator retained a custom renamed
+preset, its library count, a 24% output limit and the stopped lighting state.
+These checks verify Android behaviour and service state; physical LED output,
+capture switching and firmware-specific lifecycle behaviour still need AYN
+hardware validation before a final release.
+
 ## DuoFrost 2.3.0 pre-release
 
 Version `2.3.0`, version code `25`, is a pre-release; the latest stable public
@@ -99,7 +168,8 @@ verify physical AYN LED output or firmware-specific process management.
 - Latest stable production version: `2.1.0`, version code `23`, tag `v2.1.0`.
 - Current production pre-release: `2.3.0`, version code `25`, tag `v2.3.0`.
   Future updates must increment the version code and retain the new release key.
-  Current pre-release debug builds display `2.3.0-debug` and are separate installations.
+  The published 2.3.0 debug APK displays `2.3.0-debug`. The current development
+  debug APK displays `2.5.0-alpha.1-debug`; both install separately from production.
 
 ### One-time signing migration
 

@@ -6,15 +6,10 @@ import android.app.usage.UsageStatsManager
 import android.content.Context
 import android.content.Intent
 import android.content.SharedPreferences
-import android.graphics.Color
 import android.os.Process
 import android.util.Log
 import io.github.tufein.duofrost.LedPreset
-import io.github.tufein.duofrost.PresetIcon
-import io.github.tufein.duofrost.animations.FadeTransitionAnimation
-import io.github.tufein.duofrost.animations.LedAnimationType
-import io.github.tufein.duofrost.tools.PerformanceProfile
-import org.json.JSONArray
+import io.github.tufein.duofrost.PresetRepository
 import org.json.JSONObject
 
 class AppProfileManager(private val prefs: SharedPreferences) {
@@ -53,8 +48,7 @@ class AppProfileManager(private val prefs: SharedPreferences) {
     private var lastGamePackageQueryAt: Long = 0L
     private var cachedGamePackageName: String? = null
     private var cachedGamePackageResult: Boolean = false
-    private var cachedPresetsRaw: String? = null
-    private var cachedPresetArray: JSONArray? = null
+    private val presetRepository = PresetRepository(prefs)
 
     var isEnabled: Boolean
         get() = prefs.getBoolean(PREF_KEY_AUTO_SWITCH_ENABLED, false)
@@ -226,6 +220,26 @@ class AppProfileManager(private val prefs: SharedPreferences) {
         return latest
     }
 
+    /** Read the legacy profile policy without mutating its switch deduplication. */
+    fun resolveSelection(context: Context, currentPackage: String?): AppProfileSelection.Result? {
+        if (!isEnabled || !hasUsageStatsPermission(context) || currentPackage.isNullOrBlank()) return null
+        val homePackages = getHomePackages(context)
+        return AppProfileSelection.resolve(
+            currentPackage = currentPackage,
+            selfPackage = context.packageName,
+            homePackages = homePackages,
+            mappings = getMappings(),
+            gameSceneEnabled = isGameSceneEnabled,
+            gameScenePresetName = gameScenePresetName,
+            isGamePackage = currentPackage != context.packageName &&
+                currentPackage !in homePackages && isGamePackage(context, currentPackage),
+            fallbackPresetName = resolveDefaultPresetName()
+        )
+    }
+
+    fun isHomePackage(context: Context, packageName: String?): Boolean =
+        packageName == context.packageName || packageName in getHomePackages(context)
+
     private fun resolveForegroundFromEvents(
         usageStatsManager: UsageStatsManager,
         now: Long
@@ -338,7 +352,7 @@ class AppProfileManager(private val prefs: SharedPreferences) {
         return cachedHomePackages
     }
 
-    private fun isGamePackage(context: Context, packageName: String): Boolean {
+    fun isGamePackage(context: Context, packageName: String): Boolean {
         val now = System.currentTimeMillis()
         if (packageName == cachedGamePackageName &&
             now - lastGamePackageQueryAt < HOME_PACKAGES_CACHE_MS
@@ -363,92 +377,11 @@ class AppProfileManager(private val prefs: SharedPreferences) {
         return result
     }
 
-    private fun resolveDefaultPresetName(): String? {
-        val array = getPresetArray() ?: return null
+    private fun resolveDefaultPresetName(): String? =
+        presetRepository.list().firstOrNull { it.isAppProfileDefault && it.name.isNotBlank() }?.name
 
-        for (i in 0 until array.length()) {
-            val obj = array.optJSONObject(i) ?: continue
-            if (!obj.optBoolean("isAppProfileDefault", false)) continue
-            val name = obj.optString("name").takeIf { it.isNotBlank() }
-            if (name != null) return name
-        }
-
-        return null
-    }
-
-    private fun loadPresetByName(name: String): LedPreset? {
-        val array = getPresetArray() ?: return null
-
-        for (i in 0 until array.length()) {
-            val obj = array.optJSONObject(i) ?: continue
-            if (obj.optString("name") != name) continue
-
-            val type = runCatching {
-                LedAnimationType.fromStoredName(obj.optString("animationType")) ?: LedAnimationType.STATIC
-            }.getOrDefault(LedAnimationType.STATIC)
-
-            val profile = runCatching {
-                PerformanceProfile.valueOf(obj.optString("performanceProfile", PerformanceProfile.HIGH.name))
-            }.getOrDefault(PerformanceProfile.HIGH)
-            val icon = PresetIcon.fromStoredName(
-                obj.optString("icon", PresetIcon.defaultFor(type).name)
-            )
-            val customEmoji = obj.optString("customEmoji")
-                .takeIf { it.isNotBlank() }
-            val customImageFileName = obj.optString("customImageFileName")
-                .takeIf { it.isNotBlank() }
-            val appIconPackageName = obj.optString("appIconPackageName")
-                .takeIf { it.isNotBlank() }
-
-            val color = obj.optInt("color", Color.WHITE)
-            return LedPreset(
-                name = name,
-                animationType = type,
-                performanceProfile = profile,
-                color = color,
-                rightColor = obj.optInt("rightColor", color),
-                fadeEndColor = obj.optInt("fadeEndColor", FadeTransitionAnimation.DEFAULT_END_COLOR),
-                fadeEndRightColor = obj.optInt("fadeEndRightColor", obj.optInt("fadeEndColor", FadeTransitionAnimation.DEFAULT_END_COLOR)),
-                brightness = obj.optInt("brightness", 255).coerceIn(0, 255),
-                speed = obj.optDouble("speed", 0.5).toFloat().coerceIn(0f, 1f),
-                smoothness = obj.optDouble("smoothness", 0.5).toFloat().coerceIn(0f, 1f),
-                sensitivity = obj.optDouble("sensitivity", 0.5).toFloat().coerceIn(0f, 1f),
-                saturationBoost = obj.optDouble("saturationBoost", 0.0).toFloat().coerceIn(0f, 1f),
-                useCustomSampling = obj.optBoolean("useCustomSampling", false),
-                useSingleColor = obj.optBoolean("useSingleColor", false),
-                breatheWhenCharging = obj.optBoolean("breatheWhenCharging", false),
-                indicateChargingSpeed = obj.optBoolean("indicateChargingSpeed", false),
-                flashWhenReady = obj.optBoolean("flashWhenReady", false),
-                batteryLowColorOverride = obj.optInt("batteryLowColorOverride").takeIf { obj.has("batteryLowColorOverride") },
-                batteryMidColorOverride = obj.optInt("batteryMidColorOverride").takeIf { obj.has("batteryMidColorOverride") },
-                batteryHighColorOverride = obj.optInt("batteryHighColorOverride").takeIf { obj.has("batteryHighColorOverride") },
-                cpuCoolColorOverride = obj.optInt("cpuCoolColorOverride").takeIf { obj.has("cpuCoolColorOverride") },
-                cpuWarmColorOverride = obj.optInt("cpuWarmColorOverride").takeIf { obj.has("cpuWarmColorOverride") },
-                cpuHotColorOverride = obj.optInt("cpuHotColorOverride").takeIf { obj.has("cpuHotColorOverride") },
-                ragnarokAccepted = obj.optBoolean("ragnarokAccepted", false),
-                icon = icon,
-                customEmoji = customEmoji,
-                customImageFileName = customImageFileName,
-                appIconPackageName = appIconPackageName
-            )
-        }
-        return null
-    }
-
-    /** Parse the saved preset document once per preference version, not once per tick. */
-    private fun getPresetArray(): JSONArray? {
-        val json = prefs.getString("presets_json", null) ?: run {
-            cachedPresetsRaw = null
-            cachedPresetArray = null
-            return null
-        }
-        if (json == cachedPresetsRaw) return cachedPresetArray
-
-        val parsed = runCatching { JSONArray(json) }.getOrNull()
-        cachedPresetsRaw = json
-        cachedPresetArray = parsed
-        return parsed
-    }
+    private fun loadPresetByName(name: String): LedPreset? =
+        presetRepository.list().firstOrNull { it.name == name }
 
     // ── Pending projection token ──────────────────────────────────────────
 

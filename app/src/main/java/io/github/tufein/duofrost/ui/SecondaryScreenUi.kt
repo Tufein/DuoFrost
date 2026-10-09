@@ -5,6 +5,7 @@ import android.content.res.ColorStateList
 import android.graphics.Typeface
 import android.view.Gravity
 import android.view.View
+import android.widget.FrameLayout
 import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.widget.TextView
@@ -20,7 +21,7 @@ import io.github.tufein.duofrost.R
 
 /** Shared, lightweight presentation for the programmatic utility screens. */
 internal object SecondaryScreenUi {
-    fun screen(activity: AppCompatActivity, title: String, description: String): Pair<ScrollView, LinearLayout> {
+    fun screen(activity: AppCompatActivity, title: String, description: String): Pair<View, LinearLayout> {
         val scroll = ScrollView(activity).apply {
             isFillViewport = true
             setBackgroundColor(color(activity, R.color.bifrost_bg))
@@ -39,8 +40,15 @@ internal object SecondaryScreenUi {
         })
         content.addView(heading(activity, title).apply { setPadding(0, dp(activity, 16), 0, dp(activity, 8)) })
         content.addView(body(activity, description).apply { setPadding(0, 0, 0, dp(activity, 24)) })
-        applyInsets(scroll)
-        return scroll to content
+        return safeScrollContainer(activity, scroll) to content
+    }
+
+    /** Keep native scroll/focus calculations inside the safe viewport. */
+    fun safeScrollContainer(context: Context, scroll: ScrollView): View = FrameLayout(context).apply {
+        addView(scroll, FrameLayout.LayoutParams(
+            FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT
+        ))
+        applyInsets(this)
     }
 
     fun applyInsets(root: View) {

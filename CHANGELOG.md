@@ -1,5 +1,24 @@
 # DuoFrost changelog
 
+## 2.5.0-alpha.1 — development
+
+The first development build toward 2.5.0. This entry describes source in development;
+it is not a published GitHub release.
+
+- Smart Scenes combine app/game groups, hours, weekdays, battery and charging conditions.
+- Brightness-only rules can dim the current preset without replacing it. Higher-priority
+  preset rules win, while specific existing app profiles retain precedence.
+- User-defined app groups supplement Android's automatic game recognition.
+- Temporary preset choices last 15, 30, 60 or 120 minutes; resuming re-evaluates current
+  conditions. Stop and reboot clear the temporary choice.
+- The dashboard explains the active scene; editing or enabling rules never starts lighting.
+- Stable saved preset identities preserve scene links through renames and unambiguous
+  managed plugin updates. Appended imports receive distinct identities; older presets
+  and external integrations remain compatible.
+- Full profile backups include persistent scene rules and groups, excluding temporary holds.
+
+[Alpha guide](docs/2.5.0-alpha.1.md) · [Roadmap](docs/roadmap-2.5.0.md).
+
 ## 2.3.0 pre-release
 
 An interface update for testing before the next full release. Version 2.1.0 remains the latest stable release. The interface refresh and landscape work prepared as 2.2.0 were combined and are published together as 2.3.0; 2.2.0 remained an unpublished preview.

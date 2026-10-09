@@ -1,8 +1,14 @@
 # DuoFrost 2.5.0 — roadmapvoorstel
 
-Opgesteld op 8 oktober 2026. Dit is een ontwikkelvoorstel: de nieuwe onderdelen
-zijn nog niet gebouwd of als release toegezegd. De volgorde volgt afhankelijkheden;
-er is nog geen vaste releasedatum.
+Opgesteld op 8 oktober 2026 als ontwikkelvoorstel. De voortgang staat hieronder;
+de resterende onderdelen zijn nog niet gebouwd of als release toegezegd. De
+volgorde volgt afhankelijkheden; er is nog geen vaste releasedatum.
+
+**Voortgang, 9 oktober 2026:** `2.5.0-alpha.1` is gebouwd en automatisch getest op
+`codex/2.5.0-smart-scenes`. De eerste stap bevat Smart Scenes, appgroepen,
+tijdelijke keuzes en vaste preset-identiteiten. Fysieke AYN-tests volgen nog.
+De volgende alpha richt zich op
+de bibliotheek, voorbeelden en veilig importeren. Zie [de eerste alpha](2.5.0-alpha.1.md).
 
 ## Richting
 

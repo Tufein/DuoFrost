@@ -4,8 +4,10 @@ import android.content.Context
 import android.content.SharedPreferences
 import android.net.Uri
 import android.util.Log
-import io.github.tufein.duofrost.LedPreset
 import io.github.tufein.duofrost.PresetArchiveTransfer
+import io.github.tufein.duofrost.PresetCodec
+import io.github.tufein.duofrost.PresetIdentity
+import io.github.tufein.duofrost.PresetRepository
 import io.github.tufein.duofrost.external.ExternalProfileStore
 import io.github.tufein.duofrost.services.AppProfileManager
 import org.json.JSONArray
@@ -64,12 +66,36 @@ object PluginInstaller {
         if (imported.presets.isEmpty()) return Result.Failure("bundle contains no presets")
 
         val owner = ownerOf(entry.id)
+        PresetRepository(prefs).ensureIds()
+        val priorPresetsByName = mutableMapOf<String, List<JSONObject>>()
+        val priorArray = readPresets(prefs)
+        for (index in 0 until priorArray.length()) {
+            val obj = priorArray.optJSONObject(index) ?: continue
+            if (obj.optString("ownerPackage") == owner) {
+                val name = obj.optString("name")
+                priorPresetsByName[name] = priorPresetsByName[name].orEmpty() + obj
+            }
+        }
         // Clear any prior version's presets + live policies first (clean update).
         ExternalProfileStore.removePresetsOwnedBy(prefs, owner)
         LivePolicyStore.removeByOwner(prefs, entry.id)
 
         val list = readPresets(prefs)
-        imported.presets.forEach { list.put(presetToJson(it, owner)) }
+        val reservedIds = mutableSetOf<String>()
+        for (index in 0 until list.length()) {
+            list.optJSONObject(index)?.optString("id")?.let { reservedIds.add(it) }
+        }
+        val updatedPresets = imported.presets.map { preset ->
+            val prior = priorPresetsByName[preset.name]?.singleOrNull()
+            preset.copy(
+                id = prior?.optString("id")?.takeIf(PresetIdentity::isValid) ?: preset.id,
+                ownerPackage = owner
+            )
+        }
+        PresetIdentity.normalizeImported(updatedPresets, reservedIds).forEach { preset ->
+            val prior = priorPresetsByName[preset.name]?.singleOrNull()
+            list.put(PresetCodec.encode(preset, prior))
+        }
         savePresets(prefs, list)
 
         // Apply the app→preset mappings (so app-profile mode auto-plays it).
@@ -93,41 +119,6 @@ object PluginInstaller {
         LivePolicyStore.removeByOwner(prefs, entry.id)
         PluginPrefs.removeInstalled(prefs, entry.id)
         return Result.Success(removed)
-    }
-
-    // ---- preset serialization (faithful to PresetController's format) -----
-
-    private fun presetToJson(p: LedPreset, owner: String): JSONObject = JSONObject().apply {
-        put("name", p.name)
-        put("animationType", p.animationType.name)
-        put("performanceProfile", p.performanceProfile.name)
-        put("color", p.color)
-        put("rightColor", p.rightColor)
-        put("fadeEndColor", p.fadeEndColor)
-        put("fadeEndRightColor", p.fadeEndRightColor)
-        put("brightness", p.brightness)
-        put("speed", p.speed.toDouble())
-        put("smoothness", p.smoothness.toDouble())
-        put("sensitivity", p.sensitivity.toDouble())
-        put("saturationBoost", p.saturationBoost.toDouble())
-        put("useCustomSampling", p.useCustomSampling)
-        put("useSingleColor", p.useSingleColor)
-        put("breatheWhenCharging", p.breatheWhenCharging)
-        put("indicateChargingSpeed", p.indicateChargingSpeed)
-        put("flashWhenReady", p.flashWhenReady)
-        p.batteryLowColorOverride?.let { put("batteryLowColorOverride", it) }
-        p.batteryMidColorOverride?.let { put("batteryMidColorOverride", it) }
-        p.batteryHighColorOverride?.let { put("batteryHighColorOverride", it) }
-        p.cpuCoolColorOverride?.let { put("cpuCoolColorOverride", it) }
-        p.cpuWarmColorOverride?.let { put("cpuWarmColorOverride", it) }
-        p.cpuHotColorOverride?.let { put("cpuHotColorOverride", it) }
-        put("isAppProfileDefault", p.isAppProfileDefault)
-        put("ragnarokAccepted", p.ragnarokAccepted)
-        put("icon", p.icon.name)
-        p.customEmoji?.let { put("customEmoji", it) }
-        p.customImageFileName?.let { put("customImageFileName", it) }
-        p.appIconPackageName?.let { put("appIconPackageName", it) }
-        put("ownerPackage", owner)
     }
 
     private fun readPresets(prefs: SharedPreferences): JSONArray {

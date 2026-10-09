@@ -1,0 +1,14 @@
+<resources>
+    <string name="scene_runtime_open">Smart Scenes</string>
+    <string name="scene_runtime_help">Match lighting to your apps, time and battery.</string>
+    <string name="scene_runtime_temporary">Temporary: %1$s</string>
+    <string name="scene_runtime_app_profile">App profile</string>
+    <string name="scene_runtime_game">Game Scene</string>
+    <string name="scene_runtime_default">Default app profile</string>
+    <string name="scene_runtime_manual">Manual lighting</string>
+    <string name="scene_runtime_limit">Maximum %1$d%%</string>
+    <string name="scene_runtime_ready">Smart Scenes ready · Start lighting to apply</string>
+    <string name="scene_runtime_external">Plugin lighting active</string>
+    <string name="scene_runtime_battery">Charging indicator active</string>
+    <string name="scene_runtime_alert">Low battery indicator active</string>
+</resources>

@@ -87,6 +87,8 @@ import io.github.tufein.duofrost.services.DuoFrostTileService
 import io.github.tufein.duofrost.services.HeimdallStartupManager
 import io.github.tufein.duofrost.services.LEDService
 import io.github.tufein.duofrost.services.LightingStateEvents
+import io.github.tufein.duofrost.scenes.SceneStore
+import io.github.tufein.duofrost.scenes.ScenesActivity
 import io.github.tufein.duofrost.services.LiveWallpaperSettingsManager
 import io.github.tufein.duofrost.services.ServiceController
 import io.github.tufein.duofrost.services.ServiceRecoveryStore
@@ -987,6 +989,12 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun setupHomeSurface() {
+        findViewById<MaterialButton>(R.id.gui_scenesButton).setOnClickListener {
+            startActivity(Intent(this, ScenesActivity::class.java))
+        }
+        findViewById<MaterialButton>(R.id.openSmartScenesButton).setOnClickListener {
+            startActivity(Intent(this, ScenesActivity::class.java))
+        }
         homeSettingsButton.setOnClickListener { openSettingsOverlay() }
         closeSettingsButton.setOnClickListener { requestCloseSettingsOverlay() }
         customizePresetArtworkButton.setOnClickListener { openSelectedPresetArtworkEditor(it) }
@@ -2222,6 +2230,14 @@ class MainActivity : AppCompatActivity() {
         syncServiceToggle(LEDService.isRunning)
         enableRainbowBackground(LEDService.isRunning)
         refreshBackgroundStatus()
+        refreshSceneStatus()
+    }
+
+    private fun refreshSceneStatus() {
+        val status = findViewById<TextView>(R.id.gui_sceneStatus)
+        val reason = if (LEDService.isRunning) LEDService.activeSceneReason else null
+        status.text = reason ?: if (SceneStore(prefs).isEnabled) getString(R.string.scene_runtime_ready) else ""
+        status.visibility = if (status.text.isNullOrBlank()) View.GONE else View.VISIBLE
     }
 
     override fun onResume() {
@@ -2231,6 +2247,7 @@ class MainActivity : AppCompatActivity() {
         resumeStateSyncRunnable?.let(mainHandler::removeCallbacks)
         resumeStateSyncRunnable = Runnable {
             refreshBackgroundStatus()
+            refreshSceneStatus()
             if (isAwaitingPermissionResult) {
                 if (LEDService.isRunning) syncServiceToggle(true)
                 isAwaitingPermissionResult = false

@@ -31,6 +31,9 @@ object BackupArchiveTransfer {
         "auto_switch_enabled",
         "game_scene_enabled",
         "game_scene_preset",
+        "smart_scenes_enabled",
+        "scenes_rules_json",
+        "scenes_groups_json",
         "pending_projection_package",
         "pending_projection_preset",
         "pending_projection_notified"

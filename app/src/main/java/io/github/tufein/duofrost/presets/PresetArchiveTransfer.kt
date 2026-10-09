@@ -60,6 +60,7 @@ object PresetArchiveTransfer {
         val manifestPresets = JSONArray()
         presets.forEach { preset ->
             val presetJson = JSONObject()
+            presetJson.put("id", preset.id)
             presetJson.put("name", preset.name)
             presetJson.put("animationType", preset.animationType.name)
             presetJson.put("performanceProfile", preset.performanceProfile.name)
@@ -181,7 +182,7 @@ object PresetArchiveTransfer {
         val livePolicies = parseLivePolicies(manifest.optJSONObject("livePolicies"), warnings)
 
         return ImportResult(
-            presets = importedPresets,
+            presets = PresetIdentity.normalizeImported(importedPresets),
             mappings = mappings,
             warnings = warnings,
             errors = emptyList(),
@@ -336,7 +337,8 @@ object PresetArchiveTransfer {
             icon = icon,
             customEmoji = customEmoji,
             customImageFileName = customImageFileName,
-            appIconPackageName = appIconPackageName
+            appIconPackageName = appIconPackageName,
+            id = (obj.opt("id") as? String)?.takeIf(PresetIdentity::isValid) ?: PresetIdentity.newId()
         )
     }
 

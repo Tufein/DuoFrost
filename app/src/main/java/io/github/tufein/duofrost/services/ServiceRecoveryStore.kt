@@ -8,6 +8,7 @@ import io.github.tufein.duofrost.schedule.ScheduleAction
 import io.github.tufein.duofrost.schedule.ScheduleEvaluator
 import io.github.tufein.duofrost.schedule.ScheduleStore
 import java.time.ZonedDateTime
+import io.github.tufein.duofrost.scenes.SceneStore
 
 object ServiceRecoveryStore {
     const val PREF_KEEP_RUNNING = "keep_running_enabled"
@@ -36,6 +37,7 @@ object ServiceRecoveryStore {
     }
 
     fun markStopped(context: Context) {
+        SceneStore(context.getSharedPreferences("bifrost_prefs", Context.MODE_PRIVATE)).clearTemporaryScene()
         val stored = state(context)
         if (stored.getBoolean(DESIRED_RUNNING, false) || stored.getBoolean(MUTED, false)) {
             stored.edit().putBoolean(DESIRED_RUNNING, false).remove(MUTED).commit()

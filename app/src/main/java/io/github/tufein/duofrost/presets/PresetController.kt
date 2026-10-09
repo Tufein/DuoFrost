@@ -16,13 +16,9 @@ import com.google.android.material.button.MaterialButton
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.google.android.material.textfield.TextInputEditText
 import com.google.android.material.textfield.TextInputLayout
-import io.github.tufein.duofrost.animations.FadeTransitionAnimation
-import io.github.tufein.duofrost.animations.LedAnimationType
 import io.github.tufein.duofrost.tools.PerformanceProfile
 import io.github.tufein.duofrost.ui.DeletePresetDialog
 import io.github.tufein.duofrost.ui.DuoFrostAlertDialog
-import org.json.JSONArray
-import org.json.JSONObject
 
 class PresetController(
     private val activity: AppCompatActivity,
@@ -41,7 +37,6 @@ class PresetController(
 ) {
 
     companion object {
-        private const val PREF_KEY_PRESETS = "presets_json"
         private const val PREF_KEY_LAST_PRESET = "last_preset_name"
 
         internal fun hasLightingChanges(current: LedPreset, selectedPreset: LedPreset): Boolean {
@@ -77,6 +72,7 @@ class PresetController(
         }
     }
 
+    private val repository = PresetRepository(prefs)
     private val presets: MutableList<LedPreset> = mutableListOf()
     private var selectedIndex: Int = 0
     private val deleteDialog = DeletePresetDialog()
@@ -120,10 +116,13 @@ class PresetController(
      * uninstall) show up when the user next opens DuoFrost.
      */
     fun reloadFromPrefs() {
+        val selectedId = presets.getOrNull(selectedIndex)?.id
         val selectedName = presets.getOrNull(selectedIndex)?.name
         presets.clear()
         presets.addAll(loadPresetsFromPrefs())
-        selectedIndex = if (selectedName != null) {
+        selectedIndex = if (selectedId != null && presets.any { it.id == selectedId }) {
+            presets.indexOfFirst { it.id == selectedId }
+        } else if (selectedName != null) {
             presets.indexOfFirst { it.name == selectedName }.takeIf { it >= 0 } ?: 0
         } else {
             0
@@ -196,7 +195,7 @@ class PresetController(
         if (importedPresets.isEmpty()) return false
 
         presets.clear()
-        presets.addAll(importedPresets)
+        presets.addAll(PresetIdentity.normalizeImported(importedPresets))
         normalizeAppProfileDefaultPreset()
 
         val firstPreset = presets.first()
@@ -214,7 +213,7 @@ class PresetController(
         if (importedPresets.isEmpty()) return false
 
         val selectedPresetNameBeforeImport = presets.getOrNull(selectedIndex)?.name
-        presets.addAll(importedPresets)
+        presets.addAll(PresetIdentity.normalizeImported(importedPresets, presets.map { it.id }.toSet()))
         normalizeAppProfileDefaultPreset()
 
         val selectedName = selectedPresetNameBeforeImport ?: presets.first().name
@@ -247,7 +246,7 @@ class PresetController(
         if (index !in presets.indices) return null
 
         val selectedPresetName = presets.getOrNull(selectedIndex)?.name
-        val updatedPreset = transform(presets[index])
+        val updatedPreset = transform(presets[index]).copy(id = presets[index].id)
         replacePreset(
             index = index,
             updatedPreset = updatedPreset,
@@ -282,7 +281,8 @@ class PresetController(
             customEmoji = current.customEmoji,
             customImageFileName = current.customImageFileName,
             appIconPackageName = current.appIconPackageName,
-            ownerPackage = current.ownerPackage
+            ownerPackage = current.ownerPackage,
+            id = current.id
         )
 
         replacePreset(
@@ -354,120 +354,12 @@ class PresetController(
         markIsUpdatingFromPreset(false)
     }
 
-    private fun loadPresetsFromPrefs(): MutableList<LedPreset> {
-        val json = prefs.getString(PREF_KEY_PRESETS, null) ?: return mutableListOf()
-        val array = JSONArray(json)
-        val list = mutableListOf<LedPreset>()
-
-        for (i in 0 until array.length()) {
-            val obj = array.optJSONObject(i) ?: continue
-
-            val name = obj.optString("name", "Preset ${i + 1}")
-            val type = LedAnimationType.fromStoredName(obj.optString("animationType"))
-                ?: LedAnimationType.STATIC
-
-            val profile = runCatching {
-                PerformanceProfile.valueOf(obj.optString("performanceProfile", PerformanceProfile.HIGH.name))
-            }.getOrDefault(PerformanceProfile.HIGH)
-            val icon = PresetIcon.fromStoredName(
-                obj.optString("icon", PresetIcon.defaultFor(type).name)
-            )
-            val customEmoji = obj.optString("customEmoji")
-                .takeIf { it.isNotBlank() }
-            val customImageFileName = obj.optString("customImageFileName")
-                .takeIf { it.isNotBlank() }
-            val appIconPackageName = obj.optString("appIconPackageName")
-                .takeIf { it.isNotBlank() }
-            val ownerPackage = obj.optString("ownerPackage")
-                .takeIf { it.isNotBlank() }
-
-            val accepted = obj.optBoolean("ragnarokAccepted", false)
-            val useCustomSampling = obj.optBoolean("useCustomSampling", false)
-            val useSingleColor = obj.optBoolean("useSingleColor", false)
-            val breatheWhenCharging = obj.optBoolean("breatheWhenCharging", false)
-            val indicateChargingSpeed = obj.optBoolean("indicateChargingSpeed", false)
-            val flashWhenReady = obj.optBoolean("flashWhenReady", false)
-            val isAppProfileDefault = obj.optBoolean("isAppProfileDefault", false)
-
-            val color = obj.optInt("color", Color.WHITE)
-            list.add(
-                LedPreset(
-                    name = name,
-                    animationType = type,
-                    performanceProfile = profile,
-                    color = color,
-                    rightColor = obj.optInt("rightColor", color),
-                    fadeEndColor = obj.optInt("fadeEndColor", FadeTransitionAnimation.DEFAULT_END_COLOR),
-                    fadeEndRightColor = obj.optInt("fadeEndRightColor", obj.optInt("fadeEndColor", FadeTransitionAnimation.DEFAULT_END_COLOR)),
-                    brightness = obj.optInt("brightness", 255),
-                    speed = obj.optDouble("speed", 0.5).toFloat(),
-                    smoothness = obj.optDouble("smoothness", 0.5).toFloat(),
-                    sensitivity = obj.optDouble("sensitivity", 0.5).toFloat(),
-                    saturationBoost = obj.optDouble("saturationBoost", 0.0).toFloat(),
-                    useCustomSampling = useCustomSampling,
-                    useSingleColor = useSingleColor,
-                    breatheWhenCharging = breatheWhenCharging,
-                    indicateChargingSpeed = indicateChargingSpeed,
-                    flashWhenReady = flashWhenReady,
-                    batteryLowColorOverride = obj.optInt("batteryLowColorOverride").takeIf { obj.has("batteryLowColorOverride") },
-                    batteryMidColorOverride = obj.optInt("batteryMidColorOverride").takeIf { obj.has("batteryMidColorOverride") },
-                    batteryHighColorOverride = obj.optInt("batteryHighColorOverride").takeIf { obj.has("batteryHighColorOverride") },
-                    cpuCoolColorOverride = obj.optInt("cpuCoolColorOverride").takeIf { obj.has("cpuCoolColorOverride") },
-                    cpuWarmColorOverride = obj.optInt("cpuWarmColorOverride").takeIf { obj.has("cpuWarmColorOverride") },
-                    cpuHotColorOverride = obj.optInt("cpuHotColorOverride").takeIf { obj.has("cpuHotColorOverride") },
-                    isAppProfileDefault = isAppProfileDefault,
-                    ragnarokAccepted = accepted,
-                    icon = icon,
-                    customEmoji = customEmoji,
-                    customImageFileName = customImageFileName,
-                    appIconPackageName = appIconPackageName,
-                    ownerPackage = ownerPackage
-                )
-            )
-        }
-
-        return list
-    }
+    private fun loadPresetsFromPrefs(): MutableList<LedPreset> = repository.list().toMutableList()
 
     private fun savePresetsToPrefs() {
-        val array = JSONArray()
-
-        presets.forEach { preset ->
-            val obj = JSONObject()
-            obj.put("name", preset.name)
-            obj.put("animationType", preset.animationType.name)
-            obj.put("performanceProfile", preset.performanceProfile.name)
-            obj.put("color", preset.color)
-            obj.put("rightColor", preset.rightColor)
-            obj.put("fadeEndColor", preset.fadeEndColor)
-            obj.put("fadeEndRightColor", preset.fadeEndRightColor)
-            obj.put("brightness", preset.brightness)
-            obj.put("speed", preset.speed.toDouble())
-            obj.put("smoothness", preset.smoothness.toDouble())
-            obj.put("sensitivity", preset.sensitivity.toDouble())
-            obj.put("saturationBoost", preset.saturationBoost.toDouble())
-            obj.put("useCustomSampling", preset.useCustomSampling)
-            obj.put("useSingleColor", preset.useSingleColor)
-            obj.put("breatheWhenCharging", preset.breatheWhenCharging)
-            obj.put("indicateChargingSpeed", preset.indicateChargingSpeed)
-            obj.put("flashWhenReady", preset.flashWhenReady)
-            preset.batteryLowColorOverride?.let { obj.put("batteryLowColorOverride", it) }
-            preset.batteryMidColorOverride?.let { obj.put("batteryMidColorOverride", it) }
-            preset.batteryHighColorOverride?.let { obj.put("batteryHighColorOverride", it) }
-            preset.cpuCoolColorOverride?.let { obj.put("cpuCoolColorOverride", it) }
-            preset.cpuWarmColorOverride?.let { obj.put("cpuWarmColorOverride", it) }
-            preset.cpuHotColorOverride?.let { obj.put("cpuHotColorOverride", it) }
-            obj.put("isAppProfileDefault", preset.isAppProfileDefault)
-            obj.put("ragnarokAccepted", preset.ragnarokAccepted)
-            obj.put("icon", preset.icon.name)
-            preset.customEmoji?.let { obj.put("customEmoji", it) }
-            preset.customImageFileName?.let { obj.put("customImageFileName", it) }
-            preset.appIconPackageName?.let { obj.put("appIconPackageName", it) }
-            preset.ownerPackage?.let { obj.put("ownerPackage", it) }
-            array.put(obj)
-        }
-
-        prefs.edit().putString(PREF_KEY_PRESETS, array.toString()).apply()
+        val saved = repository.save(presets)
+        presets.clear()
+        presets.addAll(saved)
         io.github.tufein.duofrost.widgets.DuoFrostWidget.refreshFrom(activity)
     }
 
@@ -478,6 +370,7 @@ class PresetController(
     private fun resolveInitialPreset(initialConfig: LedPreset): LedPreset {
         if (presets.isEmpty()) {
             val defaultPreset = initialConfig.copy(
+                id = PresetIdentity.newId(),
                 name = "Default",
                 isAppProfileDefault = true
             )
@@ -543,6 +436,7 @@ class PresetController(
         val baseIcon = presets.getOrNull(selectedIndex)?.icon
             ?: PresetIcon.defaultFor(base.animationType)
         val newPreset = base.copy(
+            id = PresetIdentity.newId(),
             name = unique,
             isAppProfileDefault = false,
             icon = baseIcon,
@@ -599,7 +493,8 @@ class PresetController(
                 customEmoji = current.customEmoji,
                 customImageFileName = current.customImageFileName,
                 appIconPackageName = current.appIconPackageName,
-                ownerPackage = current.ownerPackage
+                ownerPackage = current.ownerPackage,
+                id = current.id
             )
 
             replacePreset(
@@ -636,7 +531,7 @@ class PresetController(
         val previousPreset = presets[index]
         cleanupReplacedImage(index, previousPreset, updatedPreset)
 
-        presets[index] = updatedPreset
+        presets[index] = updatedPreset.copy(id = previousPreset.id)
         savePresetsToPrefs()
         saveLastPresetName(selectedNameAfterSave)
         refreshPresetSpinner(selectedNameAfterSave)

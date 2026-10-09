@@ -12,6 +12,7 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
+import android.content.SharedPreferences
 import android.content.pm.PackageManager
 import android.database.ContentObserver
 import android.provider.Settings
@@ -36,7 +37,12 @@ import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.ContextCompat
 import io.github.tufein.duofrost.MainActivity
+import io.github.tufein.duofrost.PresetRepository
+import io.github.tufein.duofrost.PresetIdentity
 import io.github.tufein.duofrost.R
+import io.github.tufein.duofrost.scenes.SceneBaseline
+import io.github.tufein.duofrost.scenes.SceneRuntimeController
+import io.github.tufein.duofrost.scenes.SceneStore
 import io.github.tufein.duofrost.plugins.PluginPrefs
 import io.github.tufein.duofrost.plugins.LivePolicy
 import io.github.tufein.duofrost.plugins.LivePolicyStore
@@ -170,6 +176,8 @@ class LEDService : Service() {
         var isRunning = false
         var isWaitingForCapturePermission = false
             private set
+        @Volatile var activeSceneReason: String? = null
+            private set
     }
 
     private var mediaProjection: MediaProjection? = null
@@ -222,11 +230,14 @@ class LEDService : Service() {
     private var outputLimits = LedOutputLimits()
     private var isScreenInteractive = true
     private var outputMuted = false
+    private var sceneBrightnessLimitPercent: Int? = null
+    private var selectedSceneReason: String? = null
     private data class VisibleLightingState(
         val running: Boolean,
         val waitingForCapture: Boolean,
         val muted: Boolean,
-        val timerDeadline: Long?
+        val timerDeadline: Long?,
+        val sceneReason: String?
     )
     private var lastPublishedLightingState: VisibleLightingState? = null
     private val sleepTimerCallback = Runnable {
@@ -402,6 +413,7 @@ class LEDService : Service() {
             if (pluggedStateChanged || alertStateChanged) {
                 restartAnimationForCurrentState(force = alertStateChanged)
             }
+            checkAutoProfileSwitch()
         }
     }
 
@@ -459,9 +471,9 @@ class LEDService : Service() {
 
     private fun applyOutputLimits() {
         ledController.setOutputBrightnessLimit(
-            outputLimits.resolve(
+            minOf(outputLimits.resolve(
                 currentBatterySaverBrightness, isBatterySaverActive, isScreenInteractive, outputMuted
-            )
+            ), sceneBrightnessLimitPercent?.let { (it * 255 / 100).coerceIn(0, 255) } ?: 255)
         )
     }
 
@@ -471,6 +483,18 @@ class LEDService : Service() {
 
     private val appProfileManager by lazy {
         AppProfileManager(prefs)
+    }
+
+    private val sceneRuntime by lazy { SceneRuntimeController(prefs, appProfileManager) }
+    private val scenePreferencesListener = SharedPreferences.OnSharedPreferenceChangeListener { _, key ->
+        if (key in SceneStore.BACKUP_PREF_KEYS || key in SceneStore.TEMPORARY_PREF_KEYS ||
+            key in setOf("presets_json", "auto_switch_enabled", "app_profile_mappings", "game_scene_enabled", "game_scene_preset")) {
+            handler.post {
+                if (isRunning && !isStopping.get()) {
+                    checkAutoProfileSwitch()
+                }
+            }
+        }
     }
 
     private val activityCheckRunnable = object : Runnable {
@@ -515,6 +539,7 @@ class LEDService : Service() {
         registerPowerSaveStateReceiver()
         applyOutputLimits()
         registerBatteryStateReceiver()
+        prefs.registerOnSharedPreferenceChangeListener(scenePreferencesListener)
         refreshBatteryStateSnapshot()
         mountScreenBrightnessObserver()
     }
@@ -574,6 +599,7 @@ class LEDService : Service() {
         if (intent.action == ACTION_FORCE_APP_PROFILE_RESOLUTION) {
             Log.d(TAG, "onStartCommand: ACTION_FORCE_APP_PROFILE_RESOLUTION, isRunning=$isRunning")
             if (isRunning) {
+                sceneRuntime.reset()
                 checkAutoProfileSwitch()
             }
             return restartMode()
@@ -719,16 +745,14 @@ class LEDService : Service() {
 
 
         refreshBatteryStateSnapshot()
-
-        if (appProfileManager.isEnabled) {
-            Log.d(TAG, "onStartCommand: app profile enabled, calling checkAutoProfileSwitch()")
-            checkAutoProfileSwitch()
-            if (!isAppProfileSuppressed && currentAnimation == null) {
-                Log.d(TAG, "onStartCommand: no animation running after profile check, starting fallback with force=true")
-                restartAnimationForCurrentState(force = true)
-            }
-        } else {
-            Log.d(TAG, "onStartCommand: app profile disabled, restarting animation with force=true")
+        val baselineName = prefs.getString(PREF_KEY_LAST_PRESET, null).orEmpty()
+        val baselineId = PresetRepository(prefs).list().firstOrNull { it.name == baselineName }?.id
+            ?: PresetIdentity.newId()
+        sceneRuntime.setBaseline(SceneBaseline.fromIntent(intent, baselineId, baselineName))
+        sceneBrightnessLimitPercent = null
+        selectedSceneReason = null
+        checkAutoProfileSwitch()
+        if (!isAppProfileSuppressed && currentAnimation == null) {
             restartAnimationForCurrentState(force = true)
         }
 
@@ -737,11 +761,18 @@ class LEDService : Service() {
     }
 
     private fun publishLightingStateIfChanged() {
+        activeSceneReason = if (!isRunning) null else when {
+            activeExternalOverride != null -> getString(R.string.scene_runtime_external)
+            isLowBatteryAlertActive -> getString(R.string.scene_runtime_alert)
+            currentBatteryOverrideWhenPlugged && isDevicePluggedIn -> getString(R.string.scene_runtime_battery)
+            else -> selectedSceneReason
+        }
         val state = VisibleLightingState(
             isRunning,
             isWaitingForCapturePermission,
             ServiceRecoveryStore.isMuted(this),
-            SleepTimerStore.read(this)?.deadline
+            SleepTimerStore.read(this)?.deadline,
+            activeSceneReason
         )
         if (state == lastPublishedLightingState) return
         lastPublishedLightingState = state
@@ -816,6 +847,7 @@ class LEDService : Service() {
             return
         }
         ServiceRecoveryStore.mergeUpdate(this, intent)
+        ServiceRecoveryStore.buildLastConfigurationIntent(this, prefs)?.let(sceneRuntime::updateBaseline)
         keepRunning = ServiceRecoveryStore.isKeepRunningEnabled(prefs)
         var globalParameterCount = 0
         if (intent.hasExtra(EXTRA_ALLOW_BACKGROUND_RUN)) {
@@ -1377,38 +1409,30 @@ class LEDService : Service() {
             return
         }
 
-        if (activeExternalOverride != null) {
-            Log.d(TAG, "checkAutoProfileSwitch: external override active, skipping")
-            return
-        }
-
-        if (isLowBatteryAlertActive) {
-            return
-        }
-
-        val switchResult = appProfileManager.checkForSwitch(this)
+        val switchResult = sceneRuntime.evaluate(this, batteryLevelPercent, isDevicePluggedIn)
         if (switchResult == null) {
-            Log.d(TAG, "checkAutoProfileSwitch: no switch needed (null result)")
+            publishLightingStateIfChanged()
             return
         }
-
-        Log.d(TAG, "checkAutoProfileSwitch: switchResult presetName='${switchResult.presetName}', preset animType=${switchResult.preset?.animationType}")
-
-        // Keep the UI in sync by tracking which preset is active when auto-switch is enabled.
+        selectedSceneReason = switchResult.reason
+        sceneBrightnessLimitPercent = switchResult.brightnessLimitPercent
+        applyOutputLimits()
+        publishLightingStateIfChanged()
+        if (activeExternalOverride != null || isLowBatteryAlertActive ||
+            currentBatteryOverrideWhenPlugged && isDevicePluggedIn) {
+            // Re-evaluate after an overlay ends instead of restoring a stale scene.
+            sceneRuntime.reset()
+            return
+        }
         prefs.edit().putString(PREF_KEY_LAST_PRESET, switchResult.presetName.orEmpty()).apply()
-
-        // While the plugged-in battery override is active, keep tracking foreground-app
-        // changes but do not apply the preset switch until the override is lifted.
-        if (currentBatteryOverrideWhenPlugged && isDevicePluggedIn) {
-            Log.d(TAG, "checkAutoProfileSwitch: battery override active, NOT applying switch")
-            return
-        }
+        if (!switchResult.presetChanged) return
 
         val preset = switchResult.preset
         if (preset == null) {
             Log.d(TAG, "checkAutoProfileSwitch: preset is null → suppressing animation")
             isAppProfileSuppressed = true
             stopCurrentAnimation()
+            ledController.setLedColor(0, 0, 0, 0, true, true, true, true)
             return
         }
 
@@ -1494,6 +1518,7 @@ class LEDService : Service() {
 
     override fun onDestroy() {
         super.onDestroy()
+        prefs.unregisterOnSharedPreferenceChangeListener(scenePreferencesListener)
         handler.removeCallbacks(activityCheckRunnable)
         clearPendingCallbacks()
         unregisterBatteryStateReceiver()
@@ -1732,7 +1757,8 @@ class LEDService : Service() {
         // is actually applied (the dedup cache previously returned null
         // because the preset name matched even though MP was missing).
         appProfileManager.forceNextResolution()
-        if (!appProfileManager.isEnabled) {
+        sceneRuntime.reset()
+        if (!appProfileManager.isEnabled && !SceneStore(prefs).isEnabled) {
             restartAnimationForCurrentState(force = true)
         }
         updateForegroundNotification()
@@ -2006,29 +2032,13 @@ class LEDService : Service() {
 
         if (!isRunning || isStopping.get()) return
 
-        val chargingNow = currentBatteryOverrideWhenPlugged && isDevicePluggedIn
-        when {
-            // 1. Charging now → battery indicator reclaims priority (whether or
-            //    not it was charging when the override started).
-            chargingNow -> restartAnimationForCurrentState(force = true)
-
-            // 2. App-profile switching on → re-resolve against the CURRENT
-            //    foreground app, not whatever was foreground at takeover.
-            appProfileManager.isEnabled -> {
-                appProfileManager.forceNextResolution()
-                checkAutoProfileSwitch()
-                // checkAutoProfileSwitch starts the resolved preset itself; the
-                // fallback covers the "suppressed / nothing resolved" gap, and —
-                // crucially — runs even though the override animation is still
-                // non-null, so we never get stuck on the relinquished effect.
-                if (!isAppProfileSuppressed &&
-                    (currentAnimation == null || activeAnimationType == LedAnimationType.PIPBOY)) {
-                    restartAnimationForCurrentState(force = true)
-                }
-            }
-
-            // 3. Otherwise → the last known manual preset (from the snapshot).
-            else -> restartAnimationForCurrentState(force = true)
+        // Resolve even when only a temporary scene is active or automation was
+        // disabled during the lease. Caps and baseline then reflect the current state.
+        sceneRuntime.reset()
+        checkAutoProfileSwitch()
+        if (currentBatteryOverrideWhenPlugged && isDevicePluggedIn ||
+            !isAppProfileSuppressed && (currentAnimation == null || activeAnimationType == LedAnimationType.PIPBOY)) {
+            restartAnimationForCurrentState(force = true)
         }
     }
 

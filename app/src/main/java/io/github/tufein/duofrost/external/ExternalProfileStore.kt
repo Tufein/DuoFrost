@@ -2,6 +2,8 @@ package io.github.tufein.duofrost.external
 
 import android.content.SharedPreferences
 import io.github.tufein.duofrost.PresetIcon
+import io.github.tufein.duofrost.PresetIdentity
+import io.github.tufein.duofrost.PresetRepository
 import io.github.tufein.duofrost.tools.PerformanceProfile
 import org.json.JSONArray
 import org.json.JSONObject
@@ -19,18 +21,19 @@ object ExternalProfileStore {
     fun installManagedPreset(
         prefs: SharedPreferences,
         command: ExternalApiCommand.InstallProfile
-    ): Boolean {
+    ): Boolean = synchronized(prefs) {
+        PresetRepository(prefs).ensureIds()
         val list = readList(prefs)
         val existingIndex = list.indexOfFirst { obj ->
             obj.optString("name") == command.profileName &&
                 obj.optString("ownerPackage") == command.callerPackage
         }
-        if (existingIndex >= 0 && !command.replaceIfExists) return false
+        if (existingIndex >= 0 && !command.replaceIfExists) return@synchronized false
 
-        val serialized = command.toPresetJson()
+        val serialized = command.toPresetJson(list.getOrNull(existingIndex))
         if (existingIndex >= 0) list[existingIndex] = serialized else list.add(serialized)
         saveList(prefs, list)
-        return true
+        true
     }
 
     fun uninstallManagedPreset(
@@ -64,7 +67,9 @@ object ExternalProfileStore {
         return removed
     }
 
-    private fun ExternalApiCommand.InstallProfile.toPresetJson(): JSONObject = JSONObject().apply {
+    private fun ExternalApiCommand.InstallProfile.toPresetJson(existing: JSONObject? = null): JSONObject =
+        (existing?.let { JSONObject(it.toString()) } ?: JSONObject()).apply {
+        put("id", existing?.optString("id")?.takeIf(PresetIdentity::isValid) ?: PresetIdentity.newId())
         put("name", profileName)
         put("animationType", effect.name)
         put("performanceProfile", PerformanceProfile.HIGH.name)
@@ -80,16 +85,20 @@ object ExternalProfileStore {
         put("breatheWhenCharging", breatheWhenCharging)
         put("indicateChargingSpeed", indicateChargingSpeed)
         put("flashWhenReady", flashWhenReady)
-        batteryLowColor?.let { put("batteryLowColorOverride", it) }
-        batteryMidColor?.let { put("batteryMidColorOverride", it) }
-        batteryHighColor?.let { put("batteryHighColorOverride", it) }
-        cpuCoolColor?.let { put("cpuCoolColorOverride", it) }
-        cpuWarmColor?.let { put("cpuWarmColorOverride", it) }
-        cpuHotColor?.let { put("cpuHotColorOverride", it) }
+        putOptional("batteryLowColorOverride", batteryLowColor)
+        putOptional("batteryMidColorOverride", batteryMidColor)
+        putOptional("batteryHighColorOverride", batteryHighColor)
+        putOptional("cpuCoolColorOverride", cpuCoolColor)
+        putOptional("cpuWarmColorOverride", cpuWarmColor)
+        putOptional("cpuHotColorOverride", cpuHotColor)
         put("isAppProfileDefault", false)
         put("ragnarokAccepted", false)
-        put("icon", PresetIcon.defaultFor(effect).name)
+        put("icon", existing?.optString("icon")?.takeIf { it.isNotBlank() } ?: PresetIcon.defaultFor(effect).name)
         put("ownerPackage", callerPackage)
+    }
+
+    private fun JSONObject.putOptional(key: String, value: Any?) {
+        if (value == null) remove(key) else put(key, value)
     }
 
     private fun readList(prefs: SharedPreferences): MutableList<JSONObject> {

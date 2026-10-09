@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <item name="scenes_root" type="id" />
+    <item name="scenes_enable" type="id" />
+    <item name="scenes_status" type="id" />
+    <item name="scenes_usage_access" type="id" />
+    <item name="scenes_add_rule" type="id" />
+    <item name="scenes_rules_list" type="id" />
+    <item name="scenes_empty" type="id" />
+    <item name="scenes_groups" type="id" />
+    <item name="scenes_temporary" type="id" />
+    <item name="scenes_resume" type="id" />
+    <item name="scenes_rule_name" type="id" />
+    <item name="scenes_rule_effect" type="id" />
+    <item name="scenes_rule_target" type="id" />
+    <item name="scenes_rule_time" type="id" />
+    <item name="scenes_rule_battery" type="id" />
+    <item name="scenes_rule_battery_percent" type="id" />
+    <item name="scenes_rule_brightness" type="id" />
+    <item name="scenes_rule_brightness_percent" type="id" />
+    <item name="scenes_rule_priority" type="id" />
+    <item name="scenes_add_group" type="id" />
+    <item name="scenes_group_name" type="id" />
+    <item name="scenes_group_apps" type="id" />
+    <item name="scenes_apps_search" type="id" />
+    <item name="scenes_apps_list" type="id" />
+</resources>
