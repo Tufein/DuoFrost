@@ -98,7 +98,11 @@ since 2.1.0 and APK Signature Scheme v2.
 Installing the production-signed alpha.2 over alpha.1 retained exact preset,
 scene-rule, app-group, library-organisation and assignment JSON, the 24% output
 limit and stopped lighting state. The APK SHA-256 is
-`e6bf31c00391fc092f3282490355863029c07c3507545ed2e0f102ecba9090e5`.
+`f01cd6aa64dee47d0d1a114ff080d72aafe1a3822c58200ac6442cdbd35bfa27`.
+The final package records source commit `cca565b`; its compiled code and resources
+are byte-identical to the instrumentation-verified build. Only the embedded Git
+revision changed after committing the reviewed source, followed by a fresh signature
+and exact-APK update check.
 
 Physical LED output, capture switching, battery cost and firmware-specific behavior
 remain unverified in the emulator and require AYN device testing before the final
