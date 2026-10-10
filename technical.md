@@ -24,11 +24,12 @@ object was archived before the tag was finalized for the public release.
 Intermediate development releases are archived locally by the maintainer and
 removed from the public release list. Their implementation remains in Git history.
 
-## DuoFrost 2.5.0-alpha.1 development
+## DuoFrost 2.5.0-alpha.1 pre-release
 
 The first 2.5.0 development build has Android version `2.5.0-alpha.1`, code `26`,
-on `codex/2.5.0-smart-scenes`. It is not a published release. User-facing setup
-is described in [the alpha guide](docs/2.5.0-alpha.1.md); later work follows
+on `codex/2.5.0-smart-scenes`. It was published as a pre-release under tag
+`v2.5.0-alpha.1` on 2026-10-10, using the previously tested signed APK unchanged.
+User-facing setup is described in [the alpha guide](docs/2.5.0-alpha.1.md); later work follows
 [the roadmap](docs/roadmap-2.5.0.md).
 
 `SceneEvaluator` is a pure selector for app/game groups, local time/ISO weekdays,
@@ -166,7 +167,8 @@ verify physical AYN LED output or firmware-specific process management.
 - Production version `2.1.0` uses this new signing certificate SHA-256:
   `0863ff52a003ec13c5997f8f23fe24fd69f4118c0644506641edd198d87aaa2d`.
 - Latest stable production version: `2.1.0`, version code `23`, tag `v2.1.0`.
-- Current production pre-release: `2.3.0`, version code `25`, tag `v2.3.0`.
+- Previous production pre-release: `2.3.0`, version code `25`, tag `v2.3.0`.
+- Current production pre-release: `2.5.0-alpha.1`, version code `26`, tag `v2.5.0-alpha.1`.
   Future updates must increment the version code and retain the new release key.
   The published 2.3.0 debug APK displays `2.3.0-debug`. The current development
   debug APK displays `2.5.0-alpha.1-debug`; both install separately from production.

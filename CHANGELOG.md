@@ -1,9 +1,8 @@
 # DuoFrost changelog
 
-## 2.5.0-alpha.1 — development
+## 2.5.0-alpha.1 — pre-release
 
-The first development build toward 2.5.0. This entry describes source in development;
-it is not a published GitHub release.
+The first testing build toward 2.5.0, published as a pre-release on 2026-10-10.
 
 - Smart Scenes combine app/game groups, hours, weekdays, battery and charging conditions.
 - Brightness-only rules can dim the current preset without replacing it. Higher-priority
@@ -17,6 +16,7 @@ it is not a published GitHub release.
   and external integrations remain compatible.
 - Full profile backups include persistent scene rules and groups, excluding temporary holds.
 
+[Release and APK](https://github.com/Tufein/DuoFrost/releases/tag/v2.5.0-alpha.1) ·
 [Alpha guide](docs/2.5.0-alpha.1.md) · [Roadmap](docs/roadmap-2.5.0.md).
 
 ## 2.3.0 pre-release

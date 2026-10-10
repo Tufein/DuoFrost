@@ -10,6 +10,9 @@ tijdelijke keuzes en vaste preset-identiteiten. Fysieke AYN-tests volgen nog.
 De volgende alpha richt zich op
 de bibliotheek, voorbeelden en veilig importeren. Zie [de eerste alpha](2.5.0-alpha.1.md).
 
+**Publicatie, 10 oktober 2026:** de geteste alpha is nu als
+[GitHub-pre-release te downloaden](https://github.com/Tufein/DuoFrost/releases/tag/v2.5.0-alpha.1).
+
 ## Richting
 
 **Slimme verlichting die vanzelf bij je sessie past, met eenvoudige bediening.**
@@ -97,9 +100,8 @@ hardwaretest voldoende bewijs leveren. Ze kunnen naar een latere release.
 | 5. Release candidate | Getekende APK, update- en hersteltest, definitieve screenshots en changelog. | Installeren over ondersteunde productieversies behoudt instellingen. De APK, broncode, signingcertificaat en checksums komen overeen. Geen open releaseblokker. |
 | 6. 2.5.0-release | GitHub-download, gebruikersdocumentatie, technische notities, Reddit-post en banner. | Alle publieke teksten beschrijven alleen wat in de geteste APK zit. Bestaande releases blijven beschikbaar. |
 
-Alpha en beta zijn voorgestelde testmomenten; er zijn nog geen tags of releases
-aangemaakt. Een aparte 2.4.0 is geen technische vereiste. Of Game Scene eerder
-apart wordt uitgebracht, staat los van deze 2.5.0-roadmap.
+De eerste alpha is gepubliceerd; latere alpha- en betamomenten blijven voorstellen.
+Een aparte 2.4.0 is geen technische vereiste. Game Scene zit in deze eerste alpha.
 
 ## Technische aanpak
 
