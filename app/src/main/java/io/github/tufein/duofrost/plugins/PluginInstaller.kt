@@ -4,6 +4,7 @@ import android.content.Context
 import android.content.SharedPreferences
 import android.net.Uri
 import android.util.Log
+import io.github.tufein.duofrost.LedPreset
 import io.github.tufein.duofrost.PresetArchiveTransfer
 import io.github.tufein.duofrost.PresetCodec
 import io.github.tufein.duofrost.PresetIdentity
@@ -65,66 +66,62 @@ object PluginInstaller {
         if (imported.errors.isNotEmpty()) return Result.Failure(imported.errors.joinToString("; "))
         if (imported.presets.isEmpty()) return Result.Failure("bundle contains no presets")
 
-        val owner = ownerOf(entry.id)
-        PresetRepository(prefs).ensureIds()
-        val priorPresetsByName = mutableMapOf<String, List<JSONObject>>()
-        val priorArray = readPresets(prefs)
-        for (index in 0 until priorArray.length()) {
-            val obj = priorArray.optJSONObject(index) ?: continue
-            if (obj.optString("ownerPackage") == owner) {
-                val name = obj.optString("name")
-                priorPresetsByName[name] = priorPresetsByName[name].orEmpty() + obj
-            }
-        }
-        // Clear any prior version's presets + live policies first (clean update).
-        ExternalProfileStore.removePresetsOwnedBy(prefs, owner)
-        LivePolicyStore.removeByOwner(prefs, entry.id)
+        // Only preference mutation is locked; downloads and artwork imports above stay outside.
+        return synchronized(prefs) {
+            val owner = ownerOf(entry.id)
+            if (ExternalProfileStore.readStoredPresets(prefs) == null) return@synchronized Result.Failure(
+                "Stored presets are damaged; restore a backup before installing a plugin.")
+            PresetRepository(prefs).ensureIds()
+            val priorArray = ExternalProfileStore.readStoredPresets(prefs)
+                ?: return@synchronized Result.Failure("Stored presets are damaged; restore a backup before installing a plugin.")
+            val list = replaceOwnedPresets(priorArray, imported.presets, owner)
+            savePresets(prefs, list)
+            LivePolicyStore.removeByOwner(prefs, entry.id)
 
-        val list = readPresets(prefs)
-        val reservedIds = mutableSetOf<String>()
-        for (index in 0 until list.length()) {
-            list.optJSONObject(index)?.optString("id")?.let { reservedIds.add(it) }
-        }
-        val updatedPresets = imported.presets.map { preset ->
-            val prior = priorPresetsByName[preset.name]?.singleOrNull()
-            preset.copy(
-                id = prior?.optString("id")?.takeIf(PresetIdentity::isValid) ?: preset.id,
-                ownerPackage = owner
-            )
-        }
-        PresetIdentity.normalizeImported(updatedPresets, reservedIds).forEach { preset ->
-            val prior = priorPresetsByName[preset.name]?.singleOrNull()
-            list.put(PresetCodec.encode(preset, prior))
-        }
-        savePresets(prefs, list)
+            // Apply the app→preset mappings (so app-profile mode auto-plays it).
+            val apm = AppProfileManager(prefs)
+            imported.mappings.forEach { (pkg, presetName) -> apm.setMapping(pkg, presetName) }
 
-        // Apply the app→preset mappings (so app-profile mode auto-plays it).
-        val apm = AppProfileManager(prefs)
-        imported.mappings.forEach { (pkg, presetName) -> apm.setMapping(pkg, presetName) }
+            // Register the generic live-feed policies, owner-tagged for uninstall.
+            LivePolicyStore.putAll(prefs, entry.id, imported.livePolicies)
 
-        // Register the generic live-feed policies (effect name → policy), which
-        // DuoFrost applies to live overrides of that effect. Owner-tagged so
-        // uninstall removes exactly these.
-        LivePolicyStore.putAll(prefs, entry.id, imported.livePolicies)
-
-        PluginPrefs.setInstalled(prefs, entry.id, entry.version)
-        return Result.Success(imported.presets.map { it.name })
+            PluginPrefs.setInstalled(prefs, entry.id, entry.version)
+            Result.Success(imported.presets.map { it.name })
+        }
     }
 
-    fun uninstall(prefs: SharedPreferences, entry: CatalogEntry): Result {
+    fun uninstall(prefs: SharedPreferences, entry: CatalogEntry): Result = synchronized(prefs) {
+        if (ExternalProfileStore.readStoredPresets(prefs) == null) return@synchronized Result.Failure(
+            "Stored presets are damaged; restore a backup before removing a plugin.")
         val removed = ExternalProfileStore.removePresetsOwnedBy(prefs, ownerOf(entry.id))
         if (removed.isNotEmpty()) {
             AppProfileManager(prefs).removeMappingsReferencing(removed)
         }
         LivePolicyStore.removeByOwner(prefs, entry.id)
         PluginPrefs.removeInstalled(prefs, entry.id)
-        return Result.Success(removed)
+        Result.Success(removed)
     }
 
-    private fun readPresets(prefs: SharedPreferences): JSONArray {
-        val json = prefs.getString(PREF_PRESETS, null)
-        return if (json.isNullOrBlank()) JSONArray()
-        else runCatching { JSONArray(json) }.getOrDefault(JSONArray())
+    /** Build a single replacement while retaining opaque entries and another owner's data. */
+    internal fun replaceOwnedPresets(priorArray: JSONArray, imported: List<LedPreset>, owner: String): JSONArray {
+        val priorByName = mutableMapOf<String, List<JSONObject>>()
+        val retained = JSONArray()
+        for (index in 0 until priorArray.length()) {
+            val obj = priorArray.optJSONObject(index)
+            if (obj?.optString("ownerPackage") == owner) {
+                val name = obj.optString("name")
+                priorByName[name] = priorByName[name].orEmpty() + obj
+            } else retained.put(priorArray.opt(index))
+        }
+        val reservedIds = (0 until retained.length()).mapNotNull { retained.optJSONObject(it)?.optString("id") }.toSet()
+        val updated = imported.map { preset -> preset.copy(
+            id = priorByName[preset.name]?.singleOrNull()?.optString("id")?.takeIf(PresetIdentity::isValid) ?: preset.id,
+            ownerPackage = owner
+        ) }
+        PresetIdentity.normalizeImported(updated, reservedIds).forEach { preset ->
+            retained.put(PresetCodec.encode(preset, priorByName[preset.name]?.singleOrNull()))
+        }
+        return retained
     }
 
     private fun savePresets(prefs: SharedPreferences, array: JSONArray) {

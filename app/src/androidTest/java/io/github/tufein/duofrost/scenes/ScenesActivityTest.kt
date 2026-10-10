@@ -2,9 +2,14 @@ package io.github.tufein.duofrost.scenes
 
 import android.content.Context
 import android.content.SharedPreferences
+import android.os.SystemClock
+import android.provider.Settings
+import android.view.View
 import androidx.test.core.app.ActivityScenario
 import androidx.test.espresso.Espresso.onData
 import androidx.test.espresso.Espresso.onView
+import androidx.test.espresso.UiController
+import androidx.test.espresso.ViewAction
 import androidx.test.espresso.action.ViewActions.click
 import androidx.test.espresso.action.ViewActions.closeSoftKeyboard
 import androidx.test.espresso.action.ViewActions.replaceText
@@ -13,6 +18,7 @@ import androidx.test.espresso.assertion.ViewAssertions.matches
 import androidx.test.espresso.matcher.ViewMatchers.isDisplayed
 import androidx.test.espresso.matcher.ViewMatchers.isCompletelyDisplayed
 import androidx.test.espresso.matcher.ViewMatchers.isNotChecked
+import androidx.test.espresso.matcher.ViewMatchers.isAssignableFrom
 import androidx.test.espresso.matcher.ViewMatchers.withId
 import androidx.test.espresso.matcher.ViewMatchers.withText
 import androidx.test.espresso.matcher.RootMatchers.isPlatformPopup
@@ -24,6 +30,7 @@ import io.github.tufein.duofrost.R
 import io.github.tufein.duofrost.services.LEDService
 import io.github.tufein.duofrost.services.ServiceRecoveryStore
 import org.hamcrest.Matchers.equalTo
+import org.hamcrest.Matcher
 import org.json.JSONArray
 import org.json.JSONObject
 import org.junit.After
@@ -114,6 +121,36 @@ class ScenesActivityTest {
         val group = SceneStore(prefs).loadGroups().single()
         assertEquals("Retro games", group.name)
         assertEquals(setOf("com.example.emulator"), group.packages)
+        assertFalse(LEDService.isRunning)
+    }
+
+    @Test fun expiredTemporaryChoiceUpdatesWhileTheScreenStaysOpen() {
+        val instrumentation = InstrumentationRegistry.getInstrumentation()
+        val context = instrumentation.targetContext
+        val now = SystemClock.elapsedRealtime()
+        val boot = Settings.Global.getInt(context.contentResolver, Settings.Global.BOOT_COUNT)
+        // A valid restored hold with only a few seconds remaining. No lighting
+        // is started; the visible status must follow its elapsed-time deadline.
+        instrumentation.runOnMainSync {
+            assertTrue(prefs.edit().putString(SceneStore.PREF_KEY_TEMPORARY_PRESET, "test-ocean")
+                .putLong(SceneStore.PREF_KEY_TEMPORARY_CREATED, now)
+                .putLong(SceneStore.PREF_KEY_TEMPORARY_EXPIRES, now + 2_500L)
+                .putInt(SceneStore.PREF_KEY_TEMPORARY_BOOT, boot).commit())
+        }
+        onView(withId(R.id.scenes_resume)).perform(scrollTo()).check(matches(isDisplayed()))
+        onView(withId(R.id.scenes_root)).perform(object : ViewAction {
+            override fun getDescription() = "Wait for temporary choice expiry without leaving the scene editor"
+            override fun getConstraints(): Matcher<View> = isAssignableFrom(View::class.java)
+            override fun perform(controller: UiController, view: View) {
+                val deadline = SystemClock.uptimeMillis() + 5_000L
+                do {
+                    controller.loopMainThreadUntilIdle()
+                    if (view.findViewById<View>(R.id.scenes_resume).visibility != View.VISIBLE) return
+                    controller.loopMainThreadForAtLeast(50L)
+                } while (SystemClock.uptimeMillis() < deadline)
+                throw AssertionError("An expired temporary choice still offers Resume")
+            }
+        })
         assertFalse(LEDService.isRunning)
     }
 }

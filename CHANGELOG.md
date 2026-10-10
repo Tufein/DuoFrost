@@ -1,5 +1,34 @@
 # DuoFrost changelog
 
+## 2.5.0-alpha.2 — pre-release
+
+The second testing build toward 2.5.0, published as a pre-release on 2026-10-10.
+Earlier releases remain available; 2.1.0 is still the latest stable release.
+
+- **Preset library:** favourites appear first, named collections work with search,
+  and each card has an options menu for previewing, organising and editing.
+  Large libraries load 40 matching cards at a time.
+- **Effect preview:** view saved colours and supported animations without applying
+  lighting or requesting capture. Live-input and flashing effects use explained
+  still illustrations; previews respect disabled system animations.
+- **Import review:** select individual community presets, add separate copies,
+  replace matching user presets while keeping scene links, or skip conflicts.
+  Managed app/plugin presets are protected. Importing app assignments is optional
+  and off by default; selected assignments merge with existing ones.
+- **Temporary undo:** recover one eligible preset import or deletion for ten
+  minutes, including library metadata and app assignments. Later relevant edits
+  are preserved, and artwork needed for recovery is retained.
+- **Backups:** Profiles now includes favourites and collections. Temporary undo
+  is excluded and cleared when restoring profiles or images from a full backup.
+- **Scene stability:** briefly settle changing app/game context, bound gaps in
+  detection and clear context when Usage Access is revoked. Use elapsed time for
+  detection caches, reuse unchanged scene data and combine related settings
+  refreshes. Temporary-choice countdowns update while visible.
+
+[Release and APK](https://github.com/Tufein/DuoFrost/releases/tag/v2.5.0-alpha.2) ·
+[Alpha guide](docs/2.5.0-alpha.2.md) · [Feature research](docs/feature-research-2.5.0.md) ·
+[Roadmap](docs/roadmap-2.5.0.md).
+
 ## 2.5.0-alpha.1 — pre-release
 
 The first testing build toward 2.5.0, published as a pre-release on 2026-10-10.

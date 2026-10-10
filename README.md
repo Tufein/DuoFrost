@@ -61,6 +61,10 @@ The **[2.3.0 pre-release](https://github.com/Tufein/DuoFrost/releases/tag/v2.3.0
 
 **Hidden feature in 2.3.0 — tidy Recent apps:** DuoFrost's window stays out of Android's Recent apps list automatically. Reopen it from its app icon, and use Start/Stop to turn lighting on or off.
 
+The **[2.5.0-alpha.1 pre-release](https://github.com/Tufein/DuoFrost/releases/tag/v2.5.0-alpha.1)** adds Smart Scenes: combine apps, games, time and battery conditions, dim the current look, or hold a temporary preset choice. [Alpha guide](docs/2.5.0-alpha.1.md).
+
+**[Download 2.5.0-alpha.2 (pre-release)](https://github.com/Tufein/DuoFrost/releases/download/v2.5.0-alpha.2/DuoFrost-2.5.0-alpha.2.apk)** for favourites, collections, local effect previews, selective preset imports and temporary undo, alongside Smart Scenes stability improvements. [User guide](docs/2.5.0-alpha.2.md) · [Release notes](https://github.com/Tufein/DuoFrost/releases/tag/v2.5.0-alpha.2) · [2.5.0 roadmap](docs/roadmap-2.5.0.md). Back up before testing an alpha; physical AYN testing is still needed for the final release.
+
 See the [changelog](CHANGELOG.md) for details and [technical.md](technical.md) for build instructions, implementation notes and Android behavior.
 
 ## Open source and credits

@@ -13,6 +13,15 @@ de bibliotheek, voorbeelden en veilig importeren. Zie [de eerste alpha](2.5.0-al
 **Publicatie, 10 oktober 2026:** de geteste alpha is nu als
 [GitHub-pre-release te downloaden](https://github.com/Tufein/DuoFrost/releases/tag/v2.5.0-alpha.1).
 
+**Tweede alpha, 10 oktober 2026:** `2.5.0-alpha.2` is gebouwd en getest op
+`codex/2.5.0-library-stability`. De implementatie bevat favorieten, collecties,
+visuele presetvoorbeelden, selectieve import en één tijdelijke herstelactie.
+Extra stabiliteitswerk houdt snelle appwissels rustiger en beperkt herhaalde
+instellingsverwerking. De 366 automatische tests, 26 Android-schermtests en
+updatecontrole zijn geslaagd. De [alpha.2-APK is beschikbaar als pre-release](https://github.com/Tufein/DuoFrost/releases/tag/v2.5.0-alpha.2).
+Zie [de tweede alpha](2.5.0-alpha.2.md) en het
+[featureonderzoek](feature-research-2.5.0.md).
+
 ## Richting
 
 **Slimme verlichting die vanzelf bij je sessie past, met eenvoudige bediening.**
@@ -62,7 +71,7 @@ gewenst nadat de kern stabiel is; deze onderdelen bepalen de releasedatum niet.
 | 4. Favorieten en collecties | Favorieten bovenaan, eigen collecties en filters. De bestaande zoekfunctie blijft beschikbaar. | Kern | Middel |
 | 5. Visueel effectvoorbeeld | Een geanimeerd voorbeeld van de ondersteunde kleuren en effecten vóór toepassen. Bekijken verandert de fysieke verlichting niet. | Kern | Middel tot groot |
 | 6. Veiliger importeren | De inhoud van een presetpakket vooraf bekijken, items selecteren en per conflict toevoegen, vervangen, hernoemen of overslaan. | Kern | Middel |
-| 7. Herstel na een fout | Een import of verwijdering ongedaan maken en een begrensde lokale geschiedenis van opgeslagen presets. De bewaargrens wordt tijdens implementatie gekozen. | Kern | Middel |
+| 7. Herstel na een fout | Eén import of verwijdering tien minuten ongedaan maken zolang latere relevante wijzigingen ontbreken. Een langere presetgeschiedenis blijft een apart voorstel. | Kern | Middel |
 | 8. Vloeiende scene-overgangen | Instelbare overgang tussen presets en automatische scenes, met een directe overgang als optie. Stop en mute reageren direct. | Kern | Middel tot groot |
 | 9. Snelle scene-acties | Een optionele favorieten-tegel, volgende favoriet en app-snelkoppelingen. Zelfde status en selectie als in het dashboard. | Uitbreiding | Middel |
 | 10. Palette Studio | Kleurenpaletten bewaren en kleuren lokaal uit een gekozen afbeelding halen. Eerst een voorbeeld en handmatige correctie, daarna toepassen. | Uitbreiding | Middel |
@@ -100,7 +109,8 @@ hardwaretest voldoende bewijs leveren. Ze kunnen naar een latere release.
 | 5. Release candidate | Getekende APK, update- en hersteltest, definitieve screenshots en changelog. | Installeren over ondersteunde productieversies behoudt instellingen. De APK, broncode, signingcertificaat en checksums komen overeen. Geen open releaseblokker. |
 | 6. 2.5.0-release | GitHub-download, gebruikersdocumentatie, technische notities, Reddit-post en banner. | Alle publieke teksten beschrijven alleen wat in de geteste APK zit. Bestaande releases blijven beschikbaar. |
 
-De eerste alpha is gepubliceerd; latere alpha- en betamomenten blijven voorstellen.
+De eerste en tweede alpha zijn gepubliceerd. De
+feature-freeze en latere beta- en releasemomenten blijven voorstellen.
 Een aparte 2.4.0 is geen technische vereiste. Game Scene zit in deze eerste alpha.
 
 ## Technische aanpak

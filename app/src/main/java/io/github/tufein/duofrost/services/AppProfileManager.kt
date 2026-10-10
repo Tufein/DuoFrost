@@ -7,12 +7,17 @@ import android.content.Context
 import android.content.Intent
 import android.content.SharedPreferences
 import android.os.Process
+import android.os.SystemClock
 import android.util.Log
 import io.github.tufein.duofrost.LedPreset
 import io.github.tufein.duofrost.PresetRepository
 import org.json.JSONObject
 
-class AppProfileManager(private val prefs: SharedPreferences) {
+class AppProfileManager(
+    private val prefs: SharedPreferences,
+    private val elapsedRealtime: () -> Long = SystemClock::elapsedRealtime,
+    private val wallTimeMillis: () -> Long = System::currentTimeMillis
+) {
 
     data class SwitchResult(
         val presetName: String?,
@@ -33,19 +38,21 @@ class AppProfileManager(private val prefs: SharedPreferences) {
         private const val HOME_PACKAGES_CACHE_MS = 10_000L
         private const val APPLICATION_CATEGORY_GAME = 0
         private const val INTENT_CATEGORY_GAME = "android.intent.category.GAME"
+        private val UNREAD_MAPPINGS = Any()
     }
 
     @Volatile
     private var lastResolvedPresetName: String? = null
     @Volatile
     private var hasResolvedPresetOnce: Boolean = false
-    private var cachedMappingsRaw: String? = null
+    private var cachedMappingsStored: Any? = UNREAD_MAPPINGS
     private var cachedMappings: Map<String, String> = emptyMap()
-    private var lastForegroundQueryAt: Long = 0L
+    private var cachedMappingsEditable = true
+    private var lastForegroundQueryAt: Long = -1L
     private var cachedForegroundPackage: String? = null
-    private var lastHomePackagesQueryAt: Long = 0L
+    private var lastHomePackagesQueryAt: Long = -1L
     private var cachedHomePackages: Set<String> = emptySet()
-    private var lastGamePackageQueryAt: Long = 0L
+    private var lastGamePackageQueryAt: Long = -1L
     private var cachedGamePackageName: String? = null
     private var cachedGamePackageResult: Boolean = false
     private val presetRepository = PresetRepository(prefs)
@@ -84,76 +91,89 @@ class AppProfileManager(private val prefs: SharedPreferences) {
         }
     }
 
-    fun getMappings(): Map<String, String> {
-        val json = prefs.getString(PREF_KEY_MAPPINGS, null)
-        if (json.isNullOrBlank()) {
-            cachedMappingsRaw = null
-            cachedMappings = emptyMap()
-            return emptyMap()
+    /** Damaged or newer mapping data can be read safely, but must never be overwritten. */
+    val canEditMappings: Boolean
+        get() = synchronized(prefs) {
+            getMappings()
+            cachedMappingsEditable
         }
 
-        if (json == cachedMappingsRaw) {
-            return cachedMappings
+    fun getMappings(): Map<String, String> = synchronized(prefs) {
+        val stored = prefs.all[PREF_KEY_MAPPINGS]
+        if (stored == cachedMappingsStored) return@synchronized cachedMappings
+        val parsed = when (stored) {
+            null -> emptyMap()
+            is String -> parseMappings(stored)
+            else -> null
         }
-
-        val parsed = runCatching {
-            val obj = JSONObject(json)
-            buildMap {
-                obj.keys().forEach { key ->
-                    val packageName = key.trim()
-                    val presetName = obj.optString(key).trim()
-                    if (packageName.isNotEmpty() && presetName.isNotEmpty()) {
-                        put(packageName, presetName)
-                    }
-                }
-            }
-        }.getOrDefault(emptyMap())
-
-        cachedMappingsRaw = json
-        cachedMappings = parsed
-        return parsed
+        cachedMappingsStored = stored
+        cachedMappingsEditable = parsed != null
+        cachedMappings = parsed ?: emptyMap()
+        cachedMappings
     }
 
+    private fun parseMappings(raw: String): Map<String, String>? = runCatching {
+        val obj = JSONObject(raw)
+        buildMap {
+            obj.keys().forEach { key ->
+                val value = obj.opt(key) as? String ?: return null
+                if (key.isBlank() || value.isBlank()) return null
+                put(key.trim(), value.trim())
+            }
+        }
+    }.getOrNull()
+
     fun setMapping(packageName: String, presetName: String) {
-        if (packageName.isBlank() || presetName.isBlank()) return
-        val mappings = getMappings().toMutableMap()
-        mappings[packageName.trim()] = presetName.trim()
-        saveMappings(mappings)
+        synchronized(prefs) {
+            if (packageName.isBlank() || presetName.isBlank() || !canEditMappings) return@synchronized
+            val mappings = getMappings().toMutableMap()
+            mappings[packageName.trim()] = presetName.trim()
+            saveMappings(mappings)
+        }
     }
 
     fun removeMapping(packageName: String) {
-        val mappings = getMappings().toMutableMap()
-        mappings.remove(packageName)
-        saveMappings(mappings)
+        synchronized(prefs) {
+            if (!canEditMappings) return@synchronized
+            val mappings = getMappings().toMutableMap()
+            mappings.remove(packageName)
+            saveMappings(mappings)
+        }
     }
 
     fun replaceMappings(mappings: Map<String, String>) {
-        saveMappings(mappings)
+        synchronized(prefs) { saveMappings(mappings) }
     }
 
     fun renamePresetInMappings(oldName: String, newName: String) {
-        if (oldName == newName) return
-        val updated = getMappings().mapValues { (_, value) ->
-            if (value == oldName) newName else value
+        synchronized(prefs) {
+            if (oldName == newName || !canEditMappings) return@synchronized
+            val updated = getMappings().mapValues { (_, value) ->
+                if (value == oldName) newName else value
+            }
+            saveMappings(updated)
         }
-        saveMappings(updated)
     }
 
     fun removeMappingsReferencing(presetNames: Collection<String>) {
-        if (presetNames.isEmpty()) return
-        val nameSet = presetNames.toHashSet()
-        val current = getMappings()
-        val filtered = current.filterValues { it !in nameSet }
-        if (filtered.size == current.size) return
-        saveMappings(filtered)
+        synchronized(prefs) {
+            if (presetNames.isEmpty() || !canEditMappings) return@synchronized
+            val nameSet = presetNames.toHashSet()
+            val current = getMappings()
+            val filtered = current.filterValues { it !in nameSet }
+            if (filtered.size == current.size) return@synchronized
+            saveMappings(filtered)
+        }
     }
 
     private fun saveMappings(mappings: Map<String, String>) {
+        if (!canEditMappings || mappings.any { (key, value) -> key.isBlank() || value.isBlank() }) return
         val obj = JSONObject()
         mappings.forEach { (k, v) -> obj.put(k, v) }
         val raw = obj.toString()
         prefs.edit().putString(PREF_KEY_MAPPINGS, raw).apply()
-        cachedMappingsRaw = raw
+        cachedMappingsStored = raw
+        cachedMappingsEditable = true
         cachedMappings = mappings.toMap()
     }
 
@@ -170,17 +190,20 @@ class AppProfileManager(private val prefs: SharedPreferences) {
     fun getForegroundPackage(context: Context): String? {
         if (!hasUsageStatsPermission(context)) return null
 
-        val now = System.currentTimeMillis()
-        if (now - lastForegroundQueryAt < FOREGROUND_QUERY_CACHE_MS) {
+        val nowElapsed = elapsedRealtime()
+        if (isCacheFresh(lastForegroundQueryAt, nowElapsed, FOREGROUND_QUERY_CACHE_MS)) {
             return cachedForegroundPackage
         }
+        // UsageEvents timestamps use wall time; cache ages use elapsed time so
+        // changing the clock cannot pin a stale foreground app in the cache.
+        val now = wallTimeMillis()
 
         val usm = context.getSystemService(Context.USAGE_STATS_SERVICE) as UsageStatsManager
 
         // UsageEvents is the most reactive & accurate source for foreground detection.
         val latestFromEvents = resolveForegroundFromEvents(usm, now)
         if (!latestFromEvents.isNullOrBlank()) {
-            lastForegroundQueryAt = now
+            lastForegroundQueryAt = nowElapsed
             cachedForegroundPackage = latestFromEvents
             Log.d(TAG, "getForegroundPackage: resolved from events → '$latestFromEvents'")
             return latestFromEvents
@@ -193,7 +216,7 @@ class AppProfileManager(private val prefs: SharedPreferences) {
         // (by lastTimeUsed), which is stale and wrong (e.g. it would return app A
         // even though the user is on the home screen).
         if (cachedForegroundPackage != null) {
-            lastForegroundQueryAt = now
+            lastForegroundQueryAt = nowElapsed
             Log.d(TAG, "getForegroundPackage: no recent events, keeping cached → '$cachedForegroundPackage'")
             return cachedForegroundPackage
         }
@@ -208,7 +231,7 @@ class AppProfileManager(private val prefs: SharedPreferences) {
             )
         }.getOrNull()
 
-        lastForegroundQueryAt = now
+        lastForegroundQueryAt = nowElapsed
         if (stats.isNullOrEmpty()) {
             cachedForegroundPackage = null
             Log.d(TAG, "getForegroundPackage: bootstrap — no usage stats → null")
@@ -331,16 +354,16 @@ class AppProfileManager(private val prefs: SharedPreferences) {
         lastResolvedPresetName = null
         hasResolvedPresetOnce = false
         cachedForegroundPackage = null
-        lastForegroundQueryAt = 0L
-        lastHomePackagesQueryAt = 0L
+        lastForegroundQueryAt = -1L
+        lastHomePackagesQueryAt = -1L
         cachedHomePackages = emptySet()
-        lastGamePackageQueryAt = 0L
+        lastGamePackageQueryAt = -1L
         cachedGamePackageName = null
     }
 
     private fun getHomePackages(context: Context): Set<String> {
-        val now = System.currentTimeMillis()
-        if (now - lastHomePackagesQueryAt >= HOME_PACKAGES_CACHE_MS || cachedHomePackages.isEmpty()) {
+        val now = elapsedRealtime()
+        if (!isCacheFresh(lastHomePackagesQueryAt, now, HOME_PACKAGES_CACHE_MS) || cachedHomePackages.isEmpty()) {
             val homeIntent = Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_HOME)
             cachedHomePackages = runCatching {
                 context.packageManager.queryIntentActivities(homeIntent, 0)
@@ -353,9 +376,9 @@ class AppProfileManager(private val prefs: SharedPreferences) {
     }
 
     fun isGamePackage(context: Context, packageName: String): Boolean {
-        val now = System.currentTimeMillis()
+        val now = elapsedRealtime()
         if (packageName == cachedGamePackageName &&
-            now - lastGamePackageQueryAt < HOME_PACKAGES_CACHE_MS
+            isCacheFresh(lastGamePackageQueryAt, now, HOME_PACKAGES_CACHE_MS)
         ) {
             return cachedGamePackageResult
         }
@@ -376,6 +399,9 @@ class AppProfileManager(private val prefs: SharedPreferences) {
         cachedGamePackageResult = result
         return result
     }
+
+    private fun isCacheFresh(lastReadAt: Long, nowElapsed: Long, maxAge: Long): Boolean =
+        lastReadAt >= 0L && nowElapsed >= lastReadAt && nowElapsed - lastReadAt < maxAge
 
     private fun resolveDefaultPresetName(): String? =
         presetRepository.list().firstOrNull { it.isAppProfileDefault && it.name.isNotBlank() }?.name

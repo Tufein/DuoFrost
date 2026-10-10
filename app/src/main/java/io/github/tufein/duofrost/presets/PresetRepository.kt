@@ -11,7 +11,7 @@ class PresetRepository(private val prefs: SharedPreferences) {
     private var cachedPresets: List<LedPreset> = emptyList()
 
     fun ensureIds(): Boolean = synchronized(prefs) {
-        val raw = prefs.getString(PREF_PRESETS, null) ?: return@synchronized false
+        val raw = prefs.all[PREF_PRESETS] as? String ?: return@synchronized false
         if (raw == identityCheckedRaw) return@synchronized false
         val normalized = PresetIdentity.normalizeJson(raw) ?: run {
             identityCheckedRaw = raw
@@ -25,7 +25,13 @@ class PresetRepository(private val prefs: SharedPreferences) {
 
     fun list(): List<LedPreset> = synchronized(prefs) {
         ensureIds()
-        val raw = prefs.getString(PREF_PRESETS, null)
+        val stored = prefs.all[PREF_PRESETS]
+        if (stored != null && stored !is String) {
+            cachedRaw = null
+            cachedPresets = emptyList()
+            return@synchronized cachedPresets
+        }
+        val raw = stored as? String
         if (raw == cachedRaw) return@synchronized cachedPresets
         val array = raw?.let { runCatching { JSONArray(it) }.getOrNull() }
         cachedPresets = if (array == null) emptyList() else buildList {
@@ -42,7 +48,9 @@ class PresetRepository(private val prefs: SharedPreferences) {
     /** Preserve unknown JSON fields by identity during ordinary preset edits. */
     fun save(presets: List<LedPreset>, preserveUnknownFields: Boolean = true): List<LedPreset> = synchronized(prefs) {
         ensureIds()
-        val oldRaw = prefs.getString(PREF_PRESETS, null)
+        val stored = prefs.all[PREF_PRESETS]
+        if (stored != null && stored !is String) return@synchronized presets.toList()
+        val oldRaw = stored as? String
         val oldArray = oldRaw?.let { runCatching { JSONArray(it) }.getOrNull() }
         // Never replace malformed stored data with an empty/default configuration.
         if (oldRaw != null && oldArray == null) return@synchronized presets.toList()

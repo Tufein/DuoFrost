@@ -7,6 +7,8 @@ import android.content.Intent
 import android.content.SharedPreferences
 import android.content.pm.ResolveInfo
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
 import android.os.Process
 import android.os.SystemClock
 import android.provider.Settings
@@ -57,8 +59,22 @@ class ScenesActivity : AppCompatActivity() {
     private lateinit var resumeButton: View
     private var syncing = false
     private var appsLoadVersion = 0
-    private val preferenceListener = SharedPreferences.OnSharedPreferenceChangeListener { _, _ ->
-        runOnUiThread { if (!isFinishing && !isDestroyed) render() }
+    private var uiResumed = false
+    private val uiHandler = Handler(Looper.getMainLooper())
+    private val preferenceRefresh = Runnable {
+        if (uiResumed && !isFinishing && !isDestroyed) render()
+    }
+    private val temporaryRefresh = Runnable {
+        if (uiResumed && !isFinishing && !isDestroyed) renderTemporary()
+    }
+    private val preferenceListener = SharedPreferences.OnSharedPreferenceChangeListener { _, key ->
+        if (key == null || key == "presets_json" || key in SceneStore.BACKUP_PREF_KEYS ||
+            key in SceneStore.TEMPORARY_PREF_KEYS) {
+            // A multi-key commit or an ID migration must not recursively build
+            // the screen inside its own render pass.
+            uiHandler.removeCallbacks(preferenceRefresh)
+            uiHandler.post(preferenceRefresh)
+        }
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -69,16 +85,21 @@ class ScenesActivity : AppCompatActivity() {
 
     override fun onResume() {
         super.onResume()
+        uiResumed = true
         prefs.registerOnSharedPreferenceChangeListener(preferenceListener)
         render()
     }
 
     override fun onPause() {
+        uiResumed = false
+        uiHandler.removeCallbacks(preferenceRefresh)
+        uiHandler.removeCallbacks(temporaryRefresh)
         prefs.unregisterOnSharedPreferenceChangeListener(preferenceListener)
         super.onPause()
     }
 
     override fun onDestroy() {
+        uiHandler.removeCallbacksAndMessages(null)
         appsLoadVersion++
         super.onDestroy()
     }
@@ -143,6 +164,7 @@ class ScenesActivity : AppCompatActivity() {
 
     private fun render() {
         if (!::enableSwitch.isInitialized) return
+        uiHandler.removeCallbacks(preferenceRefresh)
         val rules = store.loadRules()
         syncing = true
         enableSwitch.isChecked = store.isEnabled
@@ -177,14 +199,23 @@ class ScenesActivity : AppCompatActivity() {
     }
 
     private fun renderTemporary() {
+        uiHandler.removeCallbacks(temporaryRefresh)
         val bootCount = bootCount()
-        val temporary = if (bootCount >= 0) store.getTemporaryScene(SystemClock.elapsedRealtime(), bootCount) else null
+        val elapsed = SystemClock.elapsedRealtime()
+        val temporary = if (bootCount >= 0) store.getTemporaryScene(elapsed, bootCount) else null
         resumeButton.isVisible = temporary != null
         temporaryText.text = if (temporary == null) getString(R.string.scenes_temporary_inactive) else {
             val name = presets.list().firstOrNull { it.id == temporary.presetId }?.name
                 ?: getString(R.string.scenes_missing_preset)
-            val minutes = ceil((temporary.expiresAtElapsed - SystemClock.elapsedRealtime()) / 60_000.0)
+            val remaining = temporary.expiresAtElapsed - elapsed
+            val minutes = ceil(remaining / 60_000.0)
                 .toInt().coerceAtLeast(1)
+            if (uiResumed) {
+                // Refresh the countdown at its next minute boundary and at
+                // expiry, only while this screen is visible.
+                val delay = (remaining % 60_000L).takeIf { it > 0L } ?: 60_000L
+                uiHandler.postDelayed(temporaryRefresh, delay)
+            }
             getString(R.string.scenes_temporary_active, name, minutes)
         }
     }

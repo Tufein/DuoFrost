@@ -16,7 +16,9 @@ import java.time.LocalDateTime
 /** Runs only inside the existing lighting service; editing scenes never starts it. */
 class SceneRuntimeController(
     prefs: SharedPreferences,
-    private val appProfiles: AppProfileManager
+    private val appProfiles: AppProfileManager,
+    private val elapsedRealtime: () -> Long = SystemClock::elapsedRealtime,
+    private val localTime: () -> LocalDateTime = LocalDateTime::now
 ) {
     data class Decision(
         val preset: LedPreset?,
@@ -31,11 +33,18 @@ class SceneRuntimeController(
     private var baseline: LedPreset? = null
     private var previous: Decision? = null
     private var lastLegacySelection: AppProfileSelection.Result? = null
+    private val sceneForeground = SceneForegroundTracker()
+
+    val needsForegroundMonitoring: Boolean
+        get() = appProfiles.isEnabled || store.isEnabled && store.loadRules().any {
+            it.enabled && it.target != SceneTarget.ANY
+        }
 
     fun setBaseline(preset: LedPreset) {
         baseline = preset
         previous = null
         lastLegacySelection = null
+        sceneForeground.clear()
     }
 
     fun reset() { previous = null }
@@ -53,7 +62,8 @@ class SceneRuntimeController(
         val bootCount = runCatching {
             Settings.Global.getInt(context.contentResolver, Settings.Global.BOOT_COUNT)
         }.getOrDefault(-1)
-        val temporary = store.getTemporaryScene(SystemClock.elapsedRealtime(), bootCount)
+        val nowElapsed = elapsedRealtime()
+        val temporary = store.getTemporaryScene(nowElapsed, bootCount)
         val presets = repository.list()
         val byId = presets.associateBy { it.id }
         // Legacy name-based APIs resolve the first stored match. Imports and
@@ -61,11 +71,14 @@ class SceneRuntimeController(
         val byName = buildMap<String, LedPreset> {
             presets.forEach { preset -> if (preset.name !in this) put(preset.name, preset) }
         }
-        val rules = if (store.isEnabled) store.loadRules() else emptyList()
-        val needsForeground = appProfiles.isEnabled || rules.any { it.enabled && it.target != SceneTarget.ANY }
+        val scenesEnabled = store.isEnabled
+        val rules = if (scenesEnabled) store.loadRules() else emptyList()
+        val scenesNeedForeground = rules.any { it.enabled && it.target != SceneTarget.ANY }
+        val needsForeground = appProfiles.isEnabled || scenesNeedForeground
         val hasUsageAccess = needsForeground && appProfiles.hasUsageStatsPermission(context)
         val foreground = if (hasUsageAccess) appProfiles.getForegroundPackage(context) else null
-        val home = foreground != null && appProfiles.isHomePackage(context, foreground)
+        val stableForeground = sceneForeground.resolve(foreground, nowElapsed, scenesNeedForeground && hasUsageAccess)
+        val home = stableForeground != null && appProfiles.isHomePackage(context, stableForeground)
         // A brief event-query gap retains the last legacy selection, whereas revoked
         // access immediately stops using app-specific information.
         val legacy = if (appProfiles.isEnabled && hasUsageAccess) {
@@ -77,10 +90,10 @@ class SceneRuntimeController(
         }
         val evaluation = SceneEvaluator.evaluate(
             rules,
-            if (store.isEnabled) store.loadGroups() else emptyList(),
+            if (scenesEnabled) store.loadGroups() else emptyList(),
             SceneContext(
-                LocalDateTime.now(), foreground,
-                foreground != null && !home && appProfiles.isGamePackage(context, foreground),
+                localTime(), stableForeground,
+                stableForeground != null && !home && appProfiles.isGamePackage(context, stableForeground),
                 home, batteryPercent, isCharging
             ),
             byId.keys

@@ -24,6 +24,86 @@ object was archived before the tag was finalized for the public release.
 Intermediate development releases are archived locally by the maintainer and
 removed from the public release list. Their implementation remains in Git history.
 
+## DuoFrost 2.5.0-alpha.2 pre-release
+
+The second development build uses Android version `2.5.0-alpha.2`, code `27`,
+on `codex/2.5.0-library-stability`. It builds on alpha.1; general scene transitions,
+palette tools and per-stick independent effects remain outside this alpha.
+See [the user guide](docs/2.5.0-alpha.2.md) and
+[feature research](docs/feature-research-2.5.0.md).
+
+`PresetLibraryStore` keeps favourites and named collection memberships in a separate
+schema-versioned JSON document keyed by stable preset ID. It caches unchanged raw
+data, commits membership edits together, preserves unknown JSON fields and refuses
+to edit malformed or future schemas. Filtering returns original controller indices;
+favourite sorting never rewrites saved preset order. The home screen initially builds
+40 matching cards and exposes further batches through Show more. Browsing and
+organisation do not dispatch lighting commands. Resume refreshes the editor spinner
+alongside the repository while preserving the selected identity and unsaved draft.
+
+`PresetPreviewActivity` is private and reads a saved preset without ID migration,
+capture, sensors or service calls. Its deterministic sampler illustrates Breath,
+Rainbow, Fade Transition and Chase; other effects stay still with an explanation.
+Rendering respects disabled system animations and cancels on leaving the foreground.
+Ring segments are illustrative, not a promise of separately addressable hardware.
+
+`PresetImportPlan` and its review dialog select up to 500 community entries, with
+a resulting library cap of 2,000. Add copies is the default. Replacements preserve
+existing user preset identities and default flags; managed presets are copied instead.
+Duplicate source names cannot supply ambiguous name-based app assignments. Assignments
+are opt-in, remapped only for accepted entries and merged. The host rejects a stale
+review before saving and rejects opt-in assignment imports when existing mapping data
+cannot be edited safely. Merely saving does not start stopped lighting; running
+automation may react to the saved preset or mapping changes.
+
+`PresetUndoStore` holds one ten-minute DELETE/IMPORT snapshot of exact preset, library
+and mapping JSON. Restore is one shared-preference commit, guarded by exact post-action
+state equality. Combined before/after data is limited to 1 MiB and the encoded record
+to 2 MiB. Oversized, damaged, expired and superseded records cannot overwrite later
+work. Needed artwork remains protected while undo is eligible. `PresetArtworkPruner`
+removes only understood, unreferenced files older than ten minutes, preserving staged
+imports and failing closed for unknown formats. Cancelled bundle review keeps presets
+and mappings unchanged but newly staged images may remain until a later cleanup.
+Profiles backups include the library document; transient undo is excluded. A full
+restore of profiles or images clears undo; theme/settings-only restore preserves it.
+
+Smart Scene foreground changes must remain observed for 500 ms before switching;
+the first known package is immediate, short unknown gaps are bounded to 1.5 seconds,
+and Usage Access revocation clears context immediately. Legacy exact app mapping
+selection remains immediate. App-directed scenes share the existing 700 ms service
+watchdog cadence; no new polling worker or background start was added. Cache ages use
+elapsed time while UsageEvents retain wall-clock timestamps. Scene documents cache
+unchanged JSON, preference batches coalesce refreshes, and the visible scene screen
+updates temporary-choice status at minute boundaries and expiry. Missed OEM UsageEvents
+remain a hardware/firmware limitation.
+
+Repository, plugin/external updates and mapping mutations reject damaged or incorrectly
+typed stored data instead of replacing it. Plugin and external read-modify-write
+operations share the same preference lock as undo. Opaque preset entries, foreign
+owners and unknown object fields remain intact; a plugin update writes its final
+preset replacement once.
+
+### Alpha.2 verification — 2026-10-10
+
+The final build passed 366 JVM tests and all 26 Android instrumentation tests on
+an isolated Android 15 emulator. Tests include the real host import/cancel/undo
+flows with app assignments, preserved artwork after deleting the last preset,
+collections, favourite ordering and original indices, pagination, preview lifecycle
+and malformed-data handling. The opt-in assignment import rejects damaged mappings
+before saving any presets. Existing scene, Stop, draft recreation and dashboard
+flows remain covered. Critical release lint and optimized release assembly passed.
+The non-debuggable production APK verifies with the same release certificate used
+since 2.1.0 and APK Signature Scheme v2.
+
+Installing the production-signed alpha.2 over alpha.1 retained exact preset,
+scene-rule, app-group, library-organisation and assignment JSON, the 24% output
+limit and stopped lighting state. The APK SHA-256 is
+`e6bf31c00391fc092f3282490355863029c07c3507545ed2e0f102ecba9090e5`.
+
+Physical LED output, capture switching, battery cost and firmware-specific behavior
+remain unverified in the emulator and require AYN device testing before the final
+2.5.0 release.
+
 ## DuoFrost 2.5.0-alpha.1 pre-release
 
 The first 2.5.0 development build has Android version `2.5.0-alpha.1`, code `26`,
@@ -168,10 +248,11 @@ verify physical AYN LED output or firmware-specific process management.
   `0863ff52a003ec13c5997f8f23fe24fd69f4118c0644506641edd198d87aaa2d`.
 - Latest stable production version: `2.1.0`, version code `23`, tag `v2.1.0`.
 - Previous production pre-release: `2.3.0`, version code `25`, tag `v2.3.0`.
-- Current production pre-release: `2.5.0-alpha.1`, version code `26`, tag `v2.5.0-alpha.1`.
+- Previous production pre-release: `2.5.0-alpha.1`, version code `26`, tag `v2.5.0-alpha.1`.
+- Current production pre-release: `2.5.0-alpha.2`, version code `27`, tag `v2.5.0-alpha.2`.
   Future updates must increment the version code and retain the new release key.
   The published 2.3.0 debug APK displays `2.3.0-debug`. The current development
-  debug APK displays `2.5.0-alpha.1-debug`; both install separately from production.
+  debug APK displays `2.5.0-alpha.2-debug`; both install separately from production.
 
 ### One-time signing migration
 

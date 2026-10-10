@@ -1,0 +1,37 @@
+<resources>
+    <string name="preview_title">Effect preview</string>
+    <string name="preview_description">Explore a saved preset on screen. Your device lighting and saved settings stay unchanged.</string>
+    <string name="preview_missing">This preset is no longer available. Return to your preset library and choose another.</string>
+    <string name="preview_virtual_sticks">Virtual left and right lighting rings</string>
+    <string name="preview_left">Left lighting</string>
+    <string name="preview_right">Right lighting</string>
+    <string name="preview_brightness">Saved brightness: %1$d%% · screen simulation</string>
+    <string name="preview_still">Still color illustration</string>
+    <string name="preview_reduced_motion">Still preview · system animations are disabled</string>
+    <string name="preview_paused">Preview paused</string>
+    <string name="preview_playing">Animated screen preview</string>
+    <string name="preview_pause">Pause preview</string>
+    <string name="preview_play">Play preview</string>
+    <string name="preview_approximate">An approximate illustration of colors and motion. Screen brightness, timing and colors can differ from your physical LEDs. Scene limits and temporary overrides are not included.</string>
+    <string name="preview_live_input">This effect needs live screen, audio, battery, temperature or plugin input. Preview shows saved colors only; it does not read live input or request permissions.</string>
+    <string name="preview_flashing">Flashing and random effects stay still in this preview. Saved colors are shown without reproducing flashes.</string>
+    <string name="preview_effect_ambient">Ambient</string>
+    <string name="preview_effect_audio">Audio reactive</string>
+    <string name="preview_effect_ambiaurora">AmbiAurora</string>
+    <string name="preview_effect_battery">Battery indicator</string>
+    <string name="preview_effect_temperature">CPU temperature</string>
+    <string name="preview_effect_static">Static</string>
+    <string name="preview_effect_breath">Breathing</string>
+    <string name="preview_effect_rainbow">Rainbow</string>
+    <string name="preview_effect_pulse">Pulse</string>
+    <string name="preview_effect_strobe">Strobe</string>
+    <string name="preview_effect_sparkle">Sparkle</string>
+    <string name="preview_effect_fade">Fade transition</string>
+    <string name="preview_effect_rave">Rave</string>
+    <string name="preview_effect_chase">Chase</string>
+    <string name="preview_effect_pipboy">Pip-Boy</string>
+    <item type="id" name="preview_root" />
+    <item type="id" name="preview_sticks" />
+    <item type="id" name="preview_status" />
+    <item type="id" name="preview_motion" />
+</resources>

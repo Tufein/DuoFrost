@@ -33,7 +33,9 @@ class PresetController(
     private val isUpdatingFromPreset: () -> Boolean,
     private val onPresetApplied: () -> Unit,
     private val onRequestCustomPresetImage: (Int) -> Unit,
-    private val onPresetRenamed: (oldName: String, newName: String) -> Unit = { _, _ -> }
+    private val onPresetRenamed: (oldName: String, newName: String) -> Unit = { _, _ -> },
+    private val onDestructiveChange: (PresetUndoStore.RecordResult) -> Unit = {},
+    private val onLibraryChanged: () -> Unit = {}
 ) {
 
     companion object {
@@ -73,6 +75,8 @@ class PresetController(
     }
 
     private val repository = PresetRepository(prefs)
+    private val undoStore = PresetUndoStore(prefs)
+    private val libraryStore = PresetLibraryStore(prefs)
     private val presets: MutableList<LedPreset> = mutableListOf()
     private var selectedIndex: Int = 0
     private val deleteDialog = DeletePresetDialog()
@@ -115,7 +119,7 @@ class PresetController(
      * while the UI was backgrounded (e.g. via the external API, or on app
      * uninstall) show up when the user next opens DuoFrost.
      */
-    fun reloadFromPrefs() {
+    fun reloadFromPrefs(refreshSpinner: Boolean = false) {
         val selectedId = presets.getOrNull(selectedIndex)?.id
         val selectedName = presets.getOrNull(selectedIndex)?.name
         presets.clear()
@@ -127,6 +131,23 @@ class PresetController(
         } else {
             0
         }
+        if (refreshSpinner) refreshPresetSpinner(presets.getOrNull(selectedIndex)?.name, selectedId)
+    }
+
+    /** Commit an accepted review only if its original library is still current. Never applies lighting. */
+    fun applyImportPlan(plan: PresetImportPlan.Plan): Boolean = synchronized(prefs) {
+        if (!plan.canApply || repository.list() != plan.basePresets) return@synchronized false
+        val selectedId = presets.getOrNull(selectedIndex)?.id
+        val selectedName = presets.getOrNull(selectedIndex)?.name
+        presets.clear()
+        presets.addAll(plan.finalPresets)
+        savePresetsToPrefs()
+        if (repository.list() != presets) {
+            reloadFromPrefs(refreshSpinner = true)
+            return@synchronized false
+        }
+        refreshPresetSpinner(selectedName, selectedId)
+        true
     }
 
 
@@ -189,43 +210,6 @@ class PresetController(
         }
         applyPresetToUi(preset)
         markIsUpdatingFromPreset(false)
-    }
-
-    fun replaceAllPresetsFromImport(importedPresets: List<LedPreset>): Boolean {
-        if (importedPresets.isEmpty()) return false
-
-        presets.clear()
-        presets.addAll(PresetIdentity.normalizeImported(importedPresets))
-        normalizeAppProfileDefaultPreset()
-
-        val firstPreset = presets.first()
-        savePresetsToPrefs()
-        saveLastPresetName(firstPreset.name)
-        refreshPresetSpinner(firstPreset.name)
-
-        markIsUpdatingFromPreset(true)
-        applyPresetToUi(firstPreset)
-        markIsUpdatingFromPreset(false)
-        return true
-    }
-
-    fun appendPresetsFromImport(importedPresets: List<LedPreset>): Boolean {
-        if (importedPresets.isEmpty()) return false
-
-        val selectedPresetNameBeforeImport = presets.getOrNull(selectedIndex)?.name
-        presets.addAll(PresetIdentity.normalizeImported(importedPresets, presets.map { it.id }.toSet()))
-        normalizeAppProfileDefaultPreset()
-
-        val selectedName = selectedPresetNameBeforeImport ?: presets.first().name
-        savePresetsToPrefs()
-        saveLastPresetName(selectedName)
-        refreshPresetSpinner(selectedName)
-
-        val presetToShow = presets.getOrNull(selectedIndex) ?: presets.first()
-        markIsUpdatingFromPreset(true)
-        applyPresetToUi(presetToShow)
-        markIsUpdatingFromPreset(false)
-        return true
     }
 
     fun movePreset(fromIndex: Int, toIndex: Int): Boolean {
@@ -332,7 +316,7 @@ class PresetController(
             }
     }
 
-    private fun refreshPresetSpinner(selectedName: String?) {
+    private fun refreshPresetSpinner(selectedName: String?, selectedId: String? = null) {
         val adapter = IconLabelSpinnerAdapter(
             activity = activity,
             items = presets.toList(),
@@ -341,15 +325,15 @@ class PresetController(
             labelProvider = { it.name },
             visualProvider = { PresetVisuals.fromPreset(it) }
         )
-        presetSpinner.adapter = adapter
-
-        val index = selectedName?.let { name ->
+        val index = selectedId?.let { id -> presets.indexOfFirst { it.id == id }.takeIf { it >= 0 } }
+            ?: selectedName?.let { name ->
             presets.indexOfFirst { it.name == name }.takeIf { it >= 0 } ?: 0
         } ?: 0
 
         selectedIndex = index.coerceIn(0, (presets.size - 1).coerceAtLeast(0))
 
         markIsUpdatingFromPreset(true)
+        presetSpinner.adapter = adapter
         if (presets.isNotEmpty()) presetSpinner.setSelection(selectedIndex)
         markIsUpdatingFromPreset(false)
     }
@@ -452,6 +436,7 @@ class PresetController(
         savePresetsToPrefs()
         saveLastPresetName(unique)
         refreshPresetSpinner(unique)
+        onLibraryChanged()
         return newIndex
     }
 
@@ -550,7 +535,8 @@ class PresetController(
     private fun cleanupReplacedImage(index: Int, previousPreset: LedPreset, updatedPreset: LedPreset) {
         val previousFileName = previousPreset.customImageFileName
         if (previousFileName != updatedPreset.customImageFileName &&
-            canDeleteArtwork(previousFileName, presets, excludedIndex = index)) {
+            canDeleteArtwork(previousFileName, presets, excludedIndex = index) &&
+            previousFileName !in undoStore.retainedArtworkFileNames()) {
             PresetImageStorage.deleteIfExists(activity, previousFileName)
         }
     }
@@ -622,24 +608,30 @@ class PresetController(
             activity = activity,
             presetName = preset.name,
             onConfirm = {
-                if (canDeleteArtwork(preset.customImageFileName, presets, excludedIndex = selectedIndex)) {
-                    PresetImageStorage.deleteIfExists(activity, preset.customImageFileName)
+                var nextPreset: LedPreset? = null
+                val recorded = synchronized(prefs) {
+                    reloadFromPrefs()
+                    val deleteIndex = presets.indexOfFirst { it.id == preset.id }
+                    if (deleteIndex < 0) return@synchronized null
+                    val before = undoStore.captureSnapshot()
+                    presets.removeAt(deleteIndex)
+                    libraryStore.removePreset(preset.id)
+                    savePresetsToPrefs()
+                    nextPreset = presets.getOrNull(deleteIndex.coerceAtMost((presets.size - 1).coerceAtLeast(0)))
+                    saveLastPresetName(nextPreset?.name.orEmpty())
+                    refreshPresetSpinner(nextPreset?.name, nextPreset?.id)
+                    before?.let { undoStore.record(PresetUndoStore.Action.DELETE, it) }
+                        ?: PresetUndoStore.RecordResult.INVALID_SNAPSHOT
                 }
-                presets.removeAt(selectedIndex)
-                savePresetsToPrefs()
-
-                if (presets.isEmpty()) {
-                    saveLastPresetName("")
-                    refreshPresetSpinner(null)
-                } else {
-                    val newIndex = selectedIndex.coerceAtMost(presets.size - 1)
-                    val newPreset = presets[newIndex]
-                    saveLastPresetName(newPreset.name)
-                    refreshPresetSpinner(newPreset.name)
-                    markIsUpdatingFromPreset(true)
-                    applyPresetToUi(newPreset)
-                    markIsUpdatingFromPreset(false)
-                    onPresetApplied()
+                if (recorded != null) {
+                    nextPreset?.let {
+                        markIsUpdatingFromPreset(true)
+                        applyPresetToUi(it)
+                        markIsUpdatingFromPreset(false)
+                        onPresetApplied()
+                    }
+                    onDestructiveChange(recorded)
+                    PresetArtworkPruner.prune(activity, prefs)
                 }
             }
         )
@@ -665,21 +657,26 @@ class PresetController(
     }
 
     private fun deleteAllPresets() {
-        // Remove custom images
-        presets.forEach { PresetImageStorage.deleteIfExists(activity, it.customImageFileName) }
-
-        // Clear list and persist
-        presets.clear()
-        savePresetsToPrefs()
-        saveLastPresetName("")
-        refreshPresetSpinner(null)
-
-        // Ensure there's a stable preset in the UI (resolveInitialPreset will add a default if empty)
-        val defaultPreset = resolveInitialPreset(getCurrentConfig())
+        val recorded = synchronized(prefs) {
+            reloadFromPrefs()
+            val before = undoStore.captureSnapshot()
+            libraryStore.removePresets(presets.map { it.id }.toSet())
+            presets.clear()
+            savePresetsToPrefs()
+            saveLastPresetName("")
+            // Keep a usable editor after deleting the entire library.
+            val defaultPreset = resolveInitialPreset(getCurrentConfig())
+            refreshPresetSpinner(defaultPreset.name, defaultPreset.id)
+            before?.let { undoStore.record(PresetUndoStore.Action.DELETE, it) }
+                ?: PresetUndoStore.RecordResult.INVALID_SNAPSHOT
+        }
+        val defaultPreset = presets.first()
         markIsUpdatingFromPreset(true)
         applyPresetToUi(defaultPreset)
         markIsUpdatingFromPreset(false)
         onPresetApplied()
+        onDestructiveChange(recorded)
+        PresetArtworkPruner.prune(activity, prefs)
     }
 }
 

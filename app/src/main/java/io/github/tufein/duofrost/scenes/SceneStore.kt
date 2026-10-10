@@ -10,6 +10,7 @@ class SceneStore(private val prefs: SharedPreferences) {
     private var cachedRules: List<SceneRule> = emptyList()
     private var cachedGroupsRaw: String? = null
     private var cachedGroups: List<AppGroup> = emptyList()
+    private val cachedSchemaChecks = mutableMapOf<String, Pair<String?, Boolean>>()
 
     var isEnabled: Boolean
         get() = !isReadOnly && runCatching { prefs.getBoolean(PREF_KEY_ENABLED, false) }.getOrDefault(false)
@@ -18,7 +19,7 @@ class SceneStore(private val prefs: SharedPreferences) {
         }
 
     val isReadOnly: Boolean
-        get() = unsupportedSchema(readString(PREF_KEY_RULES)) || unsupportedSchema(readString(PREF_KEY_GROUPS))
+        get() = unsupportedSchemaFor(PREF_KEY_RULES) || unsupportedSchemaFor(PREF_KEY_GROUPS)
 
     @Synchronized fun loadRules(): List<SceneRule> {
         val raw = readString(PREF_KEY_RULES)
@@ -85,6 +86,17 @@ class SceneStore(private val prefs: SharedPreferences) {
     }
 
     private fun readString(key: String): String? = runCatching { prefs.getString(key, null) }.getOrNull()
+
+    @Synchronized private fun unsupportedSchemaFor(key: String): Boolean {
+        val raw = readString(key)
+        val cached = cachedSchemaChecks[key]
+        if (cached != null && cached.first == raw) return cached.second
+        // Every running tick checks enablement. Parse only when configuration
+        // actually changes, including edits and a backup restored in-place.
+        val unsupported = unsupportedSchema(raw)
+        cachedSchemaChecks[key] = raw to unsupported
+        return unsupported
+    }
 
     private fun unsupportedSchema(raw: String?): Boolean {
         if (raw == null) return false

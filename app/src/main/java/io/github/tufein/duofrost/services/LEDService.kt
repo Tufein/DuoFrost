@@ -486,14 +486,16 @@ class LEDService : Service() {
     }
 
     private val sceneRuntime by lazy { SceneRuntimeController(prefs, appProfileManager) }
+    private val scenePreferencesRefresh = Runnable {
+        if (isRunning && !isStopping.get()) checkAutoProfileSwitch()
+    }
     private val scenePreferencesListener = SharedPreferences.OnSharedPreferenceChangeListener { _, key ->
-        if (key in SceneStore.BACKUP_PREF_KEYS || key in SceneStore.TEMPORARY_PREF_KEYS ||
+        if (key == null || key in SceneStore.BACKUP_PREF_KEYS || key in SceneStore.TEMPORARY_PREF_KEYS ||
             key in setOf("presets_json", "auto_switch_enabled", "app_profile_mappings", "game_scene_enabled", "game_scene_preset")) {
-            handler.post {
-                if (isRunning && !isStopping.get()) {
-                    checkAutoProfileSwitch()
-                }
-            }
+            // One atomic edit can change several keys (a hold uses four).
+            // Re-evaluate its final snapshot once after the listener batch.
+            handler.removeCallbacks(scenePreferencesRefresh)
+            handler.post(scenePreferencesRefresh)
         }
     }
 
@@ -518,7 +520,7 @@ class LEDService : Service() {
                     // A live override is polled tightly so a stale lease is caught
                     // within ~one heartbeat, not the multi-second idle cadence.
                     activeExternalOverride != null -> EXTERNAL_OVERRIDE_CHECK_INTERVAL_MS
-                    appProfileManager.isEnabled -> ACTIVITY_CHECK_INTERVAL_APP_PROFILE_MS
+                    sceneRuntime.needsForegroundMonitoring -> ACTIVITY_CHECK_INTERVAL_APP_PROFILE_MS
                     else -> ACTIVITY_CHECK_INTERVAL_MS
                 }
                 handler.postDelayed(this, nextDelay)
@@ -676,7 +678,8 @@ class LEDService : Service() {
         // Arm after the start command: an onCreate callback can run before
         // isRunning becomes true and otherwise terminate the watchdog forever.
         handler.removeCallbacks(activityCheckRunnable)
-        handler.postDelayed(activityCheckRunnable, ACTIVITY_CHECK_INTERVAL_MS)
+        handler.postDelayed(activityCheckRunnable, if (sceneRuntime.needsForegroundMonitoring)
+            ACTIVITY_CHECK_INTERVAL_APP_PROFILE_MS else ACTIVITY_CHECK_INTERVAL_MS)
         // A full user configuration replaces a temporary external override,
         // matching the previous stop/start behavior without a service gap.
         clearPendingCallbacks()

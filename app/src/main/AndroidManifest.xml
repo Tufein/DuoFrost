@@ -57,6 +57,9 @@
             android:exported="false"
             android:windowSoftInputMode="adjustResize" />
         <activity
+            android:name=".ui.preview.PresetPreviewActivity"
+            android:exported="false" />
+        <activity
             android:name=".MainActivity"
             android:launchMode="singleTop"
             android:exported="true"

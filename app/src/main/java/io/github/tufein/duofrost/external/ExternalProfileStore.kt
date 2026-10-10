@@ -22,16 +22,17 @@ object ExternalProfileStore {
         prefs: SharedPreferences,
         command: ExternalApiCommand.InstallProfile
     ): Boolean = synchronized(prefs) {
+        if (readStoredPresets(prefs) == null) return@synchronized false
         PresetRepository(prefs).ensureIds()
-        val list = readList(prefs)
-        val existingIndex = list.indexOfFirst { obj ->
-            obj.optString("name") == command.profileName &&
-                obj.optString("ownerPackage") == command.callerPackage
-        }
+        val list = readStoredPresets(prefs) ?: return@synchronized false
+        val existingIndex = (0 until list.length()).firstOrNull { index ->
+            val obj = list.optJSONObject(index)
+            obj?.optString("name") == command.profileName && obj.optString("ownerPackage") == command.callerPackage
+        } ?: -1
         if (existingIndex >= 0 && !command.replaceIfExists) return@synchronized false
 
-        val serialized = command.toPresetJson(list.getOrNull(existingIndex))
-        if (existingIndex >= 0) list[existingIndex] = serialized else list.add(serialized)
+        val serialized = command.toPresetJson(if (existingIndex >= 0) list.optJSONObject(existingIndex) else null)
+        if (existingIndex >= 0) list.put(existingIndex, serialized) else list.put(serialized)
         saveList(prefs, list)
         true
     }
@@ -40,31 +41,30 @@ object ExternalProfileStore {
         prefs: SharedPreferences,
         callerPackage: String,
         profileName: String
-    ): Boolean {
-        val list = readList(prefs)
-        val before = list.size
-        list.removeAll { obj ->
-            obj.optString("name") == profileName &&
-                obj.optString("ownerPackage") == callerPackage
+    ): Boolean = synchronized(prefs) {
+        val list = readStoredPresets(prefs) ?: return@synchronized false
+        val before = list.length()
+        for (index in list.length() - 1 downTo 0) {
+            val obj = list.optJSONObject(index) ?: continue
+            if (obj.optString("name") == profileName && obj.optString("ownerPackage") == callerPackage) list.remove(index)
         }
-        if (list.size == before) return false
+        if (list.length() == before) return@synchronized false
         saveList(prefs, list)
-        return true
+        true
     }
 
-    fun removePresetsOwnedBy(prefs: SharedPreferences, pkg: String): List<String> {
-        val list = readList(prefs)
+    fun removePresetsOwnedBy(prefs: SharedPreferences, pkg: String): List<String> = synchronized(prefs) {
+        val list = readStoredPresets(prefs) ?: return@synchronized emptyList()
         val removed = mutableListOf<String>()
-        val iter = list.iterator()
-        while (iter.hasNext()) {
-            val obj = iter.next()
-            if (obj.optString("ownerPackage") == pkg) {
+        val retained = JSONArray()
+        for (index in 0 until list.length()) {
+            val obj = list.optJSONObject(index)
+            if (obj?.optString("ownerPackage") == pkg) {
                 removed.add(obj.optString("name"))
-                iter.remove()
-            }
+            } else retained.put(list.opt(index))
         }
-        if (removed.isNotEmpty()) saveList(prefs, list)
-        return removed
+        if (removed.isNotEmpty()) saveList(prefs, retained)
+        removed
     }
 
     private fun ExternalApiCommand.InstallProfile.toPresetJson(existing: JSONObject? = null): JSONObject =
@@ -101,20 +101,13 @@ object ExternalProfileStore {
         if (value == null) remove(key) else put(key, value)
     }
 
-    private fun readList(prefs: SharedPreferences): MutableList<JSONObject> {
-        val json = prefs.getString(PREF_PRESETS, null)
-        val array = if (json.isNullOrBlank()) JSONArray()
-        else runCatching { JSONArray(json) }.getOrDefault(JSONArray())
-        val list = mutableListOf<JSONObject>()
-        for (i in 0 until array.length()) {
-            array.optJSONObject(i)?.let { list.add(it) }
-        }
-        return list
+    /** Missing is an empty library; malformed or differently typed data must never be replaced. */
+    internal fun readStoredPresets(prefs: SharedPreferences): JSONArray? {
+        val raw = try { prefs.getString(PREF_PRESETS, null) } catch (_: ClassCastException) { return null }
+        return if (raw == null) JSONArray() else runCatching { JSONArray(raw) }.getOrNull()
     }
 
-    private fun saveList(prefs: SharedPreferences, list: List<JSONObject>) {
-        val array = JSONArray()
-        list.forEach { array.put(it) }
-        prefs.edit().putString(PREF_PRESETS, array.toString()).apply()
+    private fun saveList(prefs: SharedPreferences, list: JSONArray) {
+        prefs.edit().putString(PREF_PRESETS, list.toString()).apply()
     }
 }

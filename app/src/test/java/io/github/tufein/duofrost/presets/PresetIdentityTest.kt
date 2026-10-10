@@ -104,6 +104,38 @@ class PresetIdentityTest {
         assertEquals("not JSON", values["presets_json"])
     }
 
+    @Test fun wrongTypedPresetPreferencesNeverCrashMigrationReadOrOverwriteOnSave() {
+        val replacement = PresetCodec.decode(JSONObject("""{"id":"new","name":"Never written"}"""))
+        for (wrongType in listOf<Any>(42, 42L, true, 0.5f, setOf("unexpected"))) {
+            val values = mutableMapOf<String, Any?>("presets_json" to wrongType)
+            val repository = PresetRepository(memoryPreferences(values))
+            assertFalse(repository.ensureIds())
+            assertTrue(repository.list().isEmpty())
+            assertNull(repository.findById("new"))
+            repository.save(listOf(replacement))
+            repository.save(emptyList(), preserveUnknownFields = false)
+            assertEquals(wrongType, values["presets_json"])
+        }
+    }
+
+    @Test fun changingValidDataToWrongTypeCannotReturnStaleCachedPresets() {
+        val original = """[{"id":"retro","name":"Retro"}]"""
+        val values = mutableMapOf<String, Any?>("presets_json" to original)
+        val repository = PresetRepository(memoryPreferences(values))
+        val cached = repository.list()
+        assertEquals("retro", cached.single().id)
+        assertSame(cached, repository.list())
+        values["presets_json"] = true
+        assertFalse(repository.ensureIds())
+        assertTrue(repository.list().isEmpty())
+        assertNull(repository.findById("retro"))
+        assertEquals(true, values["presets_json"])
+        values.remove("presets_json")
+        assertTrue(repository.list().isEmpty())
+        values["presets_json"] = original
+        assertEquals("retro", repository.list().single().id)
+    }
+
     @Test fun codecClampsOutOfRangeAndNonFiniteSettingsWithoutChangingValidValues() {
         val invalid = PresetCodec.decode(JSONObject("""{"brightness":999,"speed":-2,"smoothness":2,"sensitivity":"NaN","saturationBoost":"Infinity"}"""))
         assertEquals(255, invalid.brightness)

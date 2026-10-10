@@ -96,6 +96,29 @@ class SceneStoreTest {
         assertTrue(store.loadGroups().isEmpty())
     }
 
+    @Test fun schemaCacheTracksRestoreReplacementAndDeletionForBothDocuments() {
+        store.saveRules(listOf(rule))
+        store.saveGroups(listOf(group))
+        store.isEnabled = true
+        repeat(3) { assertFalse(store.isReadOnly); assertTrue(store.isEnabled) }
+        val rulesBeforeRestore = data[SceneStore.PREF_KEY_RULES]
+        val groupsBeforeRestore = data[SceneStore.PREF_KEY_GROUPS]
+        data[SceneStore.PREF_KEY_RULES] = """{"schemaVersion":7,"rules":[]}"""
+        repeat(3) { assertTrue(store.isReadOnly); assertFalse(store.isEnabled) }
+        data[SceneStore.PREF_KEY_RULES] = rulesBeforeRestore
+        data[SceneStore.PREF_KEY_GROUPS] = """{"schemaVersion":8,"groups":[]}"""
+        assertTrue(store.isReadOnly)
+        data[SceneStore.PREF_KEY_GROUPS] = groupsBeforeRestore
+        assertTrue(store.isEnabled)
+        assertEquals(listOf(rule), store.loadRules())
+        assertEquals(listOf(group), store.loadGroups())
+        data.remove(SceneStore.PREF_KEY_RULES)
+        data.remove(SceneStore.PREF_KEY_GROUPS)
+        assertFalse(store.isReadOnly)
+        assertTrue(store.loadRules().isEmpty())
+        assertTrue(store.loadGroups().isEmpty())
+    }
+
     @Test fun malformedAndOverlargeSnapshotsNeverPartiallyExecute() {
         for (raw in listOf("not JSON", "{}", "[]", """{"schemaVersion":1,"rules":{}}""",
             """{"schemaVersion":1,"rules":[{"id":"broken"}]}""")) {

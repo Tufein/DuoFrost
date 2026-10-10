@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="library_all">All</string>
+    <string name="library_favorites">Favourites</string>
+    <string name="library_collections">Collections</string>
+    <string name="library_new_collection">New collection</string>
+    <string name="library_collection_name">Collection name</string>
+    <string name="library_name_error">Choose a different name (1–80 characters).</string>
+    <string name="library_save_error">This change could not be saved.</string>
+    <string name="library_read_only">Update DuoFrost to edit this library information.</string>
+    <string name="library_add_favorite">Add to favourites</string>
+    <string name="library_remove_favorite">Remove from favourites</string>
+    <string name="library_memberships">Choose collections</string>
+    <string name="library_preview">Preview effect</string>
+    <string name="library_edit">Edit lighting</string>
+    <string name="library_actions">Options for %1$s</string>
+    <string name="library_show_collection">Show collection</string>
+    <string name="library_rename_collection">Rename collection</string>
+    <string name="library_delete_collection">Delete collection</string>
+    <string name="library_delete_collection_body">Remove this collection? Its presets stay in your library.</string>
+    <string name="library_save">Save</string>
+    <string name="library_cancel">Cancel</string>
+    <string name="library_undo_delete">Undo deletion</string>
+    <string name="library_undo_import">Undo preset import</string>
+    <string name="library_undo_done">Preset library restored.</string>
+    <string name="library_undo_unavailable">Undo is no longer available. Later changes have been kept.</string>
+    <string name="library_undo_saved">You can undo this change from your library for 10 minutes.</string>
+    <string name="library_undo_too_large">Change saved. This library is too large for temporary undo; use a full backup for recovery.</string>
+    <string name="library_undo_not_saved">Change saved. Temporary undo is unavailable for this library; use a full backup for recovery.</string>
+    <string name="library_more">Show more presets</string>
+    <string name="library_showing">Showing %1$d of %2$d matches</string>
+    <string name="library_missing_preset">This preset is no longer available.</string>
+    <item name="gui_libraryFilters" type="id" />
+    <item name="gui_libraryCollections" type="id" />
+    <item name="gui_libraryUndo" type="id" />
+    <item name="gui_libraryMore" type="id" />
+    <item name="library_collection_name_input" type="id" />
+</resources>

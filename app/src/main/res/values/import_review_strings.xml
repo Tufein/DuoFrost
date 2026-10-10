@@ -1,0 +1,28 @@
+<resources>
+    <string name="import_review_title">Review preset import</string>
+    <string name="import_review_description">Choose the presets to save. Saving does not start lighting. Running automation can use updated presets.</string>
+    <string name="import_review_mode">When names already exist</string>
+    <string name="import_review_add">Add separate copies</string>
+    <string name="import_review_replace">Replace matching user presets</string>
+    <string name="import_review_skip">Skip matching names</string>
+    <string name="import_review_conflict_help">Copies get unique names. Replacing keeps existing scene links. Presets managed by apps or plugins are kept; a separate copy is added instead.</string>
+    <string name="import_review_assignments">Also import app assignments for selected presets</string>
+    <string name="import_review_summary">%1$d added · %2$d replaced · %3$d skipped\n%4$d app assignments included</string>
+    <string name="import_review_protected">%1$d managed presets kept as separate copies</string>
+    <string name="import_review_choose">Choose at least one preset.</string>
+    <string name="import_review_nothing">All selected names already exist. Choose another mode to import them.</string>
+    <string name="import_review_limit">This review supports up to %1$d presets per bundle. Split this bundle into smaller files.</string>
+    <string name="import_review_library_limit">Your library can hold up to %1$d presets. Select fewer presets or remove some existing ones.</string>
+    <string name="import_review_notes">File notes (%1$d):</string>
+    <string name="import_review_more_notes">%1$d more notes will be included in the import report.</string>
+    <string name="import_review_entry">%1$s\n%2$s</string>
+    <string name="import_review_all">Select all</string>
+    <string name="import_review_none">Clear selection</string>
+    <string name="import_review_apply">Save selected presets</string>
+    <string name="import_review_changed">Your library changed during review. Open the bundle again to review the current presets.</string>
+    <string name="import_review_applied">Saved: %1$d new presets, %2$d updated presets.</string>
+    <string name="import_review_invalid_assignments">Saved app assignments cannot be read safely. Import without app assignments or restore a known good backup.</string>
+    <item type="id" name="import_review_summary" />
+    <item type="id" name="import_review_mode" />
+    <item type="id" name="import_review_mappings" />
+</resources>

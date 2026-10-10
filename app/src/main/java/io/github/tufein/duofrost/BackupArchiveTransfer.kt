@@ -36,7 +36,8 @@ object BackupArchiveTransfer {
         "scenes_groups_json",
         "pending_projection_package",
         "pending_projection_preset",
-        "pending_projection_notified"
+        "pending_projection_notified",
+        PresetLibraryStore.PREF_KEY_LIBRARY
     )
 
     data class CategoryOptions(
@@ -262,6 +263,11 @@ object BackupArchiveTransfer {
         val prefItems = prefsJson.optJSONArray("items") ?: JSONArray()
         val prefs = context.getSharedPreferences(PREF_FILE_NAME, Context.MODE_PRIVATE)
         val editor = prefs.edit()
+
+        if (effectiveOptions.profiles || effectiveOptions.images) {
+            // A full restore may replace artwork as well as the library, outside the temporary snapshot.
+            editor.remove(PresetUndoStore.PREF_KEY_UNDO)
+        }
 
         if (effectiveOptions.themes) {
             THEME_PREF_KEYS.forEach { editor.remove(it) }

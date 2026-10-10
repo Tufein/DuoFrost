@@ -108,7 +108,8 @@ import io.github.tufein.duofrost.ui.AnimatedRainbowDrawable
 import io.github.tufein.duofrost.ui.DuoFrostAlertDialog
 import io.github.tufein.duofrost.ui.ColorPickerDialog
 import io.github.tufein.duofrost.ui.LockableHorizontalScrollView
-import io.github.tufein.duofrost.ui.PresetLibrarySearch
+import io.github.tufein.duofrost.ui.PresetLibraryUi
+import io.github.tufein.duofrost.ui.PresetImportReviewDialog
 import io.github.tufein.duofrost.ui.EditorDraftCodec
 import io.github.tufein.duofrost.ui.RagnarokWarningDialog
 import kotlin.math.PI
@@ -368,6 +369,7 @@ class MainActivity : AppCompatActivity() {
     private var bifrostTitleLabel: String = ""
     private var selectedCoverFlowIndex: Int = 0
     private var presetSearchQuery = ""
+    private var libraryVisibleLimit = 40
     private var pendingUiState: Bundle? = null
     private var isRecreatingUi = false
     private var coverFlowSnapRunnable: Runnable? = null
@@ -394,6 +396,7 @@ class MainActivity : AppCompatActivity() {
 
     private val mainHandler = Handler(Looper.getMainLooper())
     private lateinit var presetController: PresetController
+    private lateinit var libraryUi: PresetLibraryUi
     private lateinit var serviceController: ServiceController
     private val colorPickerDialog = ColorPickerDialog()
     private val ragnarokWarningDialog = RagnarokWarningDialog()
@@ -989,6 +992,34 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun setupHomeSurface() {
+        libraryUi = PresetLibraryUi(this, prefs,
+            onChanged = {
+                libraryVisibleLimit = 40
+                refreshCoverFlowFromPresets()
+            },
+            onRestored = {
+                presetController.reloadFromPrefs(refreshSpinner = true)
+                libraryVisibleLimit = 40
+                DuoFrostWidget.refreshFrom(this)
+                refreshCoverFlowFromPresets()
+                PresetArtworkPruner.prune(this, prefs)
+            },
+            onEdit = { presetId ->
+                presetController.reloadFromPrefs(refreshSpinner = true)
+                val index = presetController.getPresets().indexOfFirst { it.id == presetId }
+                if (index >= 0) {
+                    setSettingsTab(SettingsTab.UI)
+                    presetController.selectPresetForEditing(index)
+                    selectPresetFromCoverFlow(index, animate = false, applyPreset = false)
+                    openSettingsOverlay()
+                }
+            })
+        libraryUi.bind()
+        findViewById<MaterialButton>(R.id.gui_libraryMore).setOnClickListener {
+            libraryVisibleLimit = (libraryVisibleLimit.toLong() + 40)
+                .coerceAtMost(presetController.getPresets().size.toLong()).toInt()
+            refreshCoverFlowFromPresets()
+        }
         findViewById<MaterialButton>(R.id.gui_scenesButton).setOnClickListener {
             startActivity(Intent(this, ScenesActivity::class.java))
         }
@@ -1014,6 +1045,7 @@ class MainActivity : AppCompatActivity() {
             override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) = Unit
             override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {
                 presetSearchQuery = s?.toString().orEmpty()
+                libraryVisibleLimit = 40
                 refreshCoverFlowFromPresets()
             }
             override fun afterTextChanged(s: Editable?) = Unit
@@ -1630,7 +1662,9 @@ class MainActivity : AppCompatActivity() {
         if (::appProfileManager.isInitialized) {
             appProfileManager.clearGameSceneIfMissing(presets.map { it.name })
         }
-        val indices = PresetLibrarySearch.matchingIndices(presets, presetSearchQuery)
+        val indices = libraryUi.matchingIndices(presets, presetSearchQuery)
+        val visibleIndices = indices.take(libraryVisibleLimit)
+        libraryUi.render()
         val auto = ::appProfileManager.isInitialized && appProfileManager.isEnabled
         presetCoverFlowContainer.removeAllViews()
         selectedCoverFlowIndex = if (auto) {
@@ -1641,11 +1675,14 @@ class MainActivity : AppCompatActivity() {
         activePresetNameText.text = selected?.name ?: "No presets"
         activePresetAnimationText.text = selected?.let { formatCardAnimationLabel(it.animationType.name) }.orEmpty()
         activePresetProfileText.text = selected?.let { formatCardProfileLabel(it.performanceProfile.name) }.orEmpty()
-        findViewById<TextView>(R.id.gui_presetCount).text = resources.getQuantityString(R.plurals.gui_preset_count, indices.size, indices.size)
+        findViewById<TextView>(R.id.gui_presetCount).text = if (visibleIndices.size < indices.size) {
+            getString(R.string.library_showing, visibleIndices.size, indices.size)
+        } else resources.getQuantityString(R.plurals.gui_preset_count, indices.size, indices.size)
+        findViewById<View>(R.id.gui_libraryMore).visibility = if (visibleIndices.size < indices.size) View.VISIBLE else View.GONE
         findViewById<View>(R.id.gui_emptySearch).visibility = if (indices.isEmpty()) View.VISIBLE else View.GONE
         presetCoverFlowScroll.visibility = if (indices.isEmpty()) View.GONE else View.VISIBLE
         findViewById<TextView>(R.id.gui_libraryHint).setText(if (auto) R.string.gui_app_profiles_on else R.string.gui_preset_hint)
-        indices.forEach { index ->
+        visibleIndices.forEach { index ->
             val preset = presets[index]
             val effect = effectLabel(preset.animationType.name)
             val card = MaterialCardView(this).apply {
@@ -1702,6 +1739,30 @@ class MainActivity : AppCompatActivity() {
                 layoutParams = LinearLayout.LayoutParams(-1, -2).apply { topMargin = dpToPx(4) }
             })
             card.addView(content)
+            if (libraryUi.isFavorite(preset.id)) {
+                card.addView(TextView(this).apply {
+                    text = "★"
+                    textSize = 20f
+                    setTextColor(selectedUiTheme.accentColor)
+                    gravity = android.view.Gravity.CENTER
+                    importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
+                    layoutParams = FrameLayout.LayoutParams(dpToPx(32), dpToPx(32), android.view.Gravity.TOP or android.view.Gravity.START)
+                })
+            }
+            card.addView(MaterialButton(this, null, com.google.android.material.R.attr.borderlessButtonStyle).apply {
+                tag = "preset-options-${preset.id}"
+                text = "⋮"
+                textSize = 22f
+                insetTop = 0
+                insetBottom = 0
+                minimumWidth = 0
+                minimumHeight = dpToPx(48)
+                setPadding(0, 0, 0, 0)
+                setTextColor(selectedUiTheme.textColor)
+                contentDescription = getString(R.string.library_actions, preset.name)
+                layoutParams = FrameLayout.LayoutParams(dpToPx(48), dpToPx(48), android.view.Gravity.TOP or android.view.Gravity.END)
+                setOnClickListener { libraryUi.showActions(preset) }
+            })
             presetCoverFlowContainer.addView(card)
         }
         updateCoverFlowCardTransforms()
@@ -2257,8 +2318,9 @@ class MainActivity : AppCompatActivity() {
             }
 
             if (::presetController.isInitialized) {
-                presetController.reloadFromPrefs()
+                presetController.reloadFromPrefs(refreshSpinner = true)
                 DuoFrostWidget.refreshFrom(this)
+                PresetArtworkPruner.prune(this, prefs)
             }
 
             if (prefs.getBoolean(PREF_LIVE_WALLPAPER_RESTORE_SETTINGS, false)) {
@@ -3764,6 +3826,7 @@ class MainActivity : AppCompatActivity() {
             outState.putString("gui_tab", currentSettingsTab.name)
             outState.putBoolean("gui_editor_open", settingsOverlay.visibility == View.VISIBLE)
             outState.putString("gui_search", presetSearchQuery)
+            libraryUi.saveState(outState)
             outState.putString("gui_draft", EditorDraftCodec.encode(currentEditorPreset()))
             outState.putString("gui_preset_name", presetController.getPresets().getOrNull(presetSpinner.selectedItemPosition)?.name)
             outState.putInt("gui_editor_scroll", mainSettingsScroll.scrollY)
@@ -3784,6 +3847,7 @@ class MainActivity : AppCompatActivity() {
                 try { applyEditorPreset(draft) } finally { isUpdatingFromPreset = false }
             }
             presetSearchQuery = state.getString("gui_search").orEmpty()
+            libraryUi.restoreState(state)
             findViewById<TextInputEditText>(R.id.gui_presetSearch).setText(presetSearchQuery)
             setSettingsTab(runCatching { SettingsTab.valueOf(state.getString("gui_tab").orEmpty()) }.getOrDefault(SettingsTab.UI))
             if (state.getBoolean("gui_editor_open")) {
@@ -3869,11 +3933,21 @@ class MainActivity : AppCompatActivity() {
             onRequestCustomPresetImage = { index ->
                 launchPresetImagePicker(index)
             },
+            onLibraryChanged = { refreshCoverFlowFromPresets() },
             onPresetRenamed = { oldName, newName ->
                 appProfileManager.renamePresetInMappings(oldName, newName)
                 appProfileManager.renameGameScenePreset(oldName, newName)
                 DuoFrostWidget.renameFavorite(this, oldName, newName)
                 syncGameSceneUi()
+            },
+            onDestructiveChange = { result ->
+                libraryVisibleLimit = 40
+                refreshCoverFlowFromPresets()
+                Toast.makeText(this, if (result == PresetUndoStore.RecordResult.RECORDED) {
+                    R.string.library_undo_saved
+                } else if (result == PresetUndoStore.RecordResult.TOO_LARGE) {
+                    R.string.library_undo_too_large
+                } else R.string.library_undo_not_saved, Toast.LENGTH_LONG).show()
             }
         )
 
@@ -4036,21 +4110,10 @@ class MainActivity : AppCompatActivity() {
             return
         }
 
-        DuoFrostAlertDialog().show(
-            activity = this,
-            title = "IMPORT MODE",
-            subtitle = "Choose how to apply imported presets",
-            body = "Replace everything: current presets are overwritten.\nAdd: imported presets are appended to existing ones.",
-            positiveLabelResId = R.string.action_replace,
-            negativeLabelResId = R.string.action_add,
-            cancelable = true,
-            onConfirm = {
-                applyImportedBundle(result, replaceEverything = true)
-            },
-            onCancel = {
-                applyImportedBundle(result, replaceEverything = false)
-            }
-        )
+        presetController.reloadFromPrefs(refreshSpinner = true)
+        PresetImportReviewDialog.show(this, result, presetController.getPresets().toList()) { plan ->
+            applyReviewedImport(plan, result)
+        }?.setOnDismissListener { PresetArtworkPruner.prune(this, prefs) }
     }
 
     private fun showBackupCategoryDialog(
@@ -4109,39 +4172,41 @@ class MainActivity : AppCompatActivity() {
         return if (selected.isEmpty()) "None" else selected.joinToString(" + ")
     }
 
-    private fun applyImportedBundle(
-        result: PresetArchiveTransfer.ImportResult,
-        replaceEverything: Boolean
-    ) {
-        val presetsApplied = if (replaceEverything) {
-            presetController.replaceAllPresetsFromImport(result.presets)
+    private fun applyReviewedImport(plan: PresetImportPlan.Plan, result: PresetArchiveTransfer.ImportResult) {
+        val undo = PresetUndoStore(prefs)
+        var invalidAssignments = false
+        val recorded = synchronized(prefs) {
+            if (plan.mappings.isNotEmpty() && !appProfileManager.canEditMappings) {
+                invalidAssignments = true
+                return@synchronized null
+            }
+            val before = undo.captureSnapshot()
+            if (!presetController.applyImportPlan(plan)) return@synchronized null
+            if (plan.mappings.isNotEmpty()) {
+                appProfileManager.replaceMappings(appProfileManager.getMappings().toMutableMap().apply { putAll(plan.mappings) })
+            }
+            before?.let { undo.record(PresetUndoStore.Action.IMPORT, it) }
+                ?: PresetUndoStore.RecordResult.INVALID_SNAPSHOT
+        }
+        if (recorded == null) {
+            Toast.makeText(this, if (invalidAssignments) R.string.import_review_invalid_assignments
+                else R.string.import_review_changed, Toast.LENGTH_LONG).show()
+            presetController.reloadFromPrefs(refreshSpinner = true)
         } else {
-            presetController.appendPresetsFromImport(result.presets)
-        }
-
-        if (presetsApplied) {
-            if (replaceEverything) {
-                appProfileManager.replaceMappings(result.mappings)
-            } else {
-                val mergedMappings = appProfileManager.getMappings().toMutableMap().apply {
-                    putAll(result.mappings)
-                }
-                appProfileManager.replaceMappings(mergedMappings)
+            Toast.makeText(this, getString(R.string.import_review_applied, plan.addedCount, plan.replacedCount), Toast.LENGTH_LONG).show()
+            if (recorded != PresetUndoStore.RecordResult.RECORDED) {
+                Toast.makeText(this, if (recorded == PresetUndoStore.RecordResult.TOO_LARGE) {
+                    R.string.library_undo_too_large
+                } else R.string.library_undo_not_saved, Toast.LENGTH_LONG).show()
             }
-
-            refreshCoverFlowFromPresets()
-
-            if (LEDService.isRunning && !serviceController.isServiceTransitioning) {
-                if (appProfileManager.isEnabled) {
-                    appProfileManager.resetLastForegroundPackage()
-                    requestImmediateAppProfileResolution()
-                } else {
-                    startService(createLedServiceIntent())
-                }
+            if (appProfileManager.isEnabled) appProfileManager.resetLastForegroundPackage()
+            if (result.warnings.isNotEmpty()) {
+                showImportReport(result.copy(presets = plan.accepted.map { it.preset }, mappings = plan.mappings))
             }
         }
-
-        showImportReport(result)
+        libraryVisibleLimit = 40
+        refreshCoverFlowFromPresets()
+        PresetArtworkPruner.prune(this, prefs)
     }
 
     private fun exportThemeBundle(uri: Uri) {

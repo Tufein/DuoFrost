@@ -22,6 +22,7 @@ import org.robolectric.RobolectricTestRunner
 import org.robolectric.RuntimeEnvironment
 import org.robolectric.Shadows.shadowOf
 import org.robolectric.annotation.Config
+import java.time.LocalDateTime
 
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [33])
@@ -154,6 +155,62 @@ class SceneRuntimeControllerTest {
         assertNull(store.getTemporaryScene(SystemClock.elapsedRealtime(), 1))
         assertFalse(store.isEnabled)
         assertFalse(ServiceRecoveryStore.isDesiredRunning(context))
+    }
+
+    @Test fun temporaryExpiryReturnsToCurrentRulesAtTheOriginalDeadline() {
+        val prefs = context.getSharedPreferences("bifrost_prefs", Context.MODE_PRIVATE)
+        var elapsed = 1_000L
+        runtime = SceneRuntimeController(prefs, AppProfileManager(prefs), elapsedRealtime = { elapsed })
+        runtime.setBaseline(baseline)
+        store.saveRules(listOf(SceneRule("rule", "Ocean", presetId = scene.id)))
+        store.isEnabled = true
+        assertTrue(store.setTemporaryScene(baseline.id, 1, elapsed, 1))
+        assertEquals(baseline, evaluate()!!.preset)
+        elapsed = 60_999L
+        assertNull(evaluate())
+        elapsed = 61_000L
+        assertEquals(scene, evaluate()!!.preset)
+        assertNull(evaluate())
+        assertFalse(ServiceRecoveryStore.isDesiredRunning(context))
+    }
+
+    @Test fun localTimeAndBatteryChangesDoNotWaitForForegroundStabilization() {
+        val prefs = context.getSharedPreferences("bifrost_prefs", Context.MODE_PRIVATE)
+        var local = LocalDateTime.of(2026, 10, 9, 21, 59)
+        runtime = SceneRuntimeController(prefs, AppProfileManager(prefs), localTime = { local })
+        runtime.setBaseline(baseline)
+        store.saveRules(listOf(SceneRule("night", "Night", presetId = scene.id,
+            startMinute = 22 * 60, endMinute = 7 * 60),
+            SceneRule("battery", "Low battery", maxBatteryPercent = 20, maxBrightnessPercent = 30)))
+        store.isEnabled = true
+        assertFalse(runtime.needsForegroundMonitoring)
+        assertEquals(baseline, evaluate()!!.preset)
+        local = local.plusMinutes(1)
+        assertEquals(scene, evaluate()!!.preset)
+        val battery = runtime.evaluate(context, 20, false)!!
+        assertEquals(scene, battery.preset)
+        assertEquals(30, battery.brightnessLimitPercent)
+        assertFalse(battery.presetChanged)
+        local = LocalDateTime.of(2026, 10, 10, 7, 0)
+        assertEquals(baseline, runtime.evaluate(context, 20, false)!!.preset)
+    }
+
+    @Test fun permissionRevocationImmediatelyStopsRememberedAppScene() {
+        val appOps = shadowOf(context.getSystemService(Context.APP_OPS_SERVICE) as AppOpsManager)
+        appOps.setMode(AppOpsManager.OPSTR_GET_USAGE_STATS, Process.myUid(), context.packageName, AppOpsManager.MODE_ALLOWED)
+        shadowOf(context.getSystemService(Context.USAGE_STATS_SERVICE) as UsageStatsManager)
+            .addEvent("com.example.game", System.currentTimeMillis() - 1, UsageEvents.Event.ACTIVITY_RESUMED)
+        store.saveGroups(listOf(AppGroup("game-group", "Game group", setOf("com.example.game"))))
+        store.saveRules(listOf(SceneRule("rule", "Ocean game", presetId = scene.id,
+            target = SceneTarget.GROUP, groupId = "game-group")))
+        store.isEnabled = true
+        assertTrue(runtime.needsForegroundMonitoring)
+        assertEquals(scene, evaluate()!!.preset)
+        appOps.setMode(AppOpsManager.OPSTR_GET_USAGE_STATS, Process.myUid(), context.packageName, AppOpsManager.MODE_IGNORED)
+        assertEquals(baseline, evaluate()!!.preset)
+        assertNull(evaluate())
+        store.isEnabled = false
+        assertFalse(runtime.needsForegroundMonitoring)
     }
 
     @Test fun snapshotPreservesUnsavedColorsAndOptionalColorAbsence() {
