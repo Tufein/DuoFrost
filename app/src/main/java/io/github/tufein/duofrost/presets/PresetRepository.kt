@@ -45,15 +45,15 @@ class PresetRepository(private val prefs: SharedPreferences) {
 
     fun findById(id: String): LedPreset? = list().firstOrNull { it.id == id }
 
-    /** Preserve unknown JSON fields by identity during ordinary preset edits. */
-    fun save(presets: List<LedPreset>, preserveUnknownFields: Boolean = true): List<LedPreset> = synchronized(prefs) {
+    /** Preserve unknown fields; null means the stored library was unreadable and was left intact. */
+    fun save(presets: List<LedPreset>, preserveUnknownFields: Boolean = true): List<LedPreset>? = synchronized(prefs) {
         ensureIds()
         val stored = prefs.all[PREF_PRESETS]
-        if (stored != null && stored !is String) return@synchronized presets.toList()
+        if (stored != null && stored !is String) return@synchronized null
         val oldRaw = stored as? String
         val oldArray = oldRaw?.let { runCatching { JSONArray(it) }.getOrNull() }
         // Never replace malformed stored data with an empty/default configuration.
-        if (oldRaw != null && oldArray == null) return@synchronized presets.toList()
+        if (oldRaw != null && oldArray == null) return@synchronized null
         val oldById = mutableMapOf<String, JSONObject>()
         if (preserveUnknownFields && oldArray != null) {
             for (index in 0 until oldArray.length()) {

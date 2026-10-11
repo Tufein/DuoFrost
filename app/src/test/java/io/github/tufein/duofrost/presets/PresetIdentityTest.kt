@@ -100,7 +100,7 @@ class PresetIdentityTest {
         val repository = PresetRepository(memoryPreferences(values))
         assertFalse(repository.ensureIds())
         assertTrue(repository.list().isEmpty())
-        repository.save(emptyList())
+        assertNull(repository.save(emptyList()))
         assertEquals("not JSON", values["presets_json"])
     }
 
@@ -112,8 +112,8 @@ class PresetIdentityTest {
             assertFalse(repository.ensureIds())
             assertTrue(repository.list().isEmpty())
             assertNull(repository.findById("new"))
-            repository.save(listOf(replacement))
-            repository.save(emptyList(), preserveUnknownFields = false)
+            assertNull(repository.save(listOf(replacement)))
+            assertNull(repository.save(emptyList(), preserveUnknownFields = false))
             assertEquals(wrongType, values["presets_json"])
         }
     }

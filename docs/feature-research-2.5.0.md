@@ -1,5 +1,10 @@
 # DuoFrost 2.5.0 — feature research
 
+Research snapshot from the development cycle. The maintainer reported successful
+device testing on 2026-10-11 and requested the full [2.5.0 release](2.5.0.md).
+Ideas below are implemented only where the release guide says so; later proposals
+remain on the [roadmap](roadmap-2.5.0.md).
+
 Reviewed on 10 October 2026. This note records the next useful additions and
 the reasons for their order. Planned features are not promises of a release
 date or hardware performance.

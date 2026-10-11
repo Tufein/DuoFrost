@@ -58,15 +58,15 @@ class AppProfileManager(
     private val presetRepository = PresetRepository(prefs)
 
     var isEnabled: Boolean
-        get() = prefs.getBoolean(PREF_KEY_AUTO_SWITCH_ENABLED, false)
+        get() = readBoolean(PREF_KEY_AUTO_SWITCH_ENABLED)
         set(value) = prefs.edit().putBoolean(PREF_KEY_AUTO_SWITCH_ENABLED, value).apply()
 
     var isGameSceneEnabled: Boolean
-        get() = prefs.getBoolean(PREF_KEY_GAME_SCENE_ENABLED, false)
+        get() = readBoolean(PREF_KEY_GAME_SCENE_ENABLED)
         set(value) = prefs.edit().putBoolean(PREF_KEY_GAME_SCENE_ENABLED, value).apply()
 
     val gameScenePresetName: String?
-        get() = prefs.getString(PREF_KEY_GAME_SCENE_PRESET, null)
+        get() = readString(PREF_KEY_GAME_SCENE_PRESET)
             ?.trim()
             ?.takeIf { it.isNotEmpty() }
 
@@ -421,16 +421,26 @@ class AppProfileManager(
     }
 
     fun getPendingProjectionPackage(): String? =
-        prefs.getString(PREF_KEY_PENDING_PROJECTION_PACKAGE, null)?.takeIf { it.isNotBlank() }
+        readString(PREF_KEY_PENDING_PROJECTION_PACKAGE)?.takeIf { it.isNotBlank() }
 
     fun getPendingProjectionPresetName(): String? =
-        prefs.getString(PREF_KEY_PENDING_PROJECTION_PRESET, null)?.takeIf { it.isNotBlank() }
+        readString(PREF_KEY_PENDING_PROJECTION_PRESET)?.takeIf { it.isNotBlank() }
 
     fun hasPendingProjectionToken(): Boolean =
         getPendingProjectionPackage() != null
 
     fun isPendingProjectionNotified(): Boolean =
-        prefs.getBoolean(PREF_KEY_PENDING_PROJECTION_NOTIFIED, false)
+        readBoolean(PREF_KEY_PENDING_PROJECTION_NOTIFIED)
+
+    // A malformed restore must not crash the foreground monitor or broaden an
+    // automation policy. Keep the original value intact until an explicit edit.
+    private fun readBoolean(key: String): Boolean = runCatching {
+        prefs.getBoolean(key, false)
+    }.getOrDefault(false)
+
+    private fun readString(key: String): String? = runCatching {
+        prefs.getString(key, null)
+    }.getOrNull()
 
     fun markPendingProjectionNotified() {
         prefs.edit().putBoolean(PREF_KEY_PENDING_PROJECTION_NOTIFIED, true).apply()

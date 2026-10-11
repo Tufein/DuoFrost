@@ -4,22 +4,24 @@ import android.content.SharedPreferences
 import org.json.JSONArray
 import org.json.JSONObject
 
-/** Versioned configuration; future formats stay intact and are never executed. */
+/** Versioned configuration; damaged and future formats stay intact and never execute. */
 class SceneStore(private val prefs: SharedPreferences) {
     private var cachedRulesRaw: String? = null
     private var cachedRules: List<SceneRule> = emptyList()
     private var cachedGroupsRaw: String? = null
     private var cachedGroups: List<AppGroup> = emptyList()
-    private val cachedSchemaChecks = mutableMapOf<String, Pair<String?, Boolean>>()
+    private val cachedConfigurationChecks = mutableMapOf<String, Pair<Any?, Boolean>>()
 
     var isEnabled: Boolean
         get() = !isReadOnly && runCatching { prefs.getBoolean(PREF_KEY_ENABLED, false) }.getOrDefault(false)
         set(value) {
-            if (!isReadOnly) prefs.edit().putBoolean(PREF_KEY_ENABLED, value).apply()
+            synchronized(prefs) {
+                if (!isReadOnly) prefs.edit().putBoolean(PREF_KEY_ENABLED, value).apply()
+            }
         }
 
     val isReadOnly: Boolean
-        get() = unsupportedSchemaFor(PREF_KEY_RULES) || unsupportedSchemaFor(PREF_KEY_GROUPS)
+        get() = invalidConfigurationFor(PREF_KEY_RULES) || invalidConfigurationFor(PREF_KEY_GROUPS)
 
     @Synchronized fun loadRules(): List<SceneRule> {
         val raw = readString(PREF_KEY_RULES)
@@ -29,12 +31,12 @@ class SceneStore(private val prefs: SharedPreferences) {
         return cachedRules.toList()
     }
 
-    fun saveRules(rules: List<SceneRule>): Boolean {
+    fun saveRules(rules: List<SceneRule>): Boolean = synchronized(prefs) {
         if (isReadOnly || rules.size > SceneLimits.MAX_ITEMS || rules.any { !it.isValid() } ||
-            rules.map { it.id }.distinct().size != rules.size) return false
+            rules.map { it.id }.distinct().size != rules.size) return@synchronized false
         val raw = envelope("rules", rules.map(::ruleJson))
-        if (raw.length > SceneLimits.MAX_JSON_LENGTH) return false
-        return prefs.edit().putString(PREF_KEY_RULES, raw).commit()
+        if (raw.length > SceneLimits.MAX_JSON_LENGTH) return@synchronized false
+        prefs.edit().putString(PREF_KEY_RULES, raw).commit()
     }
 
     @Synchronized fun loadGroups(): List<AppGroup> {
@@ -45,12 +47,12 @@ class SceneStore(private val prefs: SharedPreferences) {
         return cachedGroups.toList()
     }
 
-    fun saveGroups(groups: List<AppGroup>): Boolean {
+    fun saveGroups(groups: List<AppGroup>): Boolean = synchronized(prefs) {
         if (isReadOnly || groups.size > SceneLimits.MAX_ITEMS || groups.any { !it.isValid() } ||
-            groups.map { it.id }.distinct().size != groups.size) return false
+            groups.map { it.id }.distinct().size != groups.size) return@synchronized false
         val raw = envelope("groups", groups.map(::groupJson))
-        if (raw.length > SceneLimits.MAX_JSON_LENGTH) return false
-        return prefs.edit().putString(PREF_KEY_GROUPS, raw).commit()
+        if (raw.length > SceneLimits.MAX_JSON_LENGTH) return@synchronized false
+        prefs.edit().putString(PREF_KEY_GROUPS, raw).commit()
     }
 
     fun setTemporaryScene(presetId: String, durationMinutes: Int, nowElapsed: Long, bootCount: Int): Boolean {
@@ -87,22 +89,25 @@ class SceneStore(private val prefs: SharedPreferences) {
 
     private fun readString(key: String): String? = runCatching { prefs.getString(key, null) }.getOrNull()
 
-    @Synchronized private fun unsupportedSchemaFor(key: String): Boolean {
-        val raw = readString(key)
-        val cached = cachedSchemaChecks[key]
-        if (cached != null && cached.first == raw) return cached.second
+    @Synchronized private fun invalidConfigurationFor(key: String): Boolean {
+        val stored = prefs.all[key]
+        val cached = cachedConfigurationChecks[key]
+        if (cached != null && cached.first == stored) return cached.second
         // Every running tick checks enablement. Parse only when configuration
         // actually changes, including edits and a backup restored in-place.
-        val unsupported = unsupportedSchema(raw)
-        cachedSchemaChecks[key] = raw to unsupported
-        return unsupported
-    }
-
-    private fun unsupportedSchema(raw: String?): Boolean {
-        if (raw == null) return false
-        if (raw.length > SceneLimits.MAX_JSON_LENGTH) return true
-        val root = runCatching { JSONObject(raw) }.getOrNull() ?: return false
-        return strictInt(root.opt("schemaVersion")) != SCHEMA_VERSION
+        // Validate the entire document, not just its schema number: otherwise a
+        // failed read would let an editor replace damaged rules with an empty list.
+        val invalid = when (stored) {
+            null -> false
+            is String -> when (key) {
+                PREF_KEY_RULES -> readItems(stored, "rules", ::parseRule) == null
+                PREF_KEY_GROUPS -> readItems(stored, "groups", ::parseGroup) == null
+                else -> true
+            }
+            else -> true
+        }
+        cachedConfigurationChecks[key] = stored to invalid
+        return invalid
     }
 
     private fun <T> readItems(raw: String?, key: String, parse: (JSONObject) -> T?): List<T>? {

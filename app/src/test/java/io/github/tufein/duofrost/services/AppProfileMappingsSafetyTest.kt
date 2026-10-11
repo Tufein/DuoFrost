@@ -4,6 +4,7 @@ import android.content.Context
 import android.content.SharedPreferences
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
@@ -59,6 +60,41 @@ class AppProfileMappingsSafetyTest {
         assertEquals(mapOf("com.example.game" to "Ocean renamed"), manager.getMappings())
         manager.removeMappingsReferencing(listOf("Ocean renamed"))
         assertTrue(manager.getMappings().isEmpty())
+    }
+
+    @Test fun wrongTypedAutomationPreferencesFailClosedWithoutChangingTheOriginalValues() {
+        val wrongTypes = mapOf(
+            "auto_switch_enabled" to "true",
+            "game_scene_enabled" to 1,
+            "game_scene_preset" to true,
+            "pending_projection_package" to 42,
+            "pending_projection_preset" to false,
+            "pending_projection_notified" to "false"
+        )
+        prefs.edit().putString("auto_switch_enabled", "true")
+            .putInt("game_scene_enabled", 1).putBoolean("game_scene_preset", true)
+            .putInt("pending_projection_package", 42).putBoolean("pending_projection_preset", false)
+            .putString("pending_projection_notified", "false").commit()
+        repeat(2) {
+            assertFalse(manager.isEnabled)
+            assertFalse(manager.isGameSceneEnabled)
+            assertNull(manager.gameScenePresetName)
+            assertNull(manager.getPendingProjectionPackage())
+            assertNull(manager.getPendingProjectionPresetName())
+            assertFalse(manager.hasPendingProjectionToken())
+            assertFalse(manager.isPendingProjectionNotified())
+            manager.clearGameSceneIfMissing(emptyList())
+        }
+        assertEquals(wrongTypes, prefs.all)
+        manager.isEnabled = true
+        manager.isGameSceneEnabled = true
+        manager.setGameScenePreset(" Ocean ")
+        manager.setPendingProjectionToken("com.example.game", "Ocean")
+        assertTrue(manager.isEnabled)
+        assertTrue(manager.isGameSceneEnabled)
+        assertEquals("Ocean", manager.gameScenePresetName)
+        assertTrue(manager.hasPendingProjectionToken())
+        assertEquals("Ocean", manager.getPendingProjectionPresetName())
     }
 
     private fun tryEveryMutation() {

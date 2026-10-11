@@ -64,6 +64,11 @@ class SceneStoreTest {
             root.getJSONArray("rules").getJSONObject(0).put(key, replacement)
             data[SceneStore.PREF_KEY_RULES] = root.toString()
             assertTrue("Malformed $key=$value", store.loadRules().isEmpty())
+            assertTrue(store.isReadOnly)
+            val snapshot = data.toMap()
+            assertFalse(store.saveRules(emptyList()))
+            assertFalse(store.saveGroups(listOf(group)))
+            assertEquals(snapshot, data)
         }
     }
 
@@ -124,12 +129,43 @@ class SceneStoreTest {
             """{"schemaVersion":1,"rules":[{"id":"broken"}]}""")) {
             data[SceneStore.PREF_KEY_RULES] = raw
             assertTrue(store.loadRules().isEmpty())
+            assertTrue(store.isReadOnly)
+            assertFalse(store.saveRules(emptyList()))
+            assertEquals(raw, data[SceneStore.PREF_KEY_RULES])
         }
+        data.remove(SceneStore.PREF_KEY_RULES)
         store.saveRules(listOf(rule))
         val root = JSONObject(data[SceneStore.PREF_KEY_RULES] as String)
         root.getJSONArray("rules").put(root.getJSONArray("rules").getJSONObject(0))
         data[SceneStore.PREF_KEY_RULES] = root.toString()
         assertTrue(store.loadRules().isEmpty())
+        assertTrue(store.isReadOnly)
+    }
+
+    @Test fun wrongTypedRuleAndGroupDocumentsStayIntactAndDisableAllSceneWrites() {
+        for (key in listOf(SceneStore.PREF_KEY_RULES, SceneStore.PREF_KEY_GROUPS)) {
+            for (wrongType in listOf<Any>(42, true, 1L, 0.5f, setOf("future"))) {
+                data.clear()
+                data[key] = wrongType
+                data[SceneStore.PREF_KEY_ENABLED] = true
+                val snapshot = data.toMap()
+                repeat(2) {
+                    assertTrue(store.isReadOnly)
+                    assertFalse(store.isEnabled)
+                    assertTrue(store.loadRules().isEmpty())
+                    assertTrue(store.loadGroups().isEmpty())
+                }
+                assertFalse(store.saveRules(listOf(rule)))
+                assertFalse(store.saveGroups(listOf(group)))
+                assertFalse(store.setTemporaryScene("preset", 30, 1000, 1))
+                store.isEnabled = false
+                assertEquals(snapshot, data)
+                data.remove(key)
+                assertFalse(store.isReadOnly)
+                assertTrue(store.saveRules(listOf(rule)))
+                assertTrue(store.saveGroups(listOf(group)))
+            }
+        }
     }
 
     @Test fun temporaryChoiceRetainsOriginalDeadlineAfterProcessRestore() {

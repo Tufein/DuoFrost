@@ -7,7 +7,7 @@
     <string name="scenes_disabled">Ready when you are. Smart Scenes are off.</string>
     <string name="scenes_enabled">Smart Scenes are on. Your matching rules adjust the current lighting.</string>
     <string name="scenes_enabled_empty">Smart Scenes are on. Add a rule to begin.</string>
-    <string name="scenes_read_only">These scenes were created with a newer DuoFrost version. Update the app to edit them.</string>
+    <string name="scenes_read_only">These scenes cannot be read by this version. Restore a valid backup or update DuoFrost before editing them.</string>
     <string name="scenes_save_failed">This change could not be saved. Please try again.</string>
     <string name="scenes_usage_notice">Game and app-group rules need Usage Access to know which app is open. Time and battery rules work without it.</string>
     <string name="scenes_usage_title">Recognise your games and apps</string>

@@ -11,6 +11,7 @@ import android.widget.ScrollView
 import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
+import androidx.core.graphics.ColorUtils
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.doOnAttach
@@ -24,11 +25,12 @@ internal object SecondaryScreenUi {
     fun screen(activity: AppCompatActivity, title: String, description: String): Pair<View, LinearLayout> {
         val scroll = ScrollView(activity).apply {
             isFillViewport = true
+            clipToPadding = false
             setBackgroundColor(color(activity, R.color.bifrost_bg))
         }
         val content = LinearLayout(activity).apply {
             orientation = LinearLayout.VERTICAL
-            setPadding(dp(activity, 24), dp(activity, 16), dp(activity, 24), dp(activity, 24))
+            setPadding(dp(activity, 20), dp(activity, 16), dp(activity, 20), dp(activity, 24))
         }
         scroll.addView(content)
         content.addView(action(activity, activity.getString(R.string.gui_back_to_lighting)) {
@@ -38,8 +40,8 @@ internal object SecondaryScreenUi {
                 LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT
             )
         })
-        content.addView(heading(activity, title).apply { setPadding(0, dp(activity, 16), 0, dp(activity, 8)) })
-        content.addView(body(activity, description).apply { setPadding(0, 0, 0, dp(activity, 24)) })
+        content.addView(heading(activity, title).apply { setPadding(0, dp(activity, 20), 0, dp(activity, 8)) })
+        content.addView(body(activity, description).apply { setPadding(0, 0, 0, dp(activity, 16)) })
         return safeScrollContainer(activity, scroll) to content
     }
 
@@ -67,8 +69,8 @@ internal object SecondaryScreenUi {
 
     fun heading(context: Context, text: String): TextView = TextView(context).apply {
         this.text = text
-        textSize = 24f
-        setTypeface(typeface, Typeface.BOLD)
+        textSize = 26f
+        typeface = Typeface.create("sans-serif-medium", Typeface.NORMAL)
         setTextColor(color(context, R.color.bifrost_text))
         isAccessibilityHeading = true
     }
@@ -85,18 +87,28 @@ internal object SecondaryScreenUi {
             else com.google.android.material.R.attr.materialButtonOutlinedStyle).apply {
             text = label
             textSize = 14f
+            typeface = Typeface.create("sans-serif-medium", Typeface.NORMAL)
             isAllCaps = false
             minimumHeight = dp(context, 48)
-            cornerRadius = dp(context, 12)
+            insetTop = 0
+            insetBottom = 0
+            cornerRadius = dp(context, 14)
+            val surface = color(context, R.color.bifrost_card)
+            val foreground = color(context, R.color.bifrost_text)
+            val accent = color(context, R.color.bifrost_accent)
             if (primary) {
-                backgroundTintList = ColorStateList.valueOf(color(context, R.color.bifrost_accent))
-                setTextColor(color(context, R.color.bifrost_icon))
+                backgroundTintList = UiPalette.enabledColors(accent, ColorUtils.blendARGB(surface, accent, 0.3f))
+                setTextColor(UiPalette.enabledColors(UiPalette.foreground(accent, surface),
+                    color(context, R.color.bifrost_text_secondary)))
+                strokeWidth = 0
             } else {
-                backgroundTintList = ColorStateList.valueOf(android.graphics.Color.TRANSPARENT)
-                strokeColor = ColorStateList.valueOf(color(context, R.color.bifrost_surface))
+                backgroundTintList = UiPalette.enabledColors(color(context, R.color.bifrost_surface), surface)
+                strokeColor = ColorStateList.valueOf(color(context, R.color.bifrost_outline))
                 strokeWidth = dp(context, 1)
-                setTextColor(color(context, R.color.bifrost_text))
+                setTextColor(UiPalette.enabledColors(foreground,
+                    ColorUtils.blendARGB(surface, foreground, 0.45f)))
             }
+            iconTint = textColors
             setOnClickListener { onClick() }
         }
 
@@ -113,10 +125,10 @@ internal object SecondaryScreenUi {
 
     fun card(context: Context): Pair<MaterialCardView, LinearLayout> {
         val card = MaterialCardView(context).apply {
-            radius = dp(context, 16).toFloat()
+            radius = dp(context, 20).toFloat()
             cardElevation = 0f
             setCardBackgroundColor(color(context, R.color.bifrost_card))
-            strokeColor = color(context, R.color.bifrost_surface)
+            strokeColor = color(context, R.color.bifrost_outline)
             strokeWidth = dp(context, 1)
             layoutParams = LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT
@@ -124,7 +136,7 @@ internal object SecondaryScreenUi {
         }
         val content = LinearLayout(context).apply {
             orientation = LinearLayout.VERTICAL
-            setPadding(dp(context, 16), dp(context, 16), dp(context, 16), dp(context, 16))
+            setPadding(dp(context, 20), dp(context, 20), dp(context, 20), dp(context, 20))
         }
         card.addView(content)
         return card to content

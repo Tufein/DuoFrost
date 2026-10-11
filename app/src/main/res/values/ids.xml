@@ -2,5 +2,6 @@
 <resources>
     <item name="appProfileDefaultSwitch" type="id" />
     <item type="id" name="gui_textRole" />
+    <item type="id" name="gui_presetIdentity" />
 </resources>
 

@@ -108,8 +108,10 @@ import io.github.tufein.duofrost.ui.AnimatedRainbowDrawable
 import io.github.tufein.duofrost.ui.DuoFrostAlertDialog
 import io.github.tufein.duofrost.ui.ColorPickerDialog
 import io.github.tufein.duofrost.ui.LockableHorizontalScrollView
+import io.github.tufein.duofrost.ui.PresetCardView
 import io.github.tufein.duofrost.ui.PresetLibraryUi
 import io.github.tufein.duofrost.ui.PresetImportReviewDialog
+import io.github.tufein.duofrost.ui.UiPalette
 import io.github.tufein.duofrost.ui.EditorDraftCodec
 import io.github.tufein.duofrost.ui.RagnarokWarningDialog
 import kotlin.math.PI
@@ -1185,6 +1187,7 @@ class MainActivity : AppCompatActivity() {
         applyThemeToViewTree(settingsOverlay, theme)
         applyHeaderLogoPreference()
         updateSettingsTabButtonStyles()
+        libraryUi.setThemeColors(theme.accentLightColor, theme.surfaceColor, theme.textColor, theme.cardColor)
         refreshCoverFlowFromPresets()
         if (::colorButton.isInitialized) {
             setSwatchColor(colorButton, selectedColor)
@@ -1206,8 +1209,7 @@ class MainActivity : AppCompatActivity() {
     private fun themeOutline(): Int = ColorUtils.blendARGB(selectedUiTheme.cardColor, selectedUiTheme.textColor, 0.24f)
 
     private fun contrastText(background: Int): Int {
-        val opaque = ColorUtils.compositeColors(background, selectedUiTheme.cardColor)
-        return if (ColorUtils.calculateContrast(Color.WHITE, opaque) >= 4.5) Color.WHITE else Color.BLACK
+        return UiPalette.foreground(background, selectedUiTheme.cardColor)
     }
 
     private fun applyThemeToViewTree(view: View, theme: UiTheme) {
@@ -1219,10 +1221,13 @@ class MainActivity : AppCompatActivity() {
                 view.strokeColor = outline
             }
             is MaterialButton -> {
-                view.backgroundTintList = ColorStateList.valueOf(theme.surfaceColor)
-                view.setTextColor(theme.textColor)
-                view.iconTint = ColorStateList.valueOf(theme.textColor)
-                view.strokeColor = ColorStateList.valueOf(outline)
+                val primary = view.id == R.id.gui_editLightingButton || view.id == R.id.gui_newPresetButton
+                val background = if (primary) theme.accentLightColor else theme.surfaceColor
+                val foreground = if (primary) contrastText(background) else theme.textColor
+                view.backgroundTintList = ColorStateList.valueOf(background)
+                view.setTextColor(foreground)
+                view.iconTint = ColorStateList.valueOf(foreground)
+                view.strokeColor = ColorStateList.valueOf(if (primary) background else outline)
                 view.isAllCaps = false
                 view.minimumHeight = dpToPx(48)
             }
@@ -1666,6 +1671,10 @@ class MainActivity : AppCompatActivity() {
         val visibleIndices = indices.take(libraryVisibleLimit)
         libraryUi.render()
         val auto = ::appProfileManager.isInitialized && appProfileManager.isEnabled
+        val focused = presetCoverFlowContainer.findFocus()
+        val focusedCard = if (focused is MaterialCardView) focused else focused?.parent as? MaterialCardView
+        val focusedPresetId = focusedCard?.getTag(R.id.gui_presetIdentity) as? String
+        val focusedOptions = focused is MaterialButton
         presetCoverFlowContainer.removeAllViews()
         selectedCoverFlowIndex = if (auto) {
             presets.indexOfFirst { it.name == prefs.getString(PREF_KEY_LAST_PRESET, null) }.takeIf { it >= 0 } ?: presetSpinner.selectedItemPosition
@@ -1682,88 +1691,40 @@ class MainActivity : AppCompatActivity() {
         findViewById<View>(R.id.gui_emptySearch).visibility = if (indices.isEmpty()) View.VISIBLE else View.GONE
         presetCoverFlowScroll.visibility = if (indices.isEmpty()) View.GONE else View.VISIBLE
         findViewById<TextView>(R.id.gui_libraryHint).setText(if (auto) R.string.gui_app_profiles_on else R.string.gui_preset_hint)
+        val palette = PresetCardView.Palette(
+            selectedUiTheme.surfaceColor, selectedUiTheme.textColor,
+            ColorUtils.blendARGB(selectedUiTheme.textColor, selectedUiTheme.cardColor, 0.25f),
+            selectedUiTheme.accentLightColor, themeOutline()
+        )
+        presetCoverFlowScroll.layoutParams = presetCoverFlowScroll.layoutParams.apply {
+            height = dpToPx(PresetCardView.heightDp(this@MainActivity) + 8)
+        }
         visibleIndices.forEach { index ->
             val preset = presets[index]
-            val effect = effectLabel(preset.animationType.name)
-            val card = MaterialCardView(this).apply {
-                tag = index
-                layoutParams = LinearLayout.LayoutParams(dpToPx(160), dpToPx(176)).apply { marginEnd = dpToPx(12) }
-                radius = dpToPx(16).toFloat()
-                cardElevation = 0f
-                setCardBackgroundColor(selectedUiTheme.surfaceColor)
-                isClickable = true
-                isFocusable = true
-                contentDescription = getString(R.string.gui_edit_preset_accessibility, preset.name, effect)
-                setOnClickListener {
-                    if (!appProfileManager.isEnabled) selectPresetFromCoverFlow(index, animate = false)
-                }
-                setOnLongClickListener {
+            presetCoverFlowContainer.addView(PresetCardView.create(
+                context = this,
+                preset = preset,
+                storageIndex = index,
+                effect = effectLabel(preset.animationType.name),
+                favorite = libraryUi.isFavorite(preset.id),
+                palette = palette,
+                onSelect = { if (!appProfileManager.isEnabled) selectPresetFromCoverFlow(index, animate = false) },
+                onEdit = {
                     setSettingsTab(SettingsTab.UI)
                     presetController.selectPresetForEditing(index)
                     selectPresetFromCoverFlow(index, animate = false, applyPreset = false)
                     openSettingsOverlay()
-                    true
-                }
-                setOnFocusChangeListener { _, _ -> updateCoverFlowCardTransforms() }
-            }
-            val content = LinearLayout(this).apply {
-                orientation = LinearLayout.VERTICAL
-                gravity = android.view.Gravity.CENTER
-                setPadding(dpToPx(12), dpToPx(12), dpToPx(12), dpToPx(12))
-                importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO_HIDE_DESCENDANTS
-                layoutParams = ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT)
-            }
-            val artwork = FrameLayout(this).apply { layoutParams = LinearLayout.LayoutParams(dpToPx(56), dpToPx(56)) }
-            val icon = ImageView(this).apply { layoutParams = FrameLayout.LayoutParams(-1, -1) }
-            val emoji = TextView(this).apply { textSize = 38f; gravity = android.view.Gravity.CENTER; layoutParams = FrameLayout.LayoutParams(-1, -1) }
-            PresetVisuals.bind(this, PresetVisuals.fromPreset(preset), icon, emoji, dpToPx(56))
-            artwork.addView(icon)
-            artwork.addView(emoji)
-            content.addView(artwork)
-            content.addView(TextView(this).apply {
-                text = preset.name
-                textSize = 16f
-                setTextColor(selectedUiTheme.textColor)
-                gravity = android.view.Gravity.CENTER
-                maxLines = 2
-                ellipsize = TextUtils.TruncateAt.END
-                layoutParams = LinearLayout.LayoutParams(-1, -2).apply { topMargin = dpToPx(12) }
-            })
-            content.addView(TextView(this).apply {
-                text = effect
-                textSize = 13f
-                setTextColor(ColorUtils.blendARGB(selectedUiTheme.textColor, selectedUiTheme.cardColor, 0.25f))
-                gravity = android.view.Gravity.CENTER
-                maxLines = 1
-                ellipsize = TextUtils.TruncateAt.END
-                layoutParams = LinearLayout.LayoutParams(-1, -2).apply { topMargin = dpToPx(4) }
-            })
-            card.addView(content)
-            if (libraryUi.isFavorite(preset.id)) {
-                card.addView(TextView(this).apply {
-                    text = "★"
-                    textSize = 20f
-                    setTextColor(selectedUiTheme.accentColor)
-                    gravity = android.view.Gravity.CENTER
-                    importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
-                    layoutParams = FrameLayout.LayoutParams(dpToPx(32), dpToPx(32), android.view.Gravity.TOP or android.view.Gravity.START)
-                })
-            }
-            card.addView(MaterialButton(this, null, com.google.android.material.R.attr.borderlessButtonStyle).apply {
-                tag = "preset-options-${preset.id}"
-                text = "⋮"
-                textSize = 22f
-                insetTop = 0
-                insetBottom = 0
-                minimumWidth = 0
-                minimumHeight = dpToPx(48)
-                setPadding(0, 0, 0, 0)
-                setTextColor(selectedUiTheme.textColor)
-                contentDescription = getString(R.string.library_actions, preset.name)
-                layoutParams = FrameLayout.LayoutParams(dpToPx(48), dpToPx(48), android.view.Gravity.TOP or android.view.Gravity.END)
-                setOnClickListener { libraryUi.showActions(preset) }
-            })
-            presetCoverFlowContainer.addView(card)
+                },
+                onOptions = { libraryUi.showActions(preset) },
+                onFocusChanged = { updateCoverFlowCardTransforms() }
+            ))
+        }
+        if (focusedPresetId != null) {
+            val replacement = (0 until presetCoverFlowContainer.childCount)
+                .map { presetCoverFlowContainer.getChildAt(it) }
+                .firstOrNull { it.getTag(R.id.gui_presetIdentity) == focusedPresetId }
+            if (focusedOptions) replacement?.findViewWithTag<View>("preset-options-$focusedPresetId")?.requestFocus()
+            else replacement?.requestFocus()
         }
         updateCoverFlowCardTransforms()
         syncAppProfileDefaultSwitch()
@@ -1795,24 +1756,24 @@ class MainActivity : AppCompatActivity() {
     private fun selectPresetFromCoverFlow(index: Int, animate: Boolean, applyPreset: Boolean = true) {
         if (!::presetController.isInitialized) return
         if (applyPreset && ::appProfileManager.isInitialized && appProfileManager.isEnabled) return
-         val presets = presetController.getPresets()
-         if (presets.isEmpty()) return
- 
-         val selectedIndex = index.coerceIn(0, presets.lastIndex)
-         selectedCoverFlowIndex = selectedIndex
-         val selectedPreset = presets[selectedIndex]
- 
-         activePresetNameText.text = selectedPreset.name
-         activePresetAnimationText.text = formatCardAnimationLabel(selectedPreset.animationType.name)
-         activePresetProfileText.text = formatCardProfileLabel(selectedPreset.performanceProfile.name)
- 
-         centerPresetCard(selectedIndex, animate)
-         updateCoverFlowCardTransforms()
- 
+        val presets = presetController.getPresets()
+        if (presets.isEmpty()) return
+
+        val selectedIndex = index.coerceIn(0, presets.lastIndex)
+        selectedCoverFlowIndex = selectedIndex
+        val selectedPreset = presets[selectedIndex]
+
+        activePresetNameText.text = selectedPreset.name
+        activePresetAnimationText.text = formatCardAnimationLabel(selectedPreset.animationType.name)
+        activePresetProfileText.text = formatCardProfileLabel(selectedPreset.performanceProfile.name)
+
+        centerPresetCard(selectedIndex, animate)
+        updateCoverFlowCardTransforms()
+
         if (applyPreset) {
             presetController.applyPresetAt(selectedIndex)
         }
-     }
+    }
 
     private fun centerPresetCard(index: Int, animate: Boolean) {
         val card = (0 until presetCoverFlowContainer.childCount).map { presetCoverFlowContainer.getChildAt(it) }.firstOrNull { it.tag == index } ?: return

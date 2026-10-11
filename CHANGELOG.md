@@ -1,9 +1,53 @@
 # DuoFrost changelog
 
+## 2.5.0 — full release
+
+Published on 2026-10-11. This stable release brings together the interface work
+from 2.3.0 and the tested 2.5.0 alphas, with final visual and reliability improvements.
+Earlier releases, including original Version 2, remain available.
+
+- **Polished interface:** a clearer dashboard, preset cards, primary actions and
+  filters, with layouts for narrow and wide windows and short landscape screens.
+  Searching and organising leave lighting unchanged; tap a preset to apply it
+  when manual switching is active.
+- **Smart Scenes:** combine apps, game groups, hours, weekdays, battery and
+  charging conditions. Choose a preset or apply a brightness-only limit. The
+  dashboard explains the active choice; temporary preset holds last 15, 30, 60
+  or 120 minutes and re-evaluate current conditions when they end.
+- **Preset library:** favourites appear first, named collections combine with
+  search, and large libraries load 40 matching cards at a time. Stable preset
+  identities preserve new scene links through renames.
+- **Effect previews:** see saved colours and supported animations without
+  applying lighting or requesting capture. Live-input and flashing effects use
+  explained still illustrations; disabled system animations are respected.
+- **Import review:** select wanted presets, add separate copies, replace matching
+  user presets or skip conflicts. Managed app/plugin presets are protected.
+  App assignments are optional and off by default.
+- **Temporary undo:** recover one eligible import or deletion for ten minutes,
+  including library organisation and app assignments. Later relevant changes
+  are preserved, and artwork needed for recovery is retained.
+- **Stability and backups:** calmer app/game scene switching, safer handling of
+  damaged preset data and fewer repeated settings reads. Profile backups include
+  scene rules, app groups, favourites and collections.
+- **Final reliability fixes:** failed preset saves show an error and keep the
+  saved library intact. Damaged scene data is protected from replacement, and
+  invalid restored automation settings no longer crash app detection.
+- **Hidden feature — tidy Recent apps:** the app window stays out of Recent apps;
+  reopen DuoFrost from its icon and use Start/Stop to control lighting.
+
+The maintainer reported successful device testing before requesting the full
+release. Build and update verification is recorded in [technical.md](technical.md).
+Production 2.1.0, 2.3.0 and the 2.5.0 alphas update in place. Original Version 1
+and Version 2 need the [one-time backup and reinstall procedure](README.md).
+
+[Release and APK](https://github.com/Tufein/DuoFrost/releases/tag/v2.5.0) ·
+[User guide](docs/2.5.0.md) · [Roadmap](docs/roadmap-2.5.0.md).
+
 ## 2.5.0-alpha.2 — pre-release
 
 The second testing build toward 2.5.0, published as a pre-release on 2026-10-10.
-Earlier releases remain available; 2.1.0 is still the latest stable release.
+Earlier releases remain available; 2.1.0 was the latest stable release when this
+alpha was published.
 
 - **Preset library:** favourites appear first, named collections work with search,
   and each card has an options menu for previewing, organising and editing.
@@ -50,7 +94,10 @@ The first testing build toward 2.5.0, published as a pre-release on 2026-10-10.
 
 ## 2.3.0 pre-release
 
-An interface update for testing before the next full release. Version 2.1.0 remains the latest stable release. The interface refresh and landscape work prepared as 2.2.0 were combined and are published together as 2.3.0; 2.2.0 remained an unpublished preview.
+An interface update for testing before the next full release. Version 2.1.0 was
+the latest stable release when this pre-release was published. The interface
+refresh and landscape work prepared as 2.2.0 were combined and published together
+as 2.3.0; 2.2.0 remained an unpublished preview.
 
 - A clear lighting dashboard with direct output, mute, timer and capture controls.
 - A searchable preset library with readable cards, visible selection and keyboard focus. Browsing or searching never applies a preset.

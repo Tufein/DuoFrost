@@ -10,8 +10,7 @@ DuoFrost is based on BiFrost 1.3.1, commit `1baddf1`, with the original Git hist
 authorship and GPLv3 license retained. Version 1 corresponds to the original
 DuoFrost 1.0.0 build. The original Version 2 remains available under tag `v2`,
 with Android version `1.5.1` and version code `22`. The separate fix update
-ships Android version `2.1.0`, version code `23`, under tag `v2.1.0` as the
-latest full release. It builds on Version 2 with the audio, preset, export and
+ships Android version `2.1.0`, version code `23`, under tag `v2.1.0` as a separate full release. It builds on Version 2 with the audio, preset, export and
 custom-timer improvements below.
 
 The original `v2` publication contained the signed `1.5.1` APK (code `22`), built
@@ -23,6 +22,30 @@ checksums were restored byte-for-byte from the local archive; the original
 object was archived before the tag was finalized for the public release.
 Intermediate development releases are archived locally by the maintainer and
 removed from the public release list. Their implementation remains in Git history.
+
+## DuoFrost 2.5.0 full release — 2026-10-11
+
+Version `2.5.0`, code `28`, consolidates the tested 2.3.0 interface and both
+2.5.0 alphas into a full release. It retains the production application ID and
+2.1.0 signing certificate. Older release tags and downloads remain available.
+See [the user guide](docs/2.5.0.md) and [Reddit draft](docs/reddit-2.5.0.md).
+
+The home screen distinguishes its primary editing/creation actions, applies
+contrast-safe library filter colours under both built-in palettes, and restores
+controller focus when filters or preset cards are rebuilt. `PresetCardView`
+separates rendering from MainActivity's lighting/editor actions. Saved colour
+samples are decorative; adaptive card height gives larger text more space.
+Shared utility screens follow the same button, border and typography treatment.
+
+Repository save refusal propagates through the preset controller before selection,
+service dispatch or artwork removal. Scene and app-profile policies reject or
+safely read damaged/wrong-typed preference values. Persistent scene documents
+remain intact and read-only when their format cannot be understood.
+
+The maintainer reported successful device tests of the preceding development
+build on 2026-10-11 and requested this full release. No specific device/firmware
+matrix or measured battery cost was supplied. Final automated verification and
+the exact signed APK update record are recorded below once packaging completes.
 
 ## DuoFrost 2.5.0-alpha.2 pre-release
 
@@ -105,8 +128,8 @@ revision changed after committing the reviewed source, followed by a fresh signa
 and exact-APK update check.
 
 Physical LED output, capture switching, battery cost and firmware-specific behavior
-remain unverified in the emulator and require AYN device testing before the final
-2.5.0 release.
+remain unverified in the emulator and were outside the alpha.2 emulator verification. The maintainer later reported
+successful device tests on 2026-10-11; see the stable release record below.
 
 ## DuoFrost 2.5.0-alpha.1 pre-release
 
@@ -180,8 +203,7 @@ hardware validation before a final release.
 
 ## DuoFrost 2.3.0 pre-release
 
-Version `2.3.0`, version code `25`, is a pre-release; the latest stable public
-release remains `2.1.0`. It combines the interface refresh (dashboard, searchable
+Version `2.3.0`, version code `25`, remains a historical pre-release. It combines the interface refresh (dashboard, searchable
 preset library, four editor destinations; see [docs/gui-refresh.md](docs/gui-refresh.md))
 with the landscape work that was prepared separately as `2.2.0`. `2.2.0` was not
 published as a public release. The refresh's own responsive home layout replaces
@@ -250,13 +272,14 @@ verify physical AYN LED output or firmware-specific process management.
   `a0402863156665d4c6401bbb4a632c574978aca7000281196fc3cfa2cfc3b201`.
 - Production version `2.1.0` uses this new signing certificate SHA-256:
   `0863ff52a003ec13c5997f8f23fe24fd69f4118c0644506641edd198d87aaa2d`.
-- Latest stable production version: `2.1.0`, version code `23`, tag `v2.1.0`.
+- Latest stable production version: `2.5.0`, version code `28`, tag `v2.5.0`.
+- Previous stable production version: `2.1.0`, version code `23`, tag `v2.1.0`.
 - Previous production pre-release: `2.3.0`, version code `25`, tag `v2.3.0`.
 - Previous production pre-release: `2.5.0-alpha.1`, version code `26`, tag `v2.5.0-alpha.1`.
-- Current production pre-release: `2.5.0-alpha.2`, version code `27`, tag `v2.5.0-alpha.2`.
+- Previous production pre-release: `2.5.0-alpha.2`, version code `27`, tag `v2.5.0-alpha.2`.
   Future updates must increment the version code and retain the new release key.
   The published 2.3.0 debug APK displays `2.3.0-debug`. The current development
-  debug APK displays `2.5.0-alpha.2-debug`; both install separately from production.
+  debug APK displays `2.5.0-debug`; both install separately from production.
 
 ### One-time signing migration
 

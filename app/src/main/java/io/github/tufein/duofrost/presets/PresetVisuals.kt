@@ -167,7 +167,10 @@ object PresetImageStorage {
 
     fun deleteIfExists(context: Context, fileName: String?) {
         if (fileName.isNullOrBlank()) return
-        resolveFile(context, fileName).takeIf { it.exists() }?.delete()
+        // Invalid archive references must never delete outside private artwork
+        // storage or crash a preset edit that has already been saved.
+        runCatching { resolveFile(context, fileName) }.getOrNull()
+            ?.takeIf { it.exists() }?.delete()
     }
 
     fun openIconInputStream(context: Context, fileName: String): InputStream? {

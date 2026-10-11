@@ -10,6 +10,7 @@ import android.widget.ArrayAdapter
 import android.widget.ImageView
 import android.widget.Spinner
 import android.widget.TextView
+import android.widget.Toast
 import androidx.annotation.LayoutRes
 import androidx.appcompat.app.AppCompatActivity
 import com.google.android.material.button.MaterialButton
@@ -141,7 +142,7 @@ class PresetController(
         val selectedName = presets.getOrNull(selectedIndex)?.name
         presets.clear()
         presets.addAll(plan.finalPresets)
-        savePresetsToPrefs()
+        if (!savePresetsToPrefs()) return@synchronized false
         if (repository.list() != presets) {
             reloadFromPrefs(refreshSpinner = true)
             return@synchronized false
@@ -176,7 +177,7 @@ class PresetController(
         if (!changed) return false
 
         val selectedName = presets.getOrNull(selectedIndex)?.name
-        savePresetsToPrefs()
+        if (!savePresetsToPrefs()) return false
         refreshPresetSpinner(selectedName)
         return true
     }
@@ -220,7 +221,7 @@ class PresetController(
         val movedPreset = presets.removeAt(fromIndex)
         presets.add(toIndex, movedPreset)
 
-        savePresetsToPrefs()
+        if (!savePresetsToPrefs()) return false
         saveLastPresetName(selectedPresetName ?: movedPreset.name)
         refreshPresetSpinner(selectedPresetName ?: movedPreset.name)
         return true
@@ -231,14 +232,14 @@ class PresetController(
 
         val selectedPresetName = presets.getOrNull(selectedIndex)?.name
         val updatedPreset = transform(presets[index]).copy(id = presets[index].id)
-        replacePreset(
+        val saved = replacePreset(
             index = index,
             updatedPreset = updatedPreset,
             applyToUi = false,
             notifyPresetApplied = false,
             selectedNameAfterSave = selectedPresetName ?: updatedPreset.name
         )
-        return updatedPreset
+        return updatedPreset.takeIf { saved }
     }
 
     fun markRagnarokAccepted(name: String?) {
@@ -269,14 +270,13 @@ class PresetController(
             id = current.id
         )
 
-        replacePreset(
+        return replacePreset(
             index = selectedIndex,
             updatedPreset = updated,
             applyToUi = false,
             notifyPresetApplied = false,
             selectedNameAfterSave = current.name
         )
-        return true
     }
 
     fun hasUnsavedChangesForSelectedPreset(): Boolean {
@@ -340,11 +340,20 @@ class PresetController(
 
     private fun loadPresetsFromPrefs(): MutableList<LedPreset> = repository.list().toMutableList()
 
-    private fun savePresetsToPrefs() {
+    private fun savePresetsToPrefs(): Boolean {
+        val selectedName = presets.getOrNull(selectedIndex)?.name
+        val selectedId = presets.getOrNull(selectedIndex)?.id
         val saved = repository.save(presets)
         presets.clear()
-        presets.addAll(saved)
+        presets.addAll(saved ?: repository.list())
+        if (saved == null) {
+            refreshPresetSpinner(selectedName, selectedId)
+            onLibraryChanged()
+            Toast.makeText(activity, "Presets could not be saved. Restore a backup and try again.", Toast.LENGTH_LONG).show()
+            return false
+        }
         io.github.tufein.duofrost.widgets.DuoFrostWidget.refreshFrom(activity)
+        return true
     }
 
     private fun saveLastPresetName(name: String) {
@@ -359,12 +368,11 @@ class PresetController(
                 isAppProfileDefault = true
             )
             presets.add(defaultPreset)
-            savePresetsToPrefs()
-            saveLastPresetName(defaultPreset.name)
+            if (savePresetsToPrefs()) saveLastPresetName(defaultPreset.name)
             return defaultPreset
         }
 
-        val last = prefs.getString(PREF_KEY_LAST_PRESET, null)
+        val last = prefs.all[PREF_KEY_LAST_PRESET] as? String
         if (last != null) {
             val found = presets.firstOrNull { it.name == last }
             if (found != null) return found
@@ -433,7 +441,7 @@ class PresetController(
 
         presets.add(newPreset)
         val newIndex = presets.lastIndex
-        savePresetsToPrefs()
+        if (!savePresetsToPrefs()) return -1
         saveLastPresetName(unique)
         refreshPresetSpinner(unique)
         onLibraryChanged()
@@ -466,10 +474,6 @@ class PresetController(
             val desiredName = rawName.ifBlank { current.name }
             val finalName = ensureUniqueNameForUpdate(desiredName, selectedIndex)
 
-            if (finalName != current.name) {
-                onPresetRenamed(current.name, finalName)
-            }
-
             val final = base.copy(
                 name = finalName,
                 isAppProfileDefault = current.isAppProfileDefault,
@@ -487,7 +491,10 @@ class PresetController(
                 updatedPreset = final,
                 applyToUi = true,
                 notifyPresetApplied = true,
-                selectedNameAfterSave = finalName
+                selectedNameAfterSave = finalName,
+                onSaved = {
+                    if (finalName != current.name) onPresetRenamed(current.name, finalName)
+                }
             )
         }
     }
@@ -509,15 +516,18 @@ class PresetController(
         updatedPreset: LedPreset,
         applyToUi: Boolean,
         notifyPresetApplied: Boolean,
-        selectedNameAfterSave: String = updatedPreset.name
-    ) {
-        if (index !in presets.indices) return
+        selectedNameAfterSave: String = updatedPreset.name,
+        onSaved: () -> Unit = {}
+    ): Boolean {
+        if (index !in presets.indices) return false
 
         val previousPreset = presets[index]
-        cleanupReplacedImage(index, previousPreset, updatedPreset)
-
         presets[index] = updatedPreset.copy(id = previousPreset.id)
-        savePresetsToPrefs()
+        if (!savePresetsToPrefs()) return false
+        // Name-based app/game/widget references must follow a successful rename
+        // before the refreshed UI prunes assignments to now-missing names.
+        onSaved()
+        cleanupReplacedImage(index, previousPreset, updatedPreset)
         saveLastPresetName(selectedNameAfterSave)
         refreshPresetSpinner(selectedNameAfterSave)
 
@@ -530,6 +540,7 @@ class PresetController(
         if (notifyPresetApplied) {
             onPresetApplied()
         }
+        return true
     }
 
     private fun cleanupReplacedImage(index: Int, previousPreset: LedPreset, updatedPreset: LedPreset) {
@@ -615,8 +626,8 @@ class PresetController(
                     if (deleteIndex < 0) return@synchronized null
                     val before = undoStore.captureSnapshot()
                     presets.removeAt(deleteIndex)
+                    if (!savePresetsToPrefs()) return@synchronized null
                     libraryStore.removePreset(preset.id)
-                    savePresetsToPrefs()
                     nextPreset = presets.getOrNull(deleteIndex.coerceAtMost((presets.size - 1).coerceAtLeast(0)))
                     saveLastPresetName(nextPreset?.name.orEmpty())
                     refreshPresetSpinner(nextPreset?.name, nextPreset?.id)
@@ -660,17 +671,21 @@ class PresetController(
         val recorded = synchronized(prefs) {
             reloadFromPrefs()
             val before = undoStore.captureSnapshot()
-            libraryStore.removePresets(presets.map { it.id }.toSet())
+            val removedIds = presets.map { it.id }.toSet()
+            val defaultPreset = getCurrentConfig().copy(
+                id = PresetIdentity.newId(), name = "Default", isAppProfileDefault = true
+            )
             presets.clear()
-            savePresetsToPrefs()
-            saveLastPresetName("")
+            presets.add(defaultPreset)
+            if (!savePresetsToPrefs()) return@synchronized null
+            libraryStore.removePresets(removedIds)
+            saveLastPresetName(defaultPreset.name)
             // Keep a usable editor after deleting the entire library.
-            val defaultPreset = resolveInitialPreset(getCurrentConfig())
             refreshPresetSpinner(defaultPreset.name, defaultPreset.id)
             before?.let { undoStore.record(PresetUndoStore.Action.DELETE, it) }
                 ?: PresetUndoStore.RecordResult.INVALID_SNAPSHOT
-        }
-        val defaultPreset = presets.first()
+        } ?: return
+        val defaultPreset = presets.firstOrNull() ?: return
         markIsUpdatingFromPreset(true)
         applyPresetToUi(defaultPreset)
         markIsUpdatingFromPreset(false)

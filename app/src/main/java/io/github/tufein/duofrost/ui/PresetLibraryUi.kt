@@ -2,6 +2,7 @@ package io.github.tufein.duofrost.ui
 
 import android.content.Intent
 import android.content.SharedPreferences
+import android.content.res.ColorStateList
 import android.os.Bundle
 import android.text.InputFilter
 import android.widget.LinearLayout
@@ -9,6 +10,7 @@ import android.widget.Toast
 import android.view.View
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.graphics.ColorUtils
 import com.google.android.material.button.MaterialButton
 import com.google.android.material.chip.Chip
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
@@ -33,6 +35,17 @@ internal class PresetLibraryUi(
     private val undo = PresetUndoStore(prefs)
     private var favoritesOnly = false
     private var collectionId: String? = null
+    private var accentColor = SecondaryScreenUi.color(activity, R.color.bifrost_accent_light)
+    private var surfaceColor = SecondaryScreenUi.color(activity, R.color.bifrost_surface)
+    private var textColor = SecondaryScreenUi.color(activity, R.color.bifrost_text)
+    private var cardColor = SecondaryScreenUi.color(activity, R.color.bifrost_card)
+
+    fun setThemeColors(accent: Int, surface: Int, text: Int, card: Int) {
+        accentColor = accent
+        surfaceColor = surface
+        textColor = text
+        cardColor = card
+    }
 
     fun bind() {
         activity.findViewById<MaterialButton>(R.id.gui_libraryCollections).setOnClickListener { showCollections() }
@@ -55,18 +68,43 @@ internal class PresetLibraryUi(
     fun render() {
         val state = store.state()
         val row = activity.findViewById<LinearLayout>(R.id.gui_libraryFilters)
-        val focusedFilter = row.findFocus()?.tag
+        val oldFocus = row.findFocus()
+        val focusedFilter = oldFocus?.tag
+        val touchModeFocus = oldFocus?.isFocusableInTouchMode == true
         row.removeAllViews()
+        var replacementFocus: Chip? = null
         fun chip(filterId: String, label: String, checked: Boolean, choose: () -> Unit) {
-            row.addView(Chip(activity).apply {
+            val chip = Chip(activity).apply {
                 tag = filterId
                 text = label
                 isCheckable = true
                 isChecked = checked
+                isCheckedIconVisible = true
+                chipBackgroundColor = ColorStateList(
+                    arrayOf(intArrayOf(android.R.attr.state_checked), intArrayOf()),
+                    intArrayOf(accentColor, surfaceColor)
+                )
+                val selectedText = UiPalette.foreground(accentColor, cardColor)
+                val foregrounds = ColorStateList(
+                    arrayOf(intArrayOf(android.R.attr.state_checked), intArrayOf()),
+                    intArrayOf(selectedText, textColor)
+                )
+                setTextColor(foregrounds)
+                checkedIconTint = foregrounds
+                chipStrokeColor = ColorStateList.valueOf(ColorUtils.blendARGB(cardColor, textColor, 0.24f))
+                chipStrokeWidth = SecondaryScreenUi.dp(activity, 1).toFloat()
+                chipCornerRadius = SecondaryScreenUi.dp(activity, 14).toFloat()
+                layoutParams = LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT
+                ).apply { marginEnd = SecondaryScreenUi.dp(activity, 4) }
                 ensureAccessibleTouchTarget(SecondaryScreenUi.dp(activity, 48))
                 setOnClickListener { choose(); onChanged() }
-                if (focusedFilter == filterId) requestFocus()
-            })
+                if (focusedFilter == filterId) {
+                    isFocusableInTouchMode = touchModeFocus
+                    replacementFocus = this
+                }
+            }
+            row.addView(chip)
         }
         chip("library-all", activity.getString(R.string.library_all), !favoritesOnly && collectionId == null) {
             favoritesOnly = false; collectionId = null
@@ -77,6 +115,8 @@ internal class PresetLibraryUi(
         state.collections.forEach { collection ->
             chip(collection.id, collection.name, collectionId == collection.id) { favoritesOnly = false; collectionId = collection.id }
         }
+        // Request controller focus only after the replacement belongs to the live view tree.
+        replacementFocus?.requestFocus()
         activity.findViewById<MaterialButton>(R.id.gui_libraryUndo).apply {
             val pending = undo.pending()
             visibility = if (pending == null) View.GONE else View.VISIBLE

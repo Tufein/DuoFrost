@@ -15,8 +15,8 @@ android {
         applicationId = "io.github.tufein.duofrost"
         minSdk = 33
         targetSdk = 36
-        versionCode = 27
-        versionName = "2.5.0-alpha.2"
+        versionCode = 28
+        versionName = "2.5.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
