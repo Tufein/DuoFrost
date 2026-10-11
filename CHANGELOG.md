@@ -31,7 +31,8 @@ Earlier releases, including original Version 2, remain available.
   scene rules, app groups, favourites and collections.
 - **Final reliability fixes:** failed preset saves show an error and keep the
   saved library intact. Damaged scene data is protected from replacement, and
-  invalid restored automation settings no longer crash app detection.
+  invalid restored automation settings no longer crash app detection. Renaming
+  preserves Game Scene links, and invalid artwork paths cannot break cleanup.
 - **Hidden feature — tidy Recent apps:** the app window stays out of Recent apps;
   reopen DuoFrost from its icon and use Start/Stop to control lighting.
 

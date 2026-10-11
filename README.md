@@ -14,7 +14,7 @@ An independent, open-source continuation of
 [Release notes](https://github.com/Tufein/DuoFrost/releases/tag/v2.5.0) ·
 [User guide](docs/2.5.0.md) · [Report a problem](https://github.com/Tufein/DuoFrost/issues)
 
-![DuoFrost lighting dashboard and preset library](assets/screenshots/home.png)
+![DuoFrost lighting dashboard and preset library](assets/screenshots/2.5.0-dashboard.png)
 
 *App interface captured in an Android emulator; sample presets shown.*
 

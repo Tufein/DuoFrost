@@ -44,8 +44,36 @@ remain intact and read-only when their format cannot be understood.
 
 The maintainer reported successful device tests of the preceding development
 build on 2026-10-11 and requested this full release. No specific device/firmware
-matrix or measured battery cost was supplied. Final automated verification and
-the exact signed APK update record are recorded below once packaging completes.
+matrix or measured battery cost was supplied. Final automated verification is separate from that maintainer report.
+
+### Stable release verification
+
+The final source passed **376 JVM tests** with no failures, errors or skipped
+tests, plus **28 Android instrumentation tests** on an isolated Android 15/API 35
+emulator. Coverage includes genuine asynchronous rename confirmation, callback
+ordering and preserved Game Scene/app assignments, rejected saves and retained
+artwork/metadata, scene document protection, actual import/cancel/undo flows,
+original-index selection, both built-in palette contrast and controller focus.
+Critical release lint and optimized production assembly passed.
+[GitHub Actions](https://github.com/Tufein/DuoFrost/actions/runs/38128115236) also
+passed for the packaged source commit.
+
+The signed, non-debuggable APK declares version `2.5.0` (code `28`), verifies with
+APK Signature Scheme v2 and certificate
+`0863ff52a003ec13c5997f8f23fe24fd69f4118c0644506641edd198d87aaa2d`.
+It records source commit `d93bdd4` and has SHA-256
+`aee4923701711768ade920cdb8c6fea24e795ad1f58c64a65b886b1499b9fd09`
+(size 3,300,681 bytes). Only documentation/screenshots changed after packaging.
+
+Installing that exact production APK over signed alpha.2 preserved the exact
+preset, scene-rule, app-group, favourites/collection and app-assignment JSON,
+the 24% brightness ceiling and stopped lighting. The same certificate permits
+in-place updates from production 2.1.0 and 2.3.0 as well.
+
+Visual inspection used the signed release with sample presets in a landscape
+window and at 200% system text. Cards expand for larger labels and decorative
+symbols retain their size. Screenshots are emulator captures. Automated checks
+do not independently verify physical LEDs, OEM capture behavior or battery cost.
 
 ## DuoFrost 2.5.0-alpha.2 pre-release
 
