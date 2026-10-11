@@ -2,9 +2,11 @@ package io.github.tufein.duofrost
 
 import android.content.Context
 import android.content.SharedPreferences
-import android.view.View
+import android.content.DialogInterface
+import android.os.Looper
 import android.widget.Spinner
 import androidx.appcompat.app.AppCompatActivity
+import androidx.appcompat.app.AlertDialog
 import com.google.android.material.button.MaterialButton
 import com.google.android.material.textfield.TextInputEditText
 import io.github.tufein.duofrost.animations.LedAnimationType
@@ -16,6 +18,7 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.Robolectric
 import org.robolectric.RobolectricTestRunner
+import org.robolectric.Shadows.shadowOf
 import org.robolectric.annotation.Config
 import org.robolectric.shadows.ShadowDialog
 import java.io.File
@@ -108,13 +111,14 @@ class PresetControllerPersistenceTest {
     }
 
     @Test fun refusedRenameDoesNotApplyLightingOrRenameAssignments() {
-        modifyButton.performClick()
-        val dialog = ShadowDialog.getLatestDialog()!!
+        assertTrue(modifyButton.performClick())
+        val dialog = ShadowDialog.getLatestDialog() as AlertDialog
         dialog.findViewById<TextInputEditText>(R.id.presetNameInput).setText("Renamed")
         prefs.edit().putString("presets_json", "damaged snapshot").commit()
-        dialog.findViewById<View>(android.R.id.button1).performClick()
+        confirmRename(dialog)
         assertEquals("damaged snapshot", prefs.all["presets_json"])
         assertEquals("Ocean", prefs.all["last_preset_name"])
+        assertTrue("Refused save must execute and reload the damaged library", controller.getPresets().isEmpty())
         assertEquals(0, renamedCount)
         assertEquals(0, appliedCount)
         assertEquals("Only the initial editor load should apply UI values", 1, uiAppliedCount)
@@ -142,10 +146,10 @@ class PresetControllerPersistenceTest {
         profileManager.setGameScenePreset(saved.name)
         profileManager.isGameSceneEnabled = true
         callbacks.clear()
-        modifyButton.performClick()
-        val dialog = ShadowDialog.getLatestDialog()!!
+        assertTrue(modifyButton.performClick())
+        val dialog = ShadowDialog.getLatestDialog() as AlertDialog
         dialog.findViewById<TextInputEditText>(R.id.presetNameInput).setText("Renamed")
-        dialog.findViewById<View>(android.R.id.button1).performClick()
+        confirmRename(dialog)
         assertEquals(listOf("renamed", "ui", "applied"), callbacks)
         assertEquals("Renamed", PresetRepository(prefs).list().single().name)
         assertEquals("Renamed", profileManager.gameScenePresetName)
@@ -161,5 +165,17 @@ class PresetControllerPersistenceTest {
             assertNull(PresetRepository(prefs).list().single().customImageFileName)
             assertArrayEquals(byteArrayOf(1, 2, 3), outside.readBytes())
         } finally { outside.delete() }
+    }
+
+    private fun confirmRename(dialog: AlertDialog) {
+        assertTrue("Preset editor should be visible", dialog.isShowing)
+        val button = dialog.getButton(DialogInterface.BUTTON_POSITIVE)
+        assertEquals("Update", button.text.toString())
+        assertTrue("Update must have an actionable click listener", button.performClick())
+        // AlertController dispatches the confirmation through its main-thread
+        // ButtonHandler. A click alone would leave the actual save unexecuted
+        // under Robolectric's paused looper and make refusal checks meaningless.
+        shadowOf(Looper.getMainLooper()).idle()
+        assertFalse("Confirmation should finish the dialog", dialog.isShowing)
     }
 }
