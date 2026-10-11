@@ -113,7 +113,7 @@ class PresetControllerPersistenceTest {
     @Test fun refusedRenameDoesNotApplyLightingOrRenameAssignments() {
         assertTrue(modifyButton.performClick())
         val dialog = ShadowDialog.getLatestDialog() as AlertDialog
-        dialog.findViewById<TextInputEditText>(R.id.presetNameInput).setText("Renamed")
+        requireNotNull(dialog.findViewById<TextInputEditText>(R.id.presetNameInput)).setText("Renamed")
         prefs.edit().putString("presets_json", "damaged snapshot").commit()
         confirmRename(dialog)
         assertEquals("damaged snapshot", prefs.all["presets_json"])
@@ -148,7 +148,7 @@ class PresetControllerPersistenceTest {
         callbacks.clear()
         assertTrue(modifyButton.performClick())
         val dialog = ShadowDialog.getLatestDialog() as AlertDialog
-        dialog.findViewById<TextInputEditText>(R.id.presetNameInput).setText("Renamed")
+        requireNotNull(dialog.findViewById<TextInputEditText>(R.id.presetNameInput)).setText("Renamed")
         confirmRename(dialog)
         assertEquals(listOf("renamed", "ui", "applied"), callbacks)
         assertEquals("Renamed", PresetRepository(prefs).list().single().name)
