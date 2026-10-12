@@ -93,7 +93,8 @@ class ScenesRuntimeTest {
         instrumentation.runOnMainSync { store.isEnabled = true }
         startVisible(BASE_NAME, BASE_COLOR, 210)
         await("automatic preset selected") {
-            LEDService.isRunning && prefs.getString("last_preset_name", null) == NIGHT_NAME &&
+            // Rules overlay the manual choice; they never replace the stored manual preset.
+            LEDService.isRunning && prefs.getString("last_preset_name", null) == BASE_NAME &&
                 LEDService.activeSceneReason?.contains("Evening scene") == true
         }
         assertBaseRecoveryConfiguration(BASE_COLOR, 210)
@@ -128,7 +129,8 @@ class ScenesRuntimeTest {
         instrumentation.runOnMainSync { store.isEnabled = true }
         startVisible(BASE_NAME, BASE_COLOR, 210)
         await("scene begins while service is running") {
-            LEDService.isRunning && prefs.getString("last_preset_name", null) == NIGHT_NAME
+            LEDService.isRunning && LEDService.activeSceneReason?.contains("Game night") == true &&
+                prefs.getString("last_preset_name", null) == BASE_NAME
         }
         val bootCount = Settings.Global.getInt(context.contentResolver, Settings.Global.BOOT_COUNT)
         instrumentation.runOnMainSync {
@@ -136,7 +138,7 @@ class ScenesRuntimeTest {
             LightingStateEvents.notifyChanged(context)
         }
         await("temporary user choice takes priority") {
-            LEDService.isRunning && prefs.getString("last_preset_name", null) == MANUAL_NAME &&
+            LEDService.isRunning && prefs.getString("last_preset_name", null) == BASE_NAME &&
                 LEDService.activeSceneReason?.contains(MANUAL_NAME) == true
         }
         instrumentation.runOnMainSync { LightingStopper.stop(context) }

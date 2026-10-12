@@ -1664,7 +1664,8 @@ class MainActivity : AppCompatActivity() {
     private fun refreshCoverFlowFromPresets() {
         if (!::presetController.isInitialized) return
         val presets = presetController.getPresets()
-        if (::appProfileManager.isInitialized) {
+        // An unreadable library reads as empty; never wipe the Game Scene for that.
+        if (::appProfileManager.isInitialized && presets.isNotEmpty()) {
             appProfileManager.clearGameSceneIfMissing(presets.map { it.name })
         }
         val indices = libraryUi.matchingIndices(presets, presetSearchQuery)

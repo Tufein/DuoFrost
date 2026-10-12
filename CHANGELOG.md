@@ -1,5 +1,13 @@
 # DuoFrost changelog
 
+## Next update — in development
+
+- **Smart Scenes fixes:** a rule or temporary choice no longer replaces your own
+  preset after a restart, slider changes no longer restart the effect, and a
+  scene's brightness limit no longer hides the low-battery alert or charging indicator.
+- Starting a capture effect yourself no longer shows the app-profile notification.
+- Negative rule priorities stay intact when you edit a rule.
+
 ## 2.5.0 — full release
 
 Published on 2026-10-11. This stable release brings together the interface work

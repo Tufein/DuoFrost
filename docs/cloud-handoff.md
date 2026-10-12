@@ -3,8 +3,8 @@
 Deze notitie bewaart de projectcontext voor voortzetting op mobiel en voor de
 geplande volledige overdracht aan Claude. Het project staat op
 [GitHub: Tufein/DuoFrost](https://github.com/Tufein/DuoFrost), met `main` als basis.
-De overdracht aan Claude is gevraagd; deze notitie betekent niet dat bestanden
-al naar Claude zijn verstuurd.
+Sinds 12 oktober 2026 onderhoudt Claude het project; deze notitie blijft de
+startcontext voor nieuwe sessies.
 
 ## Huidige release
 
