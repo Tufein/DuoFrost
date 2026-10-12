@@ -28,8 +28,18 @@ privileged source, to cut the per-frame overhead.
    shell uid (ADB) or through a helper such as Shizuku, with the user's consent.
 2. **`screencap` through the shell uid.** Same privilege route; produces full
    frames, so likely not lighter than today. Useful only as a reference.
-3. **Vendor or firmware hook.** Unknown whether AYN's firmware exposes anything
-   for its LED service. Needs inspection on the device.
+3. **AYN's own hook (`PServerBinder`), the chosen direction.** The app already
+   writes the LEDs through this system service (`LedController.kt`): it looks up
+   `PServerBinder` via `ServiceManager`, sends `transact(0, [command, "1"])` with
+   `FLAG_ONEWAY`, and the service runs the command string as a privileged user
+   (it writes `/sys/class/sn3112l/...`, which normal apps cannot). So a
+   privileged command channel exists on the Thor without root or Shizuku.
+   Unknown: which uid it runs as, whether `screencap` or
+   `ScreenCapture.captureDisplay` work from it, whether a non-oneway call can
+   return output, and which AYN firmware versions have it. The one-way call
+   returns nothing, so a reading would have to go through a file the app can
+   read, or a reply parcel. Alternatively a helper started through it could drive
+   the sysfs LEDs itself. Everything here is unverified until probed on the Thor.
 4. **Keep MediaProjection, reduce its cost.** Pause the mirror when the screen is
    off or the picture is static, adaptive frame rate (drop to Low when colours
    barely change). Works everywhere and needs no extra permission.
@@ -38,6 +48,19 @@ Option 4 is the only one that is safe without a device. Options 1 to 3 are
 research: Android's restricted screen reading rules
 (<https://source.android.com/docs/core/permissions/restricted-screen-reading>)
 limit this, and a Shizuku dependency would be new for the project.
+
+## Probe on the Thor (read-only, over ADB)
+
+```
+adb shell id
+adb shell ls -l /sys/class/sn3112l/led/
+adb shell service list | grep -i pserver
+adb shell 'time screencap /dev/null'
+adb shell dumpsys SurfaceFlinger --latency
+```
+
+These show the shell uid, whether `PServerBinder` is registered, and how long one
+full-frame capture takes (the baseline any lighter source must beat).
 
 ## Plan
 
@@ -61,6 +84,7 @@ limit this, and a Shizuku dependency would be new for the project.
 
 ## Maintainer decisions (2026-10-12)
 
+- Go for AYN's own hook (option 3); Shizuku stays the fallback idea.
 - The Thor is not rooted.
 - Shizuku is acceptable as an optional requirement. Root is not needed.
   A Shizuku source stays opt-in, with MediaProjection as the default and fallback.
