@@ -26,12 +26,29 @@ object PresetArtworkPruner {
         "indicateChargingSpeed", "flashWhenReady", "isAppProfileDefault", "ragnarokAccepted")
     private val fractionFields = setOf("speed", "smoothness", "sensitivity", "saturationBoost")
     private val stringFields = setOf("customEmoji", "appIconPackageName", "ownerPackage")
+    // Icons staged by an import that is still under review; the age quarantine alone
+    // expires if the review dialog stays open longer than it.
+    private val heldFileNames = mutableMapOf<String, Int>()
+
+    @Synchronized fun hold(names: Collection<String>) {
+        names.forEach { heldFileNames[it] = (heldFileNames[it] ?: 0) + 1 }
+    }
+
+    @Synchronized fun release(names: Collection<String>) {
+        names.forEach { name ->
+            val count = (heldFileNames[name] ?: return@forEach) - 1
+            if (count > 0) heldFileNames[name] = count else heldFileNames.remove(name)
+        }
+    }
+
+    @Synchronized private fun heldNames(): Set<String> = heldFileNames.keys.toSet()
 
     /** Holds the same lock as writers and undo while selecting and removing old candidates. */
     fun prune(context: Context, prefs: SharedPreferences): Int = synchronized(prefs) {
         val raw = prefs.all[PresetUndoStore.PREF_KEY_PRESETS] as? String ?: return@synchronized 0
         val referenced = referencedFileNames(raw) ?: return@synchronized 0
-        val protected = referenced + PresetUndoStore(prefs).retainedArtworkFileNames().map { it.trim() }
+        val protected = referenced + heldNames() +
+            PresetUndoStore(prefs).retainedArtworkFileNames().map { it.trim() }
         val now = System.currentTimeMillis()
         var removed = 0
         val directory = File(context.filesDir, "preset_icons")

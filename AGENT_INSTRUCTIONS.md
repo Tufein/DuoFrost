@@ -133,3 +133,6 @@ This document contains instructions for autonomous coding agents.
     not restart the effect. Scene brightness caps never dim alerts, external
     overrides or the charging indicator. Manual starts never use the app-profile
     capture prompt. Since 2026-10-12 Claude maintains DuoFrost instead of Codex.
+42. Keep import-staged artwork held (PresetArtworkPruner.hold/release) for the life
+    of the review dialog. Do not clear the Game Scene while an undo is pending.
+    Parse the undo record once per stored value, never per UI refresh.
