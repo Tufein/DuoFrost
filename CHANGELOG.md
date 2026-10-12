@@ -1,5 +1,16 @@
 # DuoFrost changelog
 
+## Next update — in development
+
+- **Smart Scenes fixes:** a rule or temporary choice no longer replaces your own
+  preset after a restart, slider changes no longer restart the effect, and a
+  scene's brightness limit no longer hides the low-battery alert or charging indicator.
+- Starting a capture effect yourself no longer shows the app-profile notification.
+- Negative rule priorities stay intact when you edit a rule.
+- Deleting a preset and tapping Undo keeps your Game Scene setting.
+- Preset images from an import stay available while you review the import, however long it takes.
+- Searching the library stays smooth while an Undo is available.
+
 ## 2.5.0 — full release
 
 Published on 2026-10-11. This stable release brings together the interface work

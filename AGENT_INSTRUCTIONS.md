@@ -117,9 +117,9 @@ This document contains instructions for autonomous coding agents.
 37. Inflate activity_main in short landscape and portrait with LandscapeLayoutTest:
     control IDs stay unique and settings keep scroll room. Card setters run on
     every scroll frame; skip unchanged borders and backgrounds.
-38. The interface refresh and landscape work prepared as 2.2.0 ship as the 2.3.0
-    pre-release (code 25), as the user decided on 2026-10-06. 2.1.0 remains the
-    latest stable release until the user promotes 2.3.0. Sign it with the 2.1.0 key.
+38. The interface refresh and landscape work prepared as 2.2.0 shipped as the 2.3.0
+    pre-release (code 25) on 2026-10-06. 2.5.0 (code 28) superseded it as the
+    latest stable release; sign every production build with the 2.1.0 key.
 
 39. A release version code must exceed all earlier distributed production-signed
     builds, including previews, so upgrades preserve the same app and signing key.
@@ -127,3 +127,12 @@ This document contains instructions for autonomous coding agents.
 40. The maintainer explicitly requested MainActivity excludeFromRecents=true for
     2.3.0 on 2026-10-06. Preserve launcher reopening and existing singleTop intent
     handling. Recents exclusion must not be described as a keep-alive guarantee.
+
+41. Smart Scene rules and temporary holds overlay the manual preset; only legacy
+    app-profile sources may write last_preset_name. Live parameter updates must
+    not restart the effect. Scene brightness caps never dim alerts, external
+    overrides or the charging indicator. Manual starts never use the app-profile
+    capture prompt. Since 2026-10-12 Claude maintains DuoFrost instead of Codex.
+42. Keep import-staged artwork held (PresetArtworkPruner.hold/release) for the life
+    of the review dialog. Do not clear the Game Scene while an undo is pending.
+    Parse the undo record once per stored value, never per UI refresh.
