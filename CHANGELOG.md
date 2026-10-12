@@ -4,7 +4,8 @@
 
 Published on 2026-10-11. This stable release brings together the interface work
 from 2.3.0 and the tested 2.5.0 alphas, with final visual and reliability improvements.
-Earlier releases, including original Version 2, remain available.
+Earlier stable releases, including original Version 2, remain available.
+Development releases were returned to draft status on 2026-10-12.
 
 - **Polished interface:** a clearer dashboard, preset cards, primary actions and
   filters, with layouts for narrow and wide windows and short landscape screens.
@@ -46,9 +47,9 @@ and Version 2 need the [one-time backup and reinstall procedure](README.md).
 
 ## 2.5.0-alpha.2 — pre-release
 
-The second testing build toward 2.5.0, published as a pre-release on 2026-10-10.
-Earlier releases remain available; 2.1.0 was the latest stable release when this
-alpha was published.
+The second testing build toward 2.5.0, initially published on 2026-10-10 and
+returned to draft status on 2026-10-12. Its source history and assets are retained;
+2.1.0 was the latest stable release when this alpha was published.
 
 - **Preset library:** favourites appear first, named collections work with search,
   and each card has an options menu for previewing, organising and editing.
@@ -70,13 +71,13 @@ alpha was published.
   detection caches, reuse unchanged scene data and combine related settings
   refreshes. Temporary-choice countdowns update while visible.
 
-[Release and APK](https://github.com/Tufein/DuoFrost/releases/tag/v2.5.0-alpha.2) ·
-[Alpha guide](docs/2.5.0-alpha.2.md) · [Feature research](docs/feature-research-2.5.0.md) ·
+[Historical alpha guide](docs/2.5.0-alpha.2.md) · [Feature research](docs/feature-research-2.5.0.md) ·
 [Roadmap](docs/roadmap-2.5.0.md).
 
 ## 2.5.0-alpha.1 — pre-release
 
-The first testing build toward 2.5.0, published as a pre-release on 2026-10-10.
+The first testing build toward 2.5.0, initially published on 2026-10-10 and
+returned to draft status on 2026-10-12. Its source history and assets are retained.
 
 - Smart Scenes combine app/game groups, hours, weekdays, battery and charging conditions.
 - Brightness-only rules can dim the current preset without replacing it. Higher-priority
@@ -90,15 +91,15 @@ The first testing build toward 2.5.0, published as a pre-release on 2026-10-10.
   and external integrations remain compatible.
 - Full profile backups include persistent scene rules and groups, excluding temporary holds.
 
-[Release and APK](https://github.com/Tufein/DuoFrost/releases/tag/v2.5.0-alpha.1) ·
-[Alpha guide](docs/2.5.0-alpha.1.md) · [Roadmap](docs/roadmap-2.5.0.md).
+[Historical alpha guide](docs/2.5.0-alpha.1.md) · [Roadmap](docs/roadmap-2.5.0.md).
 
 ## 2.3.0 pre-release
 
 An interface update for testing before the next full release. Version 2.1.0 was
 the latest stable release when this pre-release was published. The interface
 refresh and landscape work prepared as 2.2.0 were combined and published together
-as 2.3.0; 2.2.0 remained an unpublished preview.
+as 2.3.0; 2.2.0 remained an unpublished preview. The 2.3.0 release was returned
+to draft status on 2026-10-12, retaining its source history and assets.
 
 - A clear lighting dashboard with direct output, mute, timer and capture controls.
 - A searchable preset library with readable cards, visible selection and keyboard focus. Browsing or searching never applies a preset.
@@ -107,7 +108,7 @@ as 2.3.0; 2.2.0 remained an unpublished preview.
 - Scrolling the preset library no longer redraws unchanged card borders on every frame.
 - **Hidden feature — tidy Recent apps:** DuoFrost's window stays out of Android's Recent apps list automatically. Reopen it from its app icon; use Start/Stop to turn lighting on or off.
 
-[Release and APK](https://github.com/Tufein/DuoFrost/releases/tag/v2.3.0) · [Screenshots and design notes](docs/gui-refresh.md). The production APK uses the 2.1.0 signing key and updates 2.1.0 in place. A debug APK installs separately and is not a production update.
+[Historical screenshots and design notes](docs/gui-refresh.md). The production APK uses the 2.1.0 signing key and updates 2.1.0 in place. A debug APK installs separately and is not a production update. For current downloads, use [2.5.0](https://github.com/Tufein/DuoFrost/releases/tag/v2.5.0).
 
 ## 2.1.0 fix update
 

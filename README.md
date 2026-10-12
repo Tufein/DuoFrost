@@ -71,10 +71,10 @@ Recent apps list. Reopen it from its app icon; use Start/Stop to control lightin
 [2.1.0](https://github.com/Tufein/DuoFrost/releases/tag/v2.1.0),
 [Version 2](https://github.com/Tufein/DuoFrost/releases/tag/v2) and
 [Version 1](https://github.com/Tufein/DuoFrost/releases/tag/v1.0.0) remain available.
-The [2.3.0](https://github.com/Tufein/DuoFrost/releases/tag/v2.3.0),
-[alpha.1](https://github.com/Tufein/DuoFrost/releases/tag/v2.5.0-alpha.1) and
-[alpha.2](https://github.com/Tufein/DuoFrost/releases/tag/v2.5.0-alpha.2) testing
-builds are also preserved. **2.5.0 is the latest stable release.**
+The 2.3.0 and 2.5.0 alpha testing builds are preserved as unpublished draft
+releases, with their source tags and history retained. **2.5.0 is the latest
+stable release.** Only full stable releases are published; betas and other
+pre-releases stay in draft unless the maintainer explicitly changes that policy.
 
 See [technical.md](technical.md) for build instructions, verification and Android
 behaviour, or the [roadmap](docs/roadmap-2.5.0.md) for future ideas.

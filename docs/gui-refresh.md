@@ -1,7 +1,9 @@
 # DuoFrost 2.3.0 interface refresh
 
-This build focuses on making existing lighting controls easier to find and use.
-The public 2.1.0 release and the original Version 1 and Version 2 remain available.
+This historical guide describes the 2.3.0 interface refresh. Its testing release
+is now an unpublished draft, with its tag, source and release files preserved.
+For the current app, use the [full 2.5.0 release](https://github.com/Tufein/DuoFrost/releases/tag/v2.5.0).
+The earlier full 2.1.0 release and the original Version 1 and Version 2 remain available.
 
 ## What changed
 
@@ -43,6 +45,6 @@ Default palette contrast is 15.32:1 for main text, 8.25:1 for secondary text, 4.
 
 ## Installation and validation
 
-The signed 2.3.0 APK uses the same private release certificate as 2.1.0. It can update 2.1.0 in place. For older installations, keep the existing one-time full-backup and reinstall procedure. 2.3.0 is published as a pre-release; 2.1.0 remains the latest stable release.
+The signed 2.3.0 APK uses the same private release certificate as 2.1.0 and 2.5.0. Existing 2.3.0 installations can update to 2.5.0 in place. For older installations, keep the existing one-time full-backup and reinstall procedure. 2.3.0 was originally published as a pre-release; it was returned to draft on 12 October 2026. Only full stable releases are now published; betas and other pre-releases remain drafts unless the maintainer explicitly authorises publication later.
 
 214 JVM tests passed for 2.3.0, including three layout tests for short landscape and portrait windows. The signed release build and critical release lint passed. Five Android instrumentation tests passed on an Android 15 emulator. Automated checks cover preset filtering and draft serialization, plus Android interactions for search and selection, destination visibility, output-limit synchronization, app-profile mode and saving edits after recreation. Manual checks covered narrow portrait and wide/short landscape windows, 200% font size, palette switching, schedules, plugins and the sleep-timer dialog. Screenshots show the real Android emulator interface with sample presets. Physical LED output and firmware-specific background behavior need device testing.

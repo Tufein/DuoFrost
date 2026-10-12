@@ -1,5 +1,9 @@
 # DuoFrost 2.5.0-alpha.2 — better preset tools and Smart Scenes stability for AYN devices
 
+*Archived announcement: alpha.2 is now an unpublished draft. Use the
+[current 2.5.0 announcement](reddit-2.5.0.md) for a new post. Betas and other
+pre-releases remain drafts unless the maintainer explicitly authorises publication later.*
+
 Hey everyone,
 
 I'm continuing work on DuoFrost, my open-source BiFrost fork for LED control on
@@ -16,11 +20,11 @@ Scenes introduced in alpha.1:
   and safer handling of damaged preset data.
 
 Preview rings are illustrations; live-input and flashing effects use still
-examples. This is an **alpha pre-release**; 2.1.0 remains the stable version.
-Back up before installing.
+examples. This announcement described an **alpha pre-release**; 2.5.0 is now
+the stable version. Back up before installing.
 
-**Download and release notes:**
-https://github.com/Tufein/DuoFrost/releases/tag/v2.5.0-alpha.2
+**Current download and release notes:**
+https://github.com/Tufein/DuoFrost/releases/tag/v2.5.0
 
 I'd appreciate feedback from AYN devices, especially app switching, importing
 presets and the new library controls. Please include your model, Android/firmware

@@ -27,7 +27,8 @@ removed from the public release list. Their implementation remains in Git histor
 
 Version `2.5.0`, code `28`, consolidates the tested 2.3.0 interface and both
 2.5.0 alphas into a full release. It retains the production application ID and
-2.1.0 signing certificate. Older release tags and downloads remain available.
+2.1.0 signing certificate. Older stable downloads remain available. Development
+tags remain in Git history; their release objects are retained as drafts.
 See [the user guide](docs/2.5.0.md) and [Reddit draft](docs/reddit-2.5.0.md).
 
 The home screen distinguishes its primary editing/creation actions, applies
@@ -476,6 +477,18 @@ automatically control DuoFrost. The preset archive schema remains compatible.
 
 ## Release signing and publication
 
+### Publication policy — 2026-10-12
+
+Only complete, stable releases are published on GitHub. Alpha, beta, release
+candidate and other pre-release builds stay as drafts unless the maintainer
+explicitly changes this instruction. A development tag may be retained without
+making its release public.
+
+On 2026-10-12 the maintainer requested that development releases no longer be
+published. The existing `v2.3.0`, `v2.5.0-alpha.1` and `v2.5.0-alpha.2` release
+objects were returned to draft status, preserving their uploaded assets and Git
+tags. `v2.2.0` was already a draft. Public releases remain `v1.0.0`, `v2`,
+`v2.1.0` and `v2.5.0`; the latest stable release remains `v2.5.0`.
 
 Repository: https://github.com/Tufein/DuoFrost
 Android identity: `io.github.tufein.duofrost`
@@ -495,9 +508,10 @@ Android identity: `io.github.tufein.duofrost`
    private backup of the keystore and its passwords. A different key cannot
    update an installed release in place. Do not commit these files.
 5. Verify the APK with `apksigner verify --verbose --print-certs`.
-6. Tag the exact tested source and publish the APK with a SHA-256 checksum and
-   release notes. GitHub's source archive for that tag is the corresponding
-   GPLv3 source; do not publish APK-only releases.
+6. Tag the exact tested source and attach the APK, a SHA-256 checksum and release
+   notes. Publish a complete stable release; keep development releases as drafts.
+   GitHub's source archive for the tag is the corresponding GPLv3 source; do not
+   publish APK-only releases.
 
 CI intentionally uses debug signing and does not receive release keys.
 

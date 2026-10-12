@@ -1,6 +1,6 @@
 # DuoFrost 2.5.0 — voortgang en vervolgrichting
 
-Bijgewerkt op **11 oktober 2026**. Het oorspronkelijke voorstel van 8 oktober
+Bijgewerkt op **12 oktober 2026**. Het oorspronkelijke voorstel van 8 oktober
 heeft geleid tot twee alpha's en de volledige
 [2.5.0-release](https://github.com/Tufein/DuoFrost/releases/tag/v2.5.0).
 De release richt zich op Smart Scenes, een bruikbare presetbibliotheek en een
@@ -35,11 +35,12 @@ worden niet opnieuw als nieuwe 2.5.0-features gepresenteerd.
 | 10 oktober — alpha.2 | Favorieten, collecties, voorbeelden, importcontrole en Undo gepubliceerd. 366 automatische tests en 26 Android-schermtests geslaagd, met een gecontroleerde update vanaf alpha.1. |
 | 11 oktober — volledige 2.5.0 | De geteste basis geconsolideerd, interface en code verder afgewerkt, met een getekende APK en gebruikersdocumentatie. Exacte releaseverificatie staat in [technical.md](../technical.md). |
 
-De eerdere [2.3.0](https://github.com/Tufein/DuoFrost/releases/tag/v2.3.0),
-[alpha.1](https://github.com/Tufein/DuoFrost/releases/tag/v2.5.0-alpha.1) en
-[alpha.2](https://github.com/Tufein/DuoFrost/releases/tag/v2.5.0-alpha.2) blijven
-beschikbaar. Er is geen afzonderlijke publieke beta of release candidate nodig
-geweest om deze geteste basis als volledige release uit te brengen.
+De eerdere 2.3.0, alpha.1 en alpha.2 zijn op 12 oktober naar ongepubliceerde
+conceptreleases teruggezet. Hun tags, broncode en releasebestanden blijven
+bewaard; ze worden niet meer als publieke downloads aangeboden. De
+[volledige 2.5.0-release](https://github.com/Tufein/DuoFrost/releases/tag/v2.5.0)
+is de actuele download. Er is geen afzonderlijke publieke beta of release
+candidate nodig geweest om deze geteste basis als volledige release uit te brengen.
 
 ## Later onderzoeken
 
@@ -70,7 +71,9 @@ ontwikkelronde, zonder vast versienummer of beloofde releasedatum.
   onderdeel van verificatie.
 - AYN-compatibiliteit en prestatieclaims worden alleen per bevestigd toestel en
   firmware of op basis van metingen uitgebreid.
-- Publieke documentatie beschrijft de geteste APK. Eerdere releases blijven beschikbaar.
+- Publieke documentatie beschrijft de geteste APK. Eerdere volledige releases blijven beschikbaar.
+- Alleen volledige stabiele releases worden gepubliceerd. Beta's en andere
+  pre-releases blijven concepten, tenzij de maintainer later expliciet anders vraagt.
 
 Zie het [gebruikersoverzicht](2.5.0.md), de [changelog](../CHANGELOG.md),
 het [featureonderzoek](feature-research-2.5.0.md) en
