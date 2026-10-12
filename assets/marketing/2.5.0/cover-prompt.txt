@@ -1,0 +1,18 @@
+Use case: ads-marketing / compositing.
+Asset type: final public Reddit release cover, wide landscape 1920x1080 or similar 16:9, for DuoFrost version 2.5.0.
+Primary request: a polished, clean and professional release cover for the real app, LED control for AYN devices. Minimal premium tech aesthetic, ink navy background, subtle violet and cyan glow, precise legible typography, generous spacing. Three framed actual app screenshots in a refined staggered grid or collage, not on invented hardware. Lead with the title, version and tagline. This should look like a real indie open-source app launch, not a cluttered gamer ad.
+Input images:
+Image 1 is the ORIGINAL dashboard/preset library screenshot; supporting insert, most prominent.
+Image 2 is the ORIGINAL effect preview screenshot; supporting insert, secondary.
+Image 3 is the ORIGINAL Smart Scenes screenshot; supporting insert, secondary.
+Invariants: use these actual screenshots as flat screen inserts, keep their interface, controls, labels and content unchanged; retain their proportions. Do not invent or redraw any app UI, no fictional screenshots, no fake devices or hardware LED photographs. No added app features. Screenshot text need not be enlarged or repeated in poster typography. Make the original dashboard image prominent enough to recognize.
+Text to render verbatim in the cover, clean hierarchy:
+"DuoFrost"
+"2.5.0"
+"LED control for AYN devices"
+"FULL RELEASE"
+"New GUI · Smart Scenes · Preset tools"
+Small honest caption: "Example screenshots · Android emulator"
+If there is room, a small feature pill: "Hidden feature: tidy Recent apps"
+The hidden feature only refers to the app window being absent from Android's Recent apps list. Do not show or imply auto-start, guaranteed background operation or an always-running app.
+Constraints: accurately spell DuoFrost, version 2.5.0, and AYN; AYN devices broadly, no Thor-only headline. No dates, no invented metrics, no download URL, no unrelated brand logos, no watermark. Screenshot blocks should stay rectangular and front-on, without extreme perspective that harms legibility. This is marketing art with real emulator screenshot inserts, not proof of physical LED output.
