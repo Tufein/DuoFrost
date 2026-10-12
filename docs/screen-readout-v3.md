@@ -59,7 +59,14 @@ limit this, and a Shizuku dependency would be new for the project.
   starts one.
 - Measure first: battery per hour per profile, before and after.
 
-## Open questions for the maintainer
+## Maintainer decisions (2026-10-12)
 
-- Is the Thor rooted, or is ADB/Shizuku acceptable to ask of users?
-- Which battery numbers do the existing tests give per profile?
+- The Thor is not rooted.
+- Shizuku is acceptable as an optional requirement. Root is not needed.
+  A Shizuku source stays opt-in, with MediaProjection as the default and fallback.
+
+## Still open
+
+- Does the shell uid on the Thor's firmware allow `ScreenCapture.captureDisplay`
+  (or `screencap`) at all, and what does one small sample cost?
+- Battery numbers per profile from the existing tests, as the baseline.
