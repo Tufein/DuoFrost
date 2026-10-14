@@ -117,9 +117,10 @@ This document contains instructions for autonomous coding agents.
 37. Inflate activity_main in short landscape and portrait with LandscapeLayoutTest:
     control IDs stay unique and settings keep scroll room. Card setters run on
     every scroll frame; skip unchanged borders and backgrounds.
-38. The interface refresh and landscape work prepared as 2.2.0 ship as the 2.3.0
-    pre-release (code 25), as the user decided on 2026-10-06. 2.1.0 remains the
-    latest stable release until the user promotes 2.3.0. Sign it with the 2.1.0 key.
+38. The interface refresh and landscape work prepared as 2.2.0 shipped as the
+    2.3.0 pre-release (code 25), as the user decided on 2026-10-06. The stable
+    line subsequently became 2.5.0 and the 2.5.1 startup fix. Preserve the
+    2.1.0 signing key for compatible production updates.
 
 39. A release version code must exceed all earlier distributed production-signed
     builds, including previews, so upgrades preserve the same app and signing key.

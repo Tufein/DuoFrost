@@ -1,10 +1,16 @@
 # DuoFrost changelog
 
-## Unreleased
+## 2.5.1 — startup fix
+
+Released on 2026-10-14. This patch addresses a welcome-window leak reported when
+opening 2.5.0 on an AYN Thor Max running Android 13.
 
 - Close alert windows when their app screen is recreated, including the welcome
   message during AYN Thor display changes. An interrupted welcome remains
   unacknowledged and is shown again on the new screen.
+
+Updates production 2.5.0 in place, preserving presets and settings.
+The existing 2.5.0 features remain unchanged.
 
 ## 2.5.0 — full release
 

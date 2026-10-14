@@ -23,6 +23,39 @@ object was archived before the tag was finalized for the public release.
 Intermediate development releases are archived locally by the maintainer and
 removed from the public release list. Their implementation remains in Git history.
 
+## DuoFrost 2.5.1 startup fix — 2026-10-14
+
+Version `2.5.1`, code `29`, closes `DuoFrostAlertDialog` windows when their host
+Activity reaches `ON_DESTROY`. Normal dismissal unregisters the observer.
+Lifecycle cleanup never invokes the user's confirm/cancel actions, so an
+interrupted first-launch welcome remains unread and is shown by the new Activity.
+The existing pre-show finishing/destroyed guard is retained.
+
+The reported Thor Max/Android 13 startup log matches the archived 2.5.0 R8 map
+`be38ca926ae4e720a41d79abf8be8227b4ab60efefd890084ea1f2756c7c9209`.
+Its allocation stack resolves to `showFirstLaunchAlertIfNeeded` during
+`initializeApp`/`onCreate`, followed by an Activity relaunch and `WindowLeaked`.
+The fragment contains no fatal exception; the confirmed defect is the leaked
+welcome window. A pre-show guard alone cannot close a window shown before a
+later relaunch. The other open scene/import fixes are independent of this patch.
+
+Verification uses **381 passing JVM tests** and **30 passing Android tests** on
+an isolated Android 13/API 33 emulator. Five JVM cases cover destroy, recreation,
+confirmation and invalid hosts. Two new MainActivity tests keep the actual
+welcome visible during recreation/close, check window detachment during
+`ON_DESTROY` before framework leak cleanup, and verify acknowledgement only after
+the positive action. Critical release lint and production assembly are checked
+before publication.
+
+The release keeps `io.github.tufein.duofrost` and the production certificate
+`0863ff52a003ec13c5997f8f23fe24fd69f4118c0644506641edd198d87aaa2d`.
+The signed-update check installs 2.5.0 first, then 2.5.1 without uninstalling, and
+compares presets, scene rules, app groups, favourites/collections, assignments,
+output limit and stopped lighting. The released APK, matching source and their
+SHA-256 checksums are attached to [v2.5.1](https://github.com/Tufein/DuoFrost/releases/tag/v2.5.1).
+Emulator tests do not reproduce the physical Thor display-routing firmware or
+verify physical LED output. Older signed release archives and R8 maps are retained.
+
 ## DuoFrost 2.5.0 full release — 2026-10-11
 
 Version `2.5.0`, code `28`, consolidates the tested 2.3.0 interface and both
