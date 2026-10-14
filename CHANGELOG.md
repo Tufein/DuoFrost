@@ -1,5 +1,11 @@
 # DuoFrost changelog
 
+## Unreleased
+
+- Close alert windows when their app screen is recreated, including the welcome
+  message during AYN Thor display changes. An interrupted welcome remains
+  unacknowledged and is shown again on the new screen.
+
 ## 2.5.0 — full release
 
 Published on 2026-10-11. This stable release brings together the interface work

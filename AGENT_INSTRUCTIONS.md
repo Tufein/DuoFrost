@@ -127,3 +127,9 @@ This document contains instructions for autonomous coding agents.
 40. The maintainer explicitly requested MainActivity excludeFromRecents=true for
     2.3.0 on 2026-10-06. Preserve launcher reopening and existing singleTop intent
     handling. Recents exclusion must not be described as a keep-alive guarantee.
+
+41. Alert windows must close when their host Activity is destroyed, including
+    Thor display relaunches. A pre-show isFinishing/isDestroyed guard alone does
+    not prevent an already-visible dialog from leaking. Lifecycle cleanup must
+    not invoke confirmation/cancellation actions or mark the welcome as read.
+    Verify recreation and teardown on Android 13 with DuoFrostAlertDialogLifecycleTest.
