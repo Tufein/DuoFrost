@@ -91,7 +91,7 @@ def package(state_path):
     head = subprocess.check_output(["git", "rev-parse", "HEAD"], text=True).strip()
     if head != state["source_sha"]:
         raise RuntimeError("Checkout differs from the draft's application commit")
-    subprocess.run(["git", "diff", "--exit-code"], check=True)
+    subprocess.run(["git", "diff", "HEAD", "--exit-code"], check=True)
     counts = {key: 0 for key in ("tests", "failures", "errors", "skipped")}
     reports = list(Path("app/build/test-results/testDebugUnitTest").glob("TEST-*.xml"))
     for report in reports:
