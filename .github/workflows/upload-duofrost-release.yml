@@ -1,0 +1,64 @@
+name: Upload DuoFrost release assets
+
+on:
+  workflow_dispatch:
+    inputs:
+      release_id:
+        description: Existing draft pre-release ID
+        required: true
+        type: string
+  repository_dispatch:
+    types: [duofrost-draft-upload]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: draft-upload-${{ github.event.inputs.release_id || github.event.client_payload.release_id }}
+  cancel-in-progress: false
+
+jobs:
+  upload:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      DRAFT_RELEASE_ID: ${{ github.event.inputs.release_id || github.event.client_payload.release_id }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Validate the existing draft and retain the upload helper
+        id: draft
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          cp .github/scripts/upload_draft_release.py "$RUNNER_TEMP/upload_draft_release.py"
+          python3 "$RUNNER_TEMP/upload_draft_release.py" prepare \
+            --state "$RUNNER_TEMP/draft-release.json" --release-id "$DRAFT_RELEASE_ID"
+      - name: Check out the exact application source
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ steps.draft.outputs.source_sha }}
+          persist-credentials: false
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: android-actions/setup-android@v3
+        with:
+          packages: 'platform-tools platforms;android-36 build-tools;35.0.0'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          cache-disabled: true
+      - name: Run regression tests and build the debug APK
+        run: bash gradlew --no-daemon --max-workers=2 :app:testDebugUnitTest :app:assembleDebug
+      - name: Verify and package the APK, exact source and checksums
+        run: |
+          python3 "$RUNNER_TEMP/upload_draft_release.py" package \
+            --state "$RUNNER_TEMP/draft-release.json"
+      - name: Upload directly to the unpublished draft and verify asset digests
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          python3 "$RUNNER_TEMP/upload_draft_release.py" upload \
+            --state "$RUNNER_TEMP/draft-release.json"

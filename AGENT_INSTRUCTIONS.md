@@ -128,7 +128,14 @@ This document contains instructions for autonomous coding agents.
     2.3.0 on 2026-10-06. Preserve launcher reopening and existing singleTop intent
     handling. Recents exclusion must not be described as a keep-alive guarantee.
 
-41. Alert windows must close when their host Activity is destroyed, including
+41. Private test APKs belong only on an existing draft pre-release. The cloud
+    GitHub proxy may authenticate API calls without supplying working upload
+    credentials; use the hosted draft-upload workflow with its repository token.
+    Build the exact draft target, verify asset digests and never publish/promote
+    from that workflow. Do not upload private test APKs as Actions artifacts or
+    cache build outputs. Push upload-helper changes with [skip ci], then dispatch.
+
+42. Alert windows must close when their host Activity is destroyed, including
     Thor display relaunches. A pre-show isFinishing/isDestroyed guard alone does
     not prevent an already-visible dialog from leaking. Lifecycle cleanup must
     not invoke confirmation/cancellation actions or mark the welcome as read.

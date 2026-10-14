@@ -515,6 +515,28 @@ Android identity: `io.github.tufein.duofrost`
 
 CI intentionally uses debug signing and does not receive release keys.
 
+### Private draft test builds
+
+The `Upload DuoFrost release assets` workflow builds a separate debug app and
+uploads the APK, exact-source ZIP and SHA-256 checksums directly to an existing
+draft pre-release. It uses GitHub Actions' repository-scoped token because the
+cloud session proxy can authenticate `api.github.com` while asset uploads to
+`uploads.github.com` reject the cloud token.
+
+Run it with an existing numeric release ID through `workflow_dispatch`, or send
+a `repository_dispatch` event named `duofrost-draft-upload` with that ID as
+`client_payload.release_id`. The latter needs repository Contents: write access.
+The workflow checks out the draft's exact commit, runs JVM tests, verifies the
+debug APK signature, and checks the uploaded asset digests. It requires Draft
+and Pre-release throughout and never creates, publishes or promotes a release.
+No APK/report Actions artifacts or shared build caches are uploaded. Push
+helper-only changes with `[skip ci]` to avoid the ordinary public CI artifacts,
+then dispatch the private build explicitly.
+
+The debug app installs separately from production. Hosted builds have their own
+debug signing key; an older debug APK from a different build machine may need
+to be removed before installing a hosted build. Production signing stays local.
+
 ## Integration API
 
 
