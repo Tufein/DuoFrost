@@ -12,7 +12,7 @@ al naar Claude zijn verstuurd.
 [Download de APK](https://github.com/Tufein/DuoFrost/releases/download/v2.5.1/DuoFrost-2.5.1.apk)
 of bekijk [de release met broncode](https://github.com/Tufein/DuoFrost/releases/tag/v2.5.1).
 
-Deze patch van 14 oktober 2026 sluit een achtergebleven welkomstvenster bij het
+Deze patch van 16 oktober 2026 sluit een achtergebleven welkomstvenster bij het
 opnieuw aanmaken van het appscherm, gemeld op een Thor Max met Android 13.
 381 JVM-tests en 30 Android 13-schermtests zijn geslaagd. De productiesleutel
 blijft gelijk en 2.5.0 kan zonder verwijderen worden bijgewerkt. De open fixes

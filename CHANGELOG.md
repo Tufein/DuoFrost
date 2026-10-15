@@ -2,7 +2,7 @@
 
 ## 2.5.1 — startup fix
 
-Released on 2026-10-14. This patch addresses a welcome-window leak reported when
+Released on 2026-10-16. This patch addresses a welcome-window leak reported when
 opening 2.5.0 on an AYN Thor Max running Android 13.
 
 - Close alert windows when their app screen is recreated, including the welcome

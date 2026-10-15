@@ -23,7 +23,7 @@ object was archived before the tag was finalized for the public release.
 Intermediate development releases are archived locally by the maintainer and
 removed from the public release list. Their implementation remains in Git history.
 
-## DuoFrost 2.5.1 startup fix — 2026-10-14
+## DuoFrost 2.5.1 startup fix — 2026-10-16
 
 Version `2.5.1`, code `29`, closes `DuoFrostAlertDialog` windows when their host
 Activity reaches `ON_DESTROY`. Normal dismissal unregisters the observer.
