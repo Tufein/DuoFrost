@@ -141,3 +141,12 @@ This document contains instructions for autonomous coding agents.
     not prevent an already-visible dialog from leaking. Lifecycle cleanup must
     not invoke confirmation/cancellation actions or mark the welcome as read.
     Verify recreation and teardown on Android 13 with DuoFrostAlertDialogLifecycleTest.
+
+43. Smart Scene rules and temporary holds overlay the manual preset; only legacy
+    app-profile sources may write last_preset_name. Live parameter updates must
+    not restart the effect. Scene brightness caps never dim alerts, external
+    overrides or the charging indicator. Manual starts never use the app-profile
+    capture prompt. Since 2026-10-12 Claude maintains DuoFrost instead of Codex.
+44. Keep import-staged artwork held (PresetArtworkPruner.hold/release) for the life
+    of the review dialog. Do not clear the Game Scene while an undo is pending.
+    Parse the undo record once per stored value, never per UI refresh.
