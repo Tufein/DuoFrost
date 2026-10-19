@@ -8,9 +8,18 @@ startcontext voor nieuwe sessies.
 
 ## Huidige release
 
-**2.5.0 is de nieuwste volledige, publieke release**, Android-versiecode `28`.
-[Download de APK](https://github.com/Tufein/DuoFrost/releases/download/v2.5.0/DuoFrost-2.5.0.apk)
-of bekijk [de release met broncode](https://github.com/Tufein/DuoFrost/releases/tag/v2.5.0).
+**2.5.1 is de nieuwste volledige, publieke release**, Android-versiecode `29`.
+[Download de APK](https://github.com/Tufein/DuoFrost/releases/download/v2.5.1/DuoFrost-2.5.1.apk)
+of bekijk [de release met broncode](https://github.com/Tufein/DuoFrost/releases/tag/v2.5.1).
+
+Deze patch van 16 oktober 2026 sluit een achtergebleven welkomstvenster bij het
+opnieuw aanmaken van het appscherm, gemeld op een Thor Max met Android 13.
+381 JVM-tests en 30 Android 13-schermtests zijn geslaagd. De productiesleutel
+blijft gelijk en 2.5.0 kan zonder verwijderen worden bijgewerkt. De open fixes
+voor Smart Scenes, Undo en imports zijn onafhankelijk en zitten niet in deze patch.
+Zie [patchdetails](2.5.1.md) en [technical.md](../technical.md).
+
+### Vorige volledige release: 2.5.0
 
 De APK bevat broncodecommit `d93bdd4`; tag `v2.5.0` staat op `474d6f2`.
 Latere wijzigingen gaan over documentatie en publicatiebeleid. Op 12 oktober
@@ -49,7 +58,7 @@ zijn niet door de emulator bewezen. Details staan in [technical.md](../technical
 Alleen stabiele releases worden publiek gepubliceerd. `v2.3.0`,
 `v2.5.0-alpha.1` en `v2.5.0-alpha.2` zijn teruggezet naar concept; bestanden,
 tags en geschiedenis zijn behouden. `v2.2.0` was al een concept.
-Publiek blijven `v1.0.0`, `v2`, `v2.1.0` en `v2.5.0`, met `v2.5.0` als nieuwste.
+Publiek blijven `v1.0.0`, `v2`, `v2.1.0`, `v2.5.0` en `v2.5.1`, met `v2.5.1` als nieuwste.
 Nieuwe beta's, alphas en overige pre-releases blijven concepten, tenzij de
 eigenaar expliciet anders vraagt. Vervang of verwijder oudere stabiele releases niet.
 
