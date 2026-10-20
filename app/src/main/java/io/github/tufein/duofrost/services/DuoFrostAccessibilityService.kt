@@ -2,6 +2,7 @@ package io.github.tufein.duofrost.services
 
 import android.accessibilityservice.AccessibilityService
 import android.accessibilityservice.AccessibilityServiceInfo
+import android.content.ComponentName
 import android.content.Context
 import android.provider.Settings
 import android.util.Log
@@ -37,9 +38,11 @@ class DuoFrostAccessibilityService : AccessibilityService() {
                 Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES
             ) ?: return false
 
-            return services.split(':').any { component ->
-                component.equals("${context.packageName}/${DuoFrostAccessibilityService::class.java.name}", ignoreCase = true)
-            }
+            // Entries come in two forms: AccessibilityManagerService persists the
+            // short one (package/.services.Name) whenever it rewrites the list,
+            // other writers may use the full class name. Compare parsed names.
+            val self = ComponentName(context, DuoFrostAccessibilityService::class.java)
+            return services.split(':').any { ComponentName.unflattenFromString(it) == self }
         }
     }
 
