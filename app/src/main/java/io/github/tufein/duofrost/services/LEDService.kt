@@ -42,6 +42,7 @@ import io.github.tufein.duofrost.PresetIdentity
 import io.github.tufein.duofrost.R
 import io.github.tufein.duofrost.scenes.SceneBaseline
 import io.github.tufein.duofrost.scenes.SceneRuntimeController
+import io.github.tufein.duofrost.scenes.SceneSelectionPolicy
 import io.github.tufein.duofrost.scenes.SceneStore
 import io.github.tufein.duofrost.plugins.PluginPrefs
 import io.github.tufein.duofrost.plugins.LivePolicy
@@ -471,12 +472,17 @@ class LEDService : Service() {
     }
 
     private fun applyOutputLimits() {
+        // Scene caps dim scene lighting only; alerts and overrides keep their own output.
+        val sceneLimit = if (isSceneOverlayActive()) null else sceneBrightnessLimitPercent
         ledController.setOutputBrightnessLimit(
             minOf(outputLimits.resolve(
                 currentBatterySaverBrightness, isBatterySaverActive, isScreenInteractive, outputMuted
-            ), sceneBrightnessLimitPercent?.let { (it * 255 / 100).coerceIn(0, 255) } ?: 255)
+            ), sceneLimit?.let { (it * 255 / 100).coerceIn(0, 255) } ?: 255)
         )
     }
+
+    private fun isSceneOverlayActive(): Boolean = activeExternalOverride != null ||
+        isLowBatteryAlertActive || currentBatteryOverrideWhenPlugged && isDevicePluggedIn
 
     private val prefs by lazy {
         getSharedPreferences("bifrost_prefs", MODE_PRIVATE)
@@ -1431,6 +1437,8 @@ class LEDService : Service() {
 
         val switchResult = sceneRuntime.evaluate(this, batteryLevelPercent, isDevicePluggedIn)
         if (switchResult == null) {
+            // Overlay state can change without a new decision; caps follow it.
+            applyOutputLimits()
             publishLightingStateIfChanged()
             return
         }
@@ -1438,13 +1446,16 @@ class LEDService : Service() {
         sceneBrightnessLimitPercent = switchResult.brightnessLimitPercent
         applyOutputLimits()
         publishLightingStateIfChanged()
-        if (activeExternalOverride != null || isLowBatteryAlertActive ||
-            currentBatteryOverrideWhenPlugged && isDevicePluggedIn) {
+        if (isSceneOverlayActive()) {
             // Re-evaluate after an overlay ends instead of restoring a stale scene.
             sceneRuntime.reset()
             return
         }
-        prefs.edit().putString(PREF_KEY_LAST_PRESET, switchResult.presetName.orEmpty()).apply()
+        // App profiles and the manual baseline keep the UI in sync as before; rules and
+        // temporary holds must not overwrite the manual preset used after reboot or relaunch.
+        if (switchResult.storesAsLastPreset) {
+            prefs.edit().putString(PREF_KEY_LAST_PRESET, switchResult.presetName.orEmpty()).apply()
+        }
         if (!switchResult.presetChanged) return
 
         val preset = switchResult.preset
@@ -1460,7 +1471,9 @@ class LEDService : Service() {
         val hasProjectionData = lastProjectionResultCode == Activity.RESULT_OK && lastProjectionData != null
         Log.d(TAG, "checkAutoProfileSwitch: needsMP=$needsMP, hasProjectionData=$hasProjectionData, lastProjectionResultCode=$lastProjectionResultCode, lastProjectionData=${lastProjectionData != null}")
 
-        if (needsMP && !hasProjectionData) {
+        // A manual start without consent is handled by the regular capture flow,
+        // not by the app-profile prompt and its pending token.
+        if (needsMP && !hasProjectionData && switchResult.source != SceneSelectionPolicy.Source.MANUAL) {
             Log.d(TAG, "checkAutoProfileSwitch: needs MP but no projection data → showing prompt")
             val triggerPackage = appProfileManager.getForegroundPackage(this)
             if (!triggerPackage.isNullOrBlank() && switchResult.presetName != null) {

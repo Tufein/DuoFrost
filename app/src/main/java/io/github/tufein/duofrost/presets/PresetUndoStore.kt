@@ -15,6 +15,9 @@ class PresetUndoStore(
     data class Snapshot(val presetsJson: String?, val libraryJson: String?, val mappingsJson: String? = null)
     data class PendingUndo(val action: Action, val expiresAtMillis: Long)
     private data class Record(val action: Action, val created: Long, val expires: Long, val before: Snapshot, val after: Snapshot)
+    // The library UI asks on every search keystroke; parse a record (up to 2 MB) once.
+    private var cachedRaw: String? = null
+    private var cachedRecord: Record? = null
 
     fun captureSnapshot(): Snapshot? = synchronized(prefs) { currentSnapshot()?.takeIf(::validSnapshot) }
 
@@ -84,6 +87,14 @@ class PresetUndoStore(
 
     private fun readRecord(): Record? {
         val raw = prefs.all[PREF_KEY_UNDO] as? String ?: return null
+        if (raw == cachedRaw) return cachedRecord
+        return parseRecord(raw).also {
+            cachedRaw = raw
+            cachedRecord = it
+        }
+    }
+
+    private fun parseRecord(raw: String): Record? {
         if (raw.length > MAX_RECORD_BYTES || raw.toByteArray(Charsets.UTF_8).size > MAX_RECORD_BYTES) return null
         return runCatching {
             val root = JSONObject(raw)

@@ -25,8 +25,13 @@ class SceneRuntimeController(
         val presetName: String?,
         val presetChanged: Boolean,
         val brightnessLimitPercent: Int?,
-        val reason: String
-    )
+        val reason: String,
+        val source: SceneSelectionPolicy.Source = SceneSelectionPolicy.Source.MANUAL
+    ) {
+        /** Rules and temporary holds overlay the manual choice; they must not replace it. */
+        val storesAsLastPreset: Boolean
+            get() = source != SceneSelectionPolicy.Source.RULE && source != SceneSelectionPolicy.Source.TEMPORARY
+    }
 
     private val store = SceneStore(prefs)
     private val repository = PresetRepository(prefs)
@@ -54,7 +59,12 @@ class SceneRuntimeController(
         val updated = SceneBaseline.fromIntent(intent, original.id, original.name)
         if (updated != original) {
             baseline = updated
-            reset()
+            // Live parameter updates are already applied by the service. Track the
+            // manual decision in place so the next tick does not restart the effect.
+            val last = previous
+            if (last != null && last.source == SceneSelectionPolicy.Source.MANUAL && last.preset == original) {
+                previous = last.copy(preset = updated, presetName = updated.name)
+            }
         }
     }
 
@@ -98,10 +108,12 @@ class SceneRuntimeController(
             ),
             byId.keys
         )
+        val legacyPresetId = legacy?.presetName?.let { byName[it]?.id }
         val choice = SceneSelectionPolicy.choose(
             temporary?.presetId?.takeIf { it in byId },
-            legacy?.source,
-            legacy?.presetName?.let { byName[it]?.id },
+            // A Game Scene whose preset is missing must not black out the LEDs.
+            legacy?.source?.takeUnless { it == AppProfileSelection.Source.GAME_SCENE && legacyPresetId == null },
+            legacyPresetId,
             evaluation,
             baseline?.id
         )
@@ -124,7 +136,7 @@ class SceneRuntimeController(
         val oldPreset = previous?.preset
         val lightingChanged = previous == null || (oldPreset == null) != (preset == null) ||
             oldPreset != null && preset != null && PresetController.hasLightingChanges(oldPreset, preset)
-        val decision = Decision(preset, preset?.name, lightingChanged, limit, reason)
+        val decision = Decision(preset, preset?.name, lightingChanged, limit, reason, choice.source)
         if (previous?.preset == preset && previous?.brightnessLimitPercent == limit && previous?.reason == reason) return null
         previous = decision
         return decision

@@ -16,6 +16,29 @@
 This development build remains an unpublished draft. The latest public release
 is still 2.5.1. See [the onboarding guide](docs/onboarding.md).
 
+### Additional development fixes
+
+- **Smart Scenes fixes:** a rule or temporary choice no longer replaces your own
+  preset after a restart, slider changes no longer restart the effect, and a
+  scene's brightness limit no longer hides the low-battery alert or charging indicator.
+- Starting a capture effect yourself no longer shows the app-profile notification.
+- Negative rule priorities stay intact when you edit a rule.
+- Deleting a preset and tapping Undo keeps your Game Scene setting.
+- Preset images from an import stay available while you review the import, however long it takes.
+- Searching the library stays smooth while an Undo is available.
+
+## 2.5.1 — startup fix
+
+Released on 2026-10-16. This patch addresses a welcome-window leak reported when
+opening 2.5.0 on an AYN Thor Max running Android 13.
+
+- Close alert windows when their app screen is recreated, including the welcome
+  message during AYN Thor display changes. An interrupted welcome remains
+  unacknowledged and is shown again on the new screen.
+
+Updates production 2.5.0 in place, preserving presets and settings.
+The existing 2.5.0 features remain unchanged.
+
 ## 2.5.0 — full release
 
 Published on 2026-10-11. This stable release brings together the interface work

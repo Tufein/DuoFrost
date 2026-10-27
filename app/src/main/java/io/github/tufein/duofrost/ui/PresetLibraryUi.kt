@@ -118,11 +118,13 @@ internal class PresetLibraryUi(
         // Request controller focus only after the replacement belongs to the live view tree.
         replacementFocus?.requestFocus()
         activity.findViewById<MaterialButton>(R.id.gui_libraryUndo).apply {
-            val pending = undo.pending()
+            val pending = pendingUndo()
             visibility = if (pending == null) View.GONE else View.VISIBLE
             setText(if (pending?.action == PresetUndoStore.Action.IMPORT) R.string.library_undo_import else R.string.library_undo_delete)
         }
     }
+
+    fun pendingUndo(): PresetUndoStore.PendingUndo? = undo.pending()
 
     fun saveState(out: Bundle) {
         out.putBoolean("library_favorites_filter", favoritesOnly)

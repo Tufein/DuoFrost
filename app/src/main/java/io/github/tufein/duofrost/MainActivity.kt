@@ -1699,7 +1699,9 @@ class MainActivity : AppCompatActivity() {
     private fun refreshCoverFlowFromPresets() {
         if (!::presetController.isInitialized) return
         val presets = presetController.getPresets()
-        if (::appProfileManager.isInitialized) {
+        // An unreadable library reads as empty, and Undo may still restore a deleted
+        // preset; never wipe the Game Scene in either case.
+        if (::appProfileManager.isInitialized && presets.isNotEmpty() && libraryUi.pendingUndo() == null) {
             appProfileManager.clearGameSceneIfMissing(presets.map { it.name })
         }
         val indices = libraryUi.matchingIndices(presets, presetSearchQuery)
@@ -4124,9 +4126,19 @@ class MainActivity : AppCompatActivity() {
         }
 
         presetController.reloadFromPrefs(refreshSpinner = true)
-        PresetImportReviewDialog.show(this, result, presetController.getPresets().toList()) { plan ->
+        val staged = result.presets.mapNotNull { it.customImageFileName?.trim()?.takeIf(String::isNotEmpty) }
+        PresetArtworkPruner.hold(staged)
+        val dialog = PresetImportReviewDialog.show(this, result, presetController.getPresets().toList()) { plan ->
             applyReviewedImport(plan, result)
-        }?.setOnDismissListener { PresetArtworkPruner.prune(this, prefs) }
+        }
+        if (dialog == null) {
+            PresetArtworkPruner.release(staged)
+            return
+        }
+        dialog.setOnDismissListener {
+            PresetArtworkPruner.release(staged)
+            PresetArtworkPruner.prune(this, prefs)
+        }
     }
 
     private fun showBackupCategoryDialog(

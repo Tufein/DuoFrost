@@ -6,6 +6,8 @@ import android.view.LayoutInflater
 import android.view.View
 import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import io.github.tufein.duofrost.R
 
@@ -64,6 +66,15 @@ class DuoFrostAlertDialog {
         val dialog = builder.create()
         dialog.window?.setBackgroundDrawable(ColorDrawable(Color.TRANSPARENT))
         dialog.setCanceledOnTouchOutside(cancelable)
+
+        // A valid window can outlive its host during a Thor display relaunch.
+        // Dismiss on teardown without treating it as a user confirmation/cancel.
+        val lifecycle = activity.lifecycle
+        val lifecycleObserver = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_DESTROY) dialog.dismiss()
+        }
+        dialog.setOnDismissListener { lifecycle.removeObserver(lifecycleObserver) }
         dialog.show()
+        lifecycle.addObserver(lifecycleObserver)
     }
 }

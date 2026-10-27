@@ -54,6 +54,22 @@ class PresetArtworkPrunerStorageTest {
         assertTrue(recoverable.exists())
     }
 
+    @Test fun artworkHeldForAnOpenImportReviewOutlivesTheAgeQuarantine() {
+        val current = icon("current.png", old = true)
+        val staged = icon("staged-old.png", old = true)
+        prefs.edit().putString("presets_json", raw("current" to current.name)).commit()
+        PresetArtworkPruner.hold(listOf(staged.name))
+        try {
+            assertEquals(0, PresetArtworkPruner.prune(context, prefs))
+            assertTrue(staged.exists())
+        } finally {
+            PresetArtworkPruner.release(listOf(staged.name))
+        }
+        assertEquals(1, PresetArtworkPruner.prune(context, prefs))
+        assertFalse(staged.exists())
+        assertTrue(current.exists())
+    }
+
     @Test fun expiredUndoAllowsCleanupWithoutRemovingCurrentArtwork() {
         val current = icon("current.png", old = true)
         val deleted = icon("deleted.png", old = true)

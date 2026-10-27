@@ -93,6 +93,36 @@ class SceneRuntimeControllerTest {
         assertFalse(store.isEnabled)
     }
 
+    @Test fun liveParameterUpdateDoesNotRestartManualLighting() {
+        assertEquals(baseline, evaluate()!!.preset)
+        val slider = Intent().putExtra("animationType", "STATIC")
+            .putExtra("animationColor", 0x102030).putExtra("brightness", 99)
+        runtime.updateBaseline(slider)
+        // The service already applied the slider value live; no second restart.
+        assertNull(evaluate())
+    }
+
+    @Test fun baselineEditedDuringRuleIsRestoredWhenRuleEnds() {
+        store.saveRules(listOf(SceneRule("rule", "Ocean", presetId = scene.id)))
+        store.isEnabled = true
+        assertEquals(scene, evaluate()!!.preset)
+        val edit = Intent().putExtra("animationType", "STATIC")
+            .putExtra("animationColor", 0x445566).putExtra("brightness", 42)
+        runtime.updateBaseline(edit)
+        assertNull(evaluate())
+        store.isEnabled = false
+        assertEquals(SceneBaseline.fromIntent(edit, baseline.id, baseline.name), evaluate()!!.preset)
+    }
+
+    @Test fun rulesAndHoldsDoNotReplaceTheManualSelection() {
+        assertTrue(evaluate()!!.storesAsLastPreset)
+        store.saveRules(listOf(SceneRule("rule", "Ocean", presetId = scene.id)))
+        store.isEnabled = true
+        assertFalse(evaluate()!!.storesAsLastPreset)
+        assertTrue(store.setTemporaryScene(baseline.id, 15, SystemClock.elapsedRealtime(), 1))
+        assertFalse(evaluate()!!.storesAsLastPreset)
+    }
+
     @Test fun disablingScenesRestoresExactUnsavedBaseline() {
         val unsaved = baseline.copy(color = 0x993377, speed = 0.77f)
         runtime.setBaseline(unsaved)

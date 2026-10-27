@@ -321,7 +321,9 @@ class ScenesActivity : AppCompatActivity() {
             .apply { setPadding(0, dp(16), 0, 0) }
         val priority = SeekBar(this).apply {
             id = R.id.scenes_rule_priority
-            max = 100
+            // Stored rules accept negative priorities; keep them editable without clamping.
+            min = SceneLimits.MIN_PRIORITY
+            max = SceneLimits.MAX_PRIORITY
             progress = existing?.priority ?: 0
             minimumHeight = dp(48)
             contentDescription = getString(R.string.scenes_priority, progress)

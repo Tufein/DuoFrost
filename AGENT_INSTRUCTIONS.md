@@ -117,9 +117,10 @@ This document contains instructions for autonomous coding agents.
 37. Inflate activity_main in short landscape and portrait with LandscapeLayoutTest:
     control IDs stay unique and settings keep scroll room. Card setters run on
     every scroll frame; skip unchanged borders and backgrounds.
-38. The interface refresh and landscape work prepared as 2.2.0 ship as the 2.3.0
-    pre-release (code 25), as the user decided on 2026-10-06. 2.1.0 remains the
-    latest stable release until the user promotes 2.3.0. Sign it with the 2.1.0 key.
+38. The interface refresh and landscape work prepared as 2.2.0 shipped as the
+    2.3.0 pre-release (code 25), as the user decided on 2026-10-06. The stable
+    line subsequently became 2.5.0 and the 2.5.1 startup fix. Preserve the
+    2.1.0 signing key for compatible production updates.
 
 39. A release version code must exceed all earlier distributed production-signed
     builds, including previews, so upgrades preserve the same app and signing key.
@@ -135,7 +136,27 @@ This document contains instructions for autonomous coding agents.
     from that workflow. Do not upload private test APKs as Actions artifacts or
     cache build outputs. Push upload-helper changes with [skip ci], then dispatch.
 
-42. First-run onboarding must gate MainActivity initialization and pending
+42. Alert windows must close when their host Activity is destroyed, including
+    Thor display relaunches. A pre-show isFinishing/isDestroyed guard alone does
+    not prevent an already-visible dialog from leaking. Lifecycle cleanup must
+    not invoke confirmation/cancellation actions or mark the welcome as read.
+    Verify recreation and teardown on Android 13 with DuoFrostAlertDialogLifecycleTest.
+
+43. Smart Scene rules and temporary holds overlay the manual preset; only legacy
+    app-profile sources may write last_preset_name. Live parameter updates must
+    not restart the effect. Scene brightness caps never dim alerts, external
+    overrides or the charging indicator. Manual starts never use the app-profile
+    capture prompt. Since 2026-10-12 Claude maintains DuoFrost instead of Codex.
+44. Keep import-staged artwork held (PresetArtworkPruner.hold/release) for the life
+    of the review dialog. Do not clear the Game Scene while an undo is pending.
+    Parse the undo record once per stored value, never per UI refresh.
+45. DuoFrostAccessibilityService.isEnabled compares parsed ComponentNames.
+    AccessibilityManagerService persists enabled_accessibility_services in short
+    form (package/.services.Name) whenever it rewrites the list, so a plain string
+    match on the full class name fails silently and accessibility capture never
+    starts. Verify with DuoFrostAccessibilityServiceEnabledTest.
+
+46. First-run onboarding must gate MainActivity initialization and pending
     widget/tile/capture actions until the final result, without competing
     permission prompts. Preserve existing completed installs and deferred
     safe launch flags through recreation; never save capture grants.
@@ -143,7 +164,7 @@ This document contains instructions for autonomous coding agents.
     Stop on pause/timeout and never black out a newly started service during
     direct-test cleanup. Only user confirmation can verify physical LED output.
 
-43. Notification pinning never disables foreground-service requirements. Apply
+47. Notification pinning never disables foreground-service requirements. Apply
     its parameter during transitions, without resetting lighting. Stop and
     destruction must remove lighting/capture notifications before risky cleanup;
     late callbacks from stopped instances must not post or promote again.
