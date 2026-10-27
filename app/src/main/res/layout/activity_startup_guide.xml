@@ -1,236 +1,32 @@
 <?xml version="1.0" encoding="utf-8"?>
-<FrameLayout
-    xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:app="http://schemas.android.com/apk/res-auto"
-    android:layout_width="match_parent"
-    android:layout_height="match_parent"
-    android:background="@color/bifrost_bg"
-    android:padding="24dp">
-
-    <ScrollView
-        android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:fillViewport="true"
-        android:overScrollMode="ifContentScrolls">
-
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="match_parent"
-            android:gravity="center"
-            android:orientation="vertical">
-
-            <com.google.android.material.card.MaterialCardView
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_gravity="center"
-                android:background="@color/bifrost_card"
-                app:cardBackgroundColor="@color/bifrost_card"
-                app:cardCornerRadius="16dp"
-                app:cardElevation="0dp"
-                app:strokeColor="@color/bifrost_surface"
-                app:strokeWidth="1dp">
-
-                <LinearLayout
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:orientation="vertical"
-                    android:padding="24dp">
-
-                    <TextView
-                        android:id="@+id/guideTitle"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:gravity="center_horizontal"
-                        android:text="@string/gui_setup_title"
-                        android:textColor="@color/bifrost_text"
-                        android:textSize="28sp"
-                        android:textStyle="bold"
-                        android:accessibilityHeading="true"
-                        android:lineSpacingExtra="3dp" />
-
-                    <TextView
-                        android:id="@+id/guideProgressText"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="10dp"
-                        android:gravity="center_horizontal"
-                        android:textColor="@color/bifrost_text_secondary"
-                        android:textSize="14sp"
-                        android:lineSpacingExtra="3dp" />
-
-                    <LinearLayout
-                        android:id="@+id/pageNotification"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="24dp"
-                        android:orientation="vertical">
-
-                        <TextView
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:text="Allow notifications"
-                            android:textColor="@color/bifrost_text"
-                            android:textSize="20sp"
-                            android:textStyle="bold"
-                            android:lineSpacingExtra="3dp" />
-
-                        <TextView
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:layout_marginTop="8dp"
-                            android:text="@string/gui_setup_notification_description"
-                            android:textColor="@color/bifrost_text_secondary"
-                            android:textSize="16sp"
-                            android:lineSpacingExtra="3dp" />
-
-                        <com.google.android.material.button.MaterialButton
-                            android:id="@+id/buttonGrantNotifications"
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:layout_marginTop="16dp"
-                            android:text="Allow notifications"
-                            android:textAllCaps="false"
-                            app:backgroundTint="@color/bifrost_accent"
-                            app:cornerRadius="12dp"
-                            android:textSize="14sp"
-                            android:minHeight="48dp" />
-                    </LinearLayout>
-
-                    <LinearLayout
-                        android:id="@+id/pageAccessibility"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="24dp"
-                        android:orientation="vertical"
-                        android:visibility="gone">
-
-                        <TextView
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:text="@string/gui_setup_accessibility_title"
-                            android:textColor="@color/bifrost_text"
-                            android:textSize="20sp"
-                            android:textStyle="bold"
-                            android:lineSpacingExtra="3dp" />
-
-                        <TextView
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:layout_marginTop="8dp"
-                            android:text="@string/gui_setup_accessibility_description"
-                            android:textColor="@color/bifrost_text_secondary"
-                            android:textSize="16sp"
-                            android:lineSpacingExtra="3dp" />
-
-                        <com.google.android.material.button.MaterialButton
-                            android:id="@+id/buttonOpenAccessibility"
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:layout_marginTop="16dp"
-                            android:text="Open accessibility settings"
-                            android:textAllCaps="false"
-                            app:backgroundTint="@color/bifrost_accent"
-                            app:cornerRadius="12dp"
-                            android:textSize="14sp"
-                            android:minHeight="48dp" />
-                    </LinearLayout>
-
-                    <LinearLayout
-                        android:id="@+id/pageUsage"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="24dp"
-                        android:orientation="vertical"
-                        android:visibility="gone">
-
-                        <TextView
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:text="Allow usage access"
-                            android:textColor="@color/bifrost_text"
-                            android:textSize="20sp"
-                            android:textStyle="bold"
-                            android:lineSpacingExtra="3dp" />
-
-                        <TextView
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:layout_marginTop="8dp"
-                            android:text="@string/gui_setup_usage_description"
-                            android:textColor="@color/bifrost_text_secondary"
-                            android:textSize="16sp"
-                            android:lineSpacingExtra="3dp" />
-
-                        <com.google.android.material.button.MaterialButton
-                            android:id="@+id/buttonOpenUsageAccess"
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:layout_marginTop="16dp"
-                            android:text="Open usage access settings"
-                            android:textAllCaps="false"
-                            app:backgroundTint="@color/bifrost_accent"
-                            app:cornerRadius="12dp"
-                            android:textSize="14sp"
-                            android:minHeight="48dp" />
-                    </LinearLayout>
-
-                    <LinearLayout
-                        android:id="@+id/pageDone"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="24dp"
-                        android:orientation="vertical"
-                        android:visibility="gone">
-
-                        <TextView
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:gravity="center_horizontal"
-                            android:text="@string/gui_setup_complete_title"
-                            android:textColor="@color/bifrost_text"
-                            android:textSize="22sp"
-                            android:textStyle="bold"
-                            android:lineSpacingExtra="3dp" />
-
-                        <TextView
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:layout_marginTop="8dp"
-                            android:gravity="center_horizontal"
-                            android:text="@string/gui_setup_complete_description"
-                            android:textColor="@color/bifrost_text_secondary"
-                            android:textSize="16sp"
-                            android:lineSpacingExtra="3dp" />
-                    </LinearLayout>
-                </LinearLayout>
-            </com.google.android.material.card.MaterialCardView>
-
-            <com.google.android.material.button.MaterialButton
-                android:id="@+id/buttonContinue"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="16dp"
-                android:padding="8dp"
-                android:text="@string/gui_setup_later"
-                android:textColor="@color/bifrost_text_secondary"
-                android:textSize="14sp"
-                android:lineSpacingExtra="3dp"
-                style="@style/Widget.Material3.Button.TextButton"
-                android:minHeight="48dp"
-                android:textAllCaps="false" />
-
-            <com.google.android.material.button.MaterialButton
-                android:id="@+id/buttonCompleteSetup"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="12dp"
-                android:text="Complete setup"
-                android:textAllCaps="false"
-                android:visibility="gone"
-                app:backgroundTint="@color/bifrost_accent"
-                app:cornerRadius="12dp"
-                android:textSize="14sp"
-                android:minHeight="48dp" />
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent" android:layout_height="match_parent"
+    android:background="@color/bifrost_bg" android:padding="16dp">
+    <ScrollView android:id="@+id/guideScroll"
+        android:layout_width="match_parent" android:layout_height="match_parent"
+        android:fillViewport="true" android:clipToPadding="false">
+        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:orientation="vertical" android:paddingBottom="16dp">
+            <ImageView android:layout_width="56dp" android:layout_height="56dp"
+                android:layout_marginBottom="16dp" android:src="@mipmap/ic_launcher"
+                android:importantForAccessibility="no" />
+            <TextView android:id="@+id/guideTitle" style="@style/GuiHeading"
+                android:layout_width="match_parent" android:layout_height="wrap_content"
+                android:text="@string/gui_setup_title" android:textSize="28sp"
+                android:accessibilityHeading="true" />
+            <TextView android:id="@+id/guideProgressText" style="@style/GuiSecondary"
+                android:layout_width="match_parent" android:layout_height="wrap_content"
+                android:layout_marginTop="8dp" android:accessibilityLiveRegion="polite" />
+            <LinearLayout android:id="@+id/guidePageContainer"
+                android:layout_width="match_parent" android:layout_height="wrap_content"
+                android:orientation="vertical" />
+            <com.google.android.material.button.MaterialButton android:id="@+id/guideNext"
+                style="@style/GuiPrimaryButton" android:layout_width="match_parent"
+                android:layout_height="wrap_content" android:layout_marginTop="24dp" />
+            <com.google.android.material.button.MaterialButton android:id="@+id/guideBack"
+                style="@style/GuiButton" android:layout_width="match_parent"
+                android:layout_height="wrap_content" android:layout_marginTop="8dp"
+                android:text="@string/onboarding_back" />
         </LinearLayout>
     </ScrollView>
 </FrameLayout>

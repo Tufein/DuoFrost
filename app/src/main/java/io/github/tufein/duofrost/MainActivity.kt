@@ -291,7 +291,8 @@ class MainActivity : AppCompatActivity() {
         private const val PREF_ADAPTIVE_BRIGHTNESS = "adaptive_brightness_enabled"
         private const val PREF_SELECTED_UI_THEME = "selected_ui_theme"
         private const val PREF_COLORED_LOGO_ENABLED = "colored_logo_enabled"
-        private const val PREF_STARTUP_GUIDE_DONE = "startup_guide_done"
+        private const val STATE_AWAITING_STARTUP_GUIDE = "awaiting_startup_guide"
+        private const val STATE_DEFERRED_LAUNCH_REQUEST = "deferred_launch_request"
         private const val PREF_LIVE_WALLPAPER_RESTORE_SETTINGS = "live_wallpaper_restore_settings"
         private const val PREF_LIVE_WALLPAPER_APPLY_IN_PROGRESS = "live_wallpaper_apply_in_progress"
         private const val LIVE_WALLPAPER_LOCAL_VIDEO_FILE = "live_wallpaper_video.mp4"
@@ -360,6 +361,7 @@ class MainActivity : AppCompatActivity() {
     private var titleIntroAnimator: ValueAnimator? = null
     private var headerSettleAnimator: ValueAnimator? = null
     private var isAppInitialized = false
+    private var isAwaitingStartupGuide = false
     private var lightingStateReceiverRegistered = false
     private val lightingStateReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
@@ -459,16 +461,16 @@ class MainActivity : AppCompatActivity() {
     )
     private var selectedUiTheme: UiTheme = builtInThemes.first()
 
-    private val launchNotificationPermissionLauncher =
-        registerForActivityResult(ActivityResultContracts.RequestPermission()) { isGranted ->
-            if (!isGranted) {
-                Toast.makeText(
-                    this,
-                    "Notification permission is required for this app to function",
-                    Toast.LENGTH_LONG
-                ).show()
+    private val startupGuideLauncher =
+        registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+            isAwaitingStartupGuide = false
+            if (isFinishing || isDestroyed) return@registerForActivityResult
+            if (result.resultCode == RESULT_OK && StartupGuideActivity.isComplete(this)) {
+                findViewById<View>(R.id.gui_root).visibility = View.VISIBLE
+                initializeApp()
+            } else {
+                finish()
             }
-            initializeApp()
         }
 
     private val notificationPermissionLauncher =
@@ -633,14 +635,21 @@ class MainActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         pendingUiState = savedInstanceState
         isRecreatingUi = savedInstanceState != null
+        isAwaitingStartupGuide = savedInstanceState?.getBoolean(STATE_AWAITING_STARTUP_GUIDE) == true
+        if (isAwaitingStartupGuide) {
+            savedInstanceState?.getBundle(STATE_DEFERRED_LAUNCH_REQUEST)?.let { request ->
+                setIntent(Intent(intent).apply {
+                    removeExtra(EXTRA_START_WIDGET_PRESET)
+                    removeExtra(EXTRA_START_FROM_TILE)
+                    removeExtra(EXTRA_GRANT_PROJECTION_FOR_APP_PROFILE)
+                    putExtras(request)
+                })
+            }
+        }
 
         if (intent.getBooleanExtra("finish", false)) {
             finishAffinity()
             return
-        }
-
-        if (shouldLaunchStartupGuide()) {
-            runCatching { startActivity(Intent(this, StartupGuideActivity::class.java)) }
         }
 
         setContentView(R.layout.activity_main)
@@ -652,31 +661,55 @@ class MainActivity : AppCompatActivity() {
             insets
         }
 
-        if (maybeRelaunchOnCorrectDisplay()) return
+        if (!isAwaitingStartupGuide && maybeRelaunchOnCorrectDisplay()) return
 
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            if (ContextCompat.checkSelfPermission(
-                    this,
-                    Manifest.permission.POST_NOTIFICATIONS
-                ) != PackageManager.PERMISSION_GRANTED
-            ) {
-                launchNotificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
-                return
+        if (isAwaitingStartupGuide || !StartupGuideActivity.isComplete(this)) {
+            findViewById<View>(R.id.gui_root).visibility = View.INVISIBLE
+            if (!isAwaitingStartupGuide) {
+                isAwaitingStartupGuide = true
+                if (runCatching {
+                    startupGuideLauncher.launch(Intent(this, StartupGuideActivity::class.java))
+                }.isFailure) {
+                    isAwaitingStartupGuide = false
+                    finish()
+                }
             }
+            return
         }
 
         initializeApp()
     }
 
-    private fun shouldLaunchStartupGuide(): Boolean {
-        return !prefs.getBoolean(PREF_STARTUP_GUIDE_DONE, false)
-    }
-
     override fun onNewIntent(intent: Intent?) {
         super.onNewIntent(intent)
+        if (intent == null) return
+        if (isAwaitingStartupGuide || !isAppInitialized) {
+            setIntent(retainDeferredLaunchRequest(intent))
+            return
+        }
         setIntent(intent)
         handleAppProfileProjectionIntent(intent)
         if (!handleWidgetPresetIntent(intent)) handleTileStartIntent(intent)
+    }
+
+    private fun retainDeferredLaunchRequest(incoming: Intent): Intent = Intent(incoming).apply {
+        val previous = intent
+        val newWidget = incoming.hasExtra(EXTRA_START_WIDGET_PRESET)
+        val newTile = incoming.getBooleanExtra(EXTRA_START_FROM_TILE, false)
+        if (!newWidget && !newTile) {
+            previous.getStringExtra(EXTRA_START_WIDGET_PRESET)?.let { putExtra(EXTRA_START_WIDGET_PRESET, it) }
+            if (previous.getBooleanExtra(EXTRA_START_FROM_TILE, false)) putExtra(EXTRA_START_FROM_TILE, true)
+        } else if (newWidget) {
+            removeExtra(EXTRA_START_FROM_TILE)
+        } else {
+            removeExtra(EXTRA_START_WIDGET_PRESET)
+        }
+        if (previous.getBooleanExtra(EXTRA_GRANT_PROJECTION_FOR_APP_PROFILE, false)) {
+            putExtra(EXTRA_GRANT_PROJECTION_FOR_APP_PROFILE, true)
+        }
+        if (!incoming.hasExtra(EXTRA_DISPLAY_RELAUNCH_ATTEMPT) && previous.hasExtra(EXTRA_DISPLAY_RELAUNCH_ATTEMPT)) {
+            putExtra(EXTRA_DISPLAY_RELAUNCH_ATTEMPT, previous.getIntExtra(EXTRA_DISPLAY_RELAUNCH_ATTEMPT, 0))
+        }
     }
 
     private fun maybeOfferCrashReport() {
@@ -770,6 +803,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun initializeApp() {
+        if (isAppInitialized || isAwaitingStartupGuide || !StartupGuideActivity.isComplete(this)) return
         mediaProjectionManager = getSystemService(MediaProjectionManager::class.java)
         prefs.registerOnSharedPreferenceChangeListener(liveWallpaperPrefsListener)
 
@@ -1108,6 +1142,7 @@ class MainActivity : AppCompatActivity() {
         updateParameterVisibility()
 
         settingsSystemStatusCard.visibility = if (showingBehavior) View.VISIBLE else View.GONE
+        findViewById<View>(R.id.replayOnboardingButton).visibility = if (showingBehavior) View.VISIBLE else View.GONE
         appProfileCard.visibility = if (showingBehavior) View.VISIBLE else View.GONE
 
         val thorCard = findViewById<View>(R.id.thorSettingsCard)
@@ -2963,6 +2998,11 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun setupBackgroundControls() {
+        findViewById<MaterialButton>(R.id.replayOnboardingButton).setOnClickListener {
+            startActivity(Intent(this, StartupGuideActivity::class.java).apply {
+                putExtra(StartupGuideActivity.EXTRA_REPLAY, true)
+            })
+        }
         keepRunningSwitch.isChecked = ServiceRecoveryStore.isKeepRunningEnabled(prefs)
         keepRunningSwitch.setOnCheckedChangeListener { _, enabled ->
             ServiceRecoveryStore.setKeepRunningEnabled(prefs, enabled)
@@ -3068,7 +3108,7 @@ class MainActivity : AppCompatActivity() {
             selectedPersistentNotification = isChecked
             prefs.edit().putBoolean(PREF_PERSISTENT_NOTIFICATION, isChecked).apply()
 
-            if (LEDService.isRunning && !serviceController.isServiceTransitioning) {
+            if (LEDService.isRunning) {
                 startService(Intent(this, LEDService::class.java).apply {
                     action = LEDService.ACTION_UPDATE_PARAMS
                     putExtra(LEDService.EXTRA_PERSISTENT_NOTIFICATION, isChecked)
@@ -3791,6 +3831,18 @@ class MainActivity : AppCompatActivity() {
             outState.putString("gui_draft", EditorDraftCodec.encode(currentEditorPreset()))
             outState.putString("gui_preset_name", presetController.getPresets().getOrNull(presetSpinner.selectedItemPosition)?.name)
             outState.putInt("gui_editor_scroll", mainSettingsScroll.scrollY)
+        }
+        outState.putBoolean(STATE_AWAITING_STARTUP_GUIDE, isAwaitingStartupGuide)
+        if (isAwaitingStartupGuide) {
+            outState.putBundle(STATE_DEFERRED_LAUNCH_REQUEST, Bundle().apply {
+                intent.getStringExtra(EXTRA_START_WIDGET_PRESET)?.let { putString(EXTRA_START_WIDGET_PRESET, it) }
+                putBoolean(EXTRA_START_FROM_TILE, intent.getBooleanExtra(EXTRA_START_FROM_TILE, false))
+                putBoolean(EXTRA_GRANT_PROJECTION_FOR_APP_PROFILE,
+                    intent.getBooleanExtra(EXTRA_GRANT_PROJECTION_FOR_APP_PROFILE, false))
+                putInt(EXTRA_DISPLAY_RELAUNCH_ATTEMPT, intent.getIntExtra(EXTRA_DISPLAY_RELAUNCH_ATTEMPT, 0))
+            })
+        } else {
+            outState.remove(STATE_DEFERRED_LAUNCH_REQUEST)
         }
         super.onSaveInstanceState(outState)
     }

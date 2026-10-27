@@ -80,6 +80,7 @@ class LEDService : Service() {
     companion object {
         private const val TAG = "BIBI"
         private const val PREF_KEY_LAST_PRESET = "last_preset_name"
+        private const val PREF_PERSISTENT_NOTIFICATION = "persistent_notification_enabled"
         private const val ACTIVITY_CHECK_INTERVAL_MS = 2000L
         private const val ACTIVITY_CHECK_INTERVAL_APP_PROFILE_MS = 700L
         // An external override is a renewable lease: the owning app must keep
@@ -102,7 +103,7 @@ class LEDService : Service() {
         private const val LOW_BATTERY_ALERT_INTERVAL_MS = 500L
 
         const val CHANNEL_ID = "LEDServiceChannel"
-        const val NOTIFICATION_ID = 4242
+        const val NOTIFICATION_ID = LightingNotifications.RUNNING_ID
         const val ACTION_STOP = "io.github.tufein.duofrost.STOP"
         /** Legacy alias for [ACTION_STOP] that also signals MainActivity to finish. */
         const val ACTION_KILL = "io.github.tufein.duofrost.KILL"
@@ -170,7 +171,7 @@ class LEDService : Service() {
         const val EXTRA_FADE_END_RIGHT_COLOR = "fadeEndRightColor"
         private const val COLOR_OVERRIDE_UNSET = Int.MIN_VALUE
         private const val PROJECTION_PROMPT_CHANNEL_ID = "bifrost_projection_prompt_channel_v2"
-        private const val PROJECTION_PROMPT_NOTIFICATION_ID = 4244
+        private const val PROJECTION_PROMPT_NOTIFICATION_ID = LightingNotifications.CAPTURE_PERMISSION_ID
         const val PREF_AMBILIGHT_USE_MEDIA_PROJECTION = "ambilight_use_media_projection"
         const val DEFAULT_AMBILIGHT_USE_MEDIA_PROJECTION = true
         var isRunning = false
@@ -489,7 +490,21 @@ class LEDService : Service() {
     private val scenePreferencesRefresh = Runnable {
         if (isRunning && !isStopping.get()) checkAutoProfileSwitch()
     }
+    private val notificationPreferencesRefresh = Runnable {
+        if (isStopping.get()) return@Runnable
+        val enabled = persistentNotificationPreference()
+        if (enabled != currentPersistentNotification) {
+            currentPersistentNotification = enabled
+            updateForegroundNotification()
+        }
+    }
     private val scenePreferencesListener = SharedPreferences.OnSharedPreferenceChangeListener { _, key ->
+        if (key == null || key == PREF_PERSISTENT_NOTIFICATION) {
+            // A setting changed while Start was in flight still applies even
+            // when the activity could not send an update to a running service.
+            handler.removeCallbacks(notificationPreferencesRefresh)
+            handler.post(notificationPreferencesRefresh)
+        }
         if (key == null || key in SceneStore.BACKUP_PREF_KEYS || key in SceneStore.TEMPORARY_PREF_KEYS ||
             key in setOf("presets_json", "auto_switch_enabled", "app_profile_mappings", "game_scene_enabled", "game_scene_preset")) {
             // One atomic edit can change several keys (a hold uses four).
@@ -535,6 +550,7 @@ class LEDService : Service() {
         ledController = LedController()
         keepRunning = ServiceRecoveryStore.isKeepRunningEnabled(prefs)
         allowBackgroundRun = keepRunning
+        currentPersistentNotification = persistentNotificationPreference()
         currentBatterySaverBrightness = prefs.getBoolean(PREF_BATTERY_SAVER_BRIGHTNESS, false)
         outputLimits = LedOutputLimits.fromStoredValues(prefs.all)
         outputMuted = ServiceRecoveryStore.isMuted(this)
@@ -645,9 +661,8 @@ class LEDService : Service() {
             EXTRA_DISABLE_LOW_BATTERY_ALERT_WHILE_CHARGING,
             currentDisableLowBatteryAlertWhileCharging
         )
-        currentPersistentNotification = intent.getBooleanExtra(
-            EXTRA_PERSISTENT_NOTIFICATION,
-            currentPersistentNotification
+        currentPersistentNotification = persistentNotificationPreference(
+            intent.getBooleanExtra(EXTRA_PERSISTENT_NOTIFICATION, currentPersistentNotification)
         )
         currentAdaptiveBrightness = intent.getBooleanExtra(
             EXTRA_ADAPTIVE_BRIGHTNESS,
@@ -815,6 +830,7 @@ class LEDService : Service() {
     }
 
     private fun promoteToForeground(hasProjectionConsent: Boolean) {
+        if (isStopping.get()) return
         try {
             startForegroundForState(hasProjectionConsent)
         } catch (e: SecurityException) {
@@ -1338,6 +1354,7 @@ class LEDService : Service() {
     }
 
     private fun awaitProjectionConsent() {
+        if (!isRunning || isStopping.get()) return
         pendingTransitionRunnable?.let(handler::removeCallbacks)
         pendingTransitionRunnable = null
         pendingProjectionRunnable?.let(handler::removeCallbacks)
@@ -1520,6 +1537,13 @@ class LEDService : Service() {
     }
 
     override fun onDestroy() {
+        // Invalidate callbacks and remove UI before animation/receiver teardown:
+        // even an OEM cleanup failure must not leave a stale active notification.
+        isStopping.set(true)
+        isRunning = false
+        isWaitingForCapturePermission = false
+        waitingForProjectionConsent = false
+        removeServiceNotifications()
         super.onDestroy()
         prefs.unregisterOnSharedPreferenceChangeListener(scenePreferencesListener)
         handler.removeCallbacks(activityCheckRunnable)
@@ -1529,11 +1553,7 @@ class LEDService : Service() {
         unmountScreenBrightnessObserver()
         // Destruction alone can be a system reclaim. Keep the desired-running
         // snapshot so START_STICKY can restore it; explicit stops clear it first.
-        isStopping.set(true)
-        isRunning = false
-        isWaitingForCapturePermission = false
         publishLightingStateIfChanged()
-        dismissProjectionPromptNotification()
         handler.removeCallbacksAndMessages(null)
         DuoFrostTileService.refreshFrom(this)
         DuoFrostWidget.refreshFrom(this)
@@ -1543,7 +1563,6 @@ class LEDService : Service() {
         clearMediaProjection()
         runCatching { ledController.setLedColor(0, 0, 0, 0, true, true, true, true) }
         runCatching { ledController.shutdown() }
-        stopForeground(STOP_FOREGROUND_REMOVE)
     }
 
     private fun clearPendingCallbacks() {
@@ -1566,8 +1585,8 @@ class LEDService : Service() {
         isRunning = false
         isWaitingForCapturePermission = false
         waitingForProjectionConsent = false
+        removeServiceNotifications()
         publishLightingStateIfChanged()
-        dismissProjectionPromptNotification()
         DuoFrostTileService.refreshFrom(this)
         DuoFrostWidget.refreshFrom(this)
         ledController.setDiagnosticFrame(null, redraw = false)
@@ -1585,8 +1604,15 @@ class LEDService : Service() {
         // callback may later interrupt a newly started service instance.
         runCatching { ledController.setLedColor(0, 0, 0, 0, true, true, true, true) }
         runCatching { ledController.shutdown() }
-        stopForeground(STOP_FOREGROUND_REMOVE)
         stopSelf()
+    }
+
+    private fun removeServiceNotifications() {
+        runCatching { stopForeground(STOP_FOREGROUND_REMOVE) }
+            .onFailure { Log.w(TAG, "Unable to remove foreground notification", it) }
+        // Also cancel notifications posted through NotificationManager and any
+        // capture prompt. stopForeground alone need not own these stale entries.
+        LightingNotifications.cancelStopped(this)
     }
 
     override fun onBind(intent: Intent?): IBinder? = null
@@ -1665,12 +1691,15 @@ class LEDService : Service() {
     }
 
     private fun updateForegroundNotification() {
-        if (!isRunning) return
+        if (!isRunning || isStopping.get()) return
         val manager = getSystemService(NotificationManager::class.java)
         runCatching {
             manager.notify(NOTIFICATION_ID, createNotification())
         }
     }
+
+    private fun persistentNotificationPreference(fallback: Boolean = true): Boolean =
+        prefs.all[PREF_PERSISTENT_NOTIFICATION] as? Boolean ?: fallback
 
     @Suppress("DEPRECATION")
     private fun getDisplayMetrics(displayId: Int): DisplayMetrics {
@@ -2096,6 +2125,7 @@ class LEDService : Service() {
     }
 
     private fun showProjectionPromptNotification() {
+        if (!isRunning || isStopping.get()) return
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
             ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS)
             != PackageManager.PERMISSION_GRANTED

@@ -515,6 +515,31 @@ Android identity: `io.github.tufein.duofrost`
 
 CI intentionally uses debug signing and does not receive release keys.
 
+### Guided first-run setup (2.6.0 draft)
+
+Notification pinning remains independent of service lifetime: changing it sends
+only its parameter, even during a transition. Android may keep displaying a
+foreground-service notification when unpinned. Stop/destroy invalidate callbacks,
+remove foreground status and explicitly cancel both lighting-owned notification
+IDs before resource teardown. A Stop after process loss cancels the same orphan
+IDs without starting a service; unrelated notifications are preserved.
+
+`MainActivity` gates initialization through an Activity Result from
+`StartupGuideActivity`. Only the final setup action records completion.
+Declining optional permissions does not skip explanation or the LED test.
+Cancellation closes the uninitialized main screen. Pending widget, tile and
+capture-request flags survive recreation and display movement; capture grants
+are never serialized. Existing `startup_guide_done` installations are preserved.
+
+`OnboardingLedTestSession` uses bounded diagnostic frames through
+`LedController` when lighting is stopped, without a foreground service,
+recovery configuration or wanted-running state. A running service receives
+only its temporary LED-test command. Private runtime and power events update
+ownership and output limits without polling. Pause, expiry or completion clears
+the overlay; a newly started service must not be overwritten by direct cleanup.
+Hardware availability means a binder is reachable; the user confirms actual
+LED output. Unsupported hardware and failed checks remain visibly unresolved.
+
 ### Private draft test builds
 
 The `Upload DuoFrost release assets` workflow builds a separate debug app and

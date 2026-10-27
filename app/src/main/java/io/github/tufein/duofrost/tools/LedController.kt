@@ -13,6 +13,8 @@ class LedController {
     }
 
     private val pServerBinder: IBinder?
+    /** Binder availability is a capability check, not confirmation of an LED write. */
+    val isAvailable: Boolean get() = pServerBinder != null
     private val lock = ReentrantLock()
 
     private var lastCommand: String? = null

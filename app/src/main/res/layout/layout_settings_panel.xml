@@ -81,8 +81,8 @@
                     </LinearLayout>
                     <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:gravity="center_vertical" android:layout_marginTop="12dp">
                         <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:orientation="vertical">
-                            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Persistent notification" android:textColor="@color/bifrost_text" android:textSize="14sp" android:textStyle="bold" android:textAllCaps="false" android:lineSpacingExtra="2dp" />
-                            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Keep the lighting notification visible while lighting is running" android:textColor="@color/bifrost_text_secondary" android:textSize="13sp" android:layout_marginTop="2dp" android:textAllCaps="false" android:lineSpacingExtra="2dp" />
+                            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/persistent_notification_title" android:textColor="@color/bifrost_text" android:textSize="14sp" android:textStyle="bold" android:textAllCaps="false" android:lineSpacingExtra="2dp" />
+                            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/persistent_notification_description" android:textColor="@color/bifrost_text_secondary" android:textSize="13sp" android:layout_marginTop="2dp" android:textAllCaps="false" android:lineSpacingExtra="2dp" />
                         </LinearLayout>
                         <com.google.android.material.switchmaterial.SwitchMaterial android:id="@+id/persistentNotificationSwitch" android:layout_width="wrap_content" android:layout_height="wrap_content" app:thumbTint="@color/switch_thumb_tint" app:trackTint="@color/switch_track_tint" android:minWidth="48dp" android:minHeight="48dp" android:paddingStart="8dp" />
                     </LinearLayout>
@@ -300,6 +300,10 @@
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
             <com.google.android.material.button.MaterialButton android:id="@+id/creditsButton" android:layout_width="match_parent" android:layout_height="48dp" android:layout_marginTop="16dp" android:text="@string/credits_title" android:minHeight="48dp" android:textSize="14sp" android:textAllCaps="false" android:insetTop="0dp" android:insetBottom="0dp" app:cornerRadius="12dp" android:paddingStart="16dp" android:paddingEnd="16dp" app:strokeColor="@color/bifrost_surface" />
+            <com.google.android.material.button.MaterialButton android:id="@+id/replayOnboardingButton"
+                style="@style/GuiButton" android:layout_width="match_parent"
+                android:layout_height="wrap_content" android:layout_marginTop="8dp"
+                android:text="@string/onboarding_replay" />
         </LinearLayout>
     </ScrollView>
     <ScrollView android:id="@+id/liveWallpaperSettingsScroll" android:layout_width="match_parent" android:layout_height="0dp" android:layout_weight="1" android:fillViewport="true" android:scrollbars="none" android:overScrollMode="ifContentScrolls" android:visibility="gone">

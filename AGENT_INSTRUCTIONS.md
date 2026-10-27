@@ -134,3 +134,17 @@ This document contains instructions for autonomous coding agents.
     Build the exact draft target, verify asset digests and never publish/promote
     from that workflow. Do not upload private test APKs as Actions artifacts or
     cache build outputs. Push upload-helper changes with [skip ci], then dispatch.
+
+42. First-run onboarding must gate MainActivity initialization and pending
+    widget/tile/capture actions until the final result, without competing
+    permission prompts. Preserve existing completed installs and deferred
+    safe launch flags through recreation; never save capture grants.
+    Onboarding tests are temporary overlays, not saved lighting sessions.
+    Stop on pause/timeout and never black out a newly started service during
+    direct-test cleanup. Only user confirmation can verify physical LED output.
+
+43. Notification pinning never disables foreground-service requirements. Apply
+    its parameter during transitions, without resetting lighting. Stop and
+    destruction must remove lighting/capture notifications before risky cleanup;
+    late callbacks from stopped instances must not post or promote again.
+    After process loss, clear only lighting-owned orphan notifications.

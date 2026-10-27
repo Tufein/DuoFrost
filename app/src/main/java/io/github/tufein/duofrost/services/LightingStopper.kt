@@ -23,6 +23,8 @@ object LightingStopper {
         }
 
         if (!serviceStopped && !LEDService.isRunning && !ServiceRecoveryStore.isDesiredRunning(context)) {
+            // Process loss has no onDestroy callback to clear notifications.
+            LightingNotifications.cancelStopped(context)
             // No onDestroy will send the off command after process loss. This
             // one bounded write clears all zones without starting a service,
             // restarting a capture session or scheduling any further work.

@@ -1,0 +1,14 @@
+<resources>
+    <item type="id" name="buttonGrantNotifications" />
+    <item type="id" name="buttonOpenAccessibility" />
+    <item type="id" name="buttonOpenUsageAccess" />
+    <item type="id" name="guideNotificationStatus" />
+    <item type="id" name="guideAccessibilityStatus" />
+    <item type="id" name="guideUsageStatus" />
+    <item type="id" name="guideStartTest" />
+    <item type="id" name="guideTestNextColor" />
+    <item type="id" name="guideTestProblem" />
+    <item type="id" name="guideTestExpected" />
+    <item type="id" name="guideTestStatus" />
+    <item type="id" name="guideTestUnresolved" />
+</resources>

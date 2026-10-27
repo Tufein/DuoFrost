@@ -1,5 +1,21 @@
 # DuoFrost changelog
 
+## 2.6.0-alpha.1 — draft test build
+
+- **Guided setup:** permissions, a short explanation, six LED checks and a final
+  screen before entering the app. Optional access can be enabled later.
+- **Temporary LED test:** check colors and each stick without starting a saved
+  lighting session. Leaving the screen or waiting 60 seconds stops the test;
+  an existing effect is restored. Brightness limits and mute still apply.
+- **First-start fixes:** no competing permission prompts or dashboard actions
+  during setup. Replay onboarding from Device settings.
+- **Notification controls:** apply pinning changes during lighting transitions,
+  and clear lighting and capture-request notifications when stopping. The
+  setting explains Android’s required notification while lighting runs.
+
+This development build remains an unpublished draft. The latest public release
+is still 2.5.1. See [the onboarding guide](docs/onboarding.md).
+
 ## 2.5.0 — full release
 
 Published on 2026-10-11. This stable release brings together the interface work

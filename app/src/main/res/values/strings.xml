@@ -2,6 +2,8 @@
     <string name="mute_lighting">Mute LED output</string>
     <string name="unmute_lighting">Unmute LED output</string>
     <string name="quick_controls_start_first">Start lighting first to use these controls.</string>
+    <string name="persistent_notification_title">Pin lighting notification</string>
+    <string name="persistent_notification_description">Request a pinned notification. When off, Android can still show the required service notification while lighting runs. Stop removes it. Dismissal behavior depends on your Android version.</string>
     <string name="sleep_timer_title">Sleep timer</string>
     <string name="sleep_timer_cancel">Cancel timer</string>
     <string name="sleep_timer_custom">Custom duration…</string>
