@@ -150,3 +150,8 @@ This document contains instructions for autonomous coding agents.
 44. Keep import-staged artwork held (PresetArtworkPruner.hold/release) for the life
     of the review dialog. Do not clear the Game Scene while an undo is pending.
     Parse the undo record once per stored value, never per UI refresh.
+45. DuoFrostAccessibilityService.isEnabled compares parsed ComponentNames.
+    AccessibilityManagerService persists enabled_accessibility_services in short
+    form (package/.services.Name) whenever it rewrites the list, so a plain string
+    match on the full class name fails silently and accessibility capture never
+    starts. Verify with DuoFrostAccessibilityServiceEnabledTest.
