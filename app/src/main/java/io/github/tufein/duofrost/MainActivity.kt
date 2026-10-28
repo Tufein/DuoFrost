@@ -457,8 +457,28 @@ class MainActivity : AppCompatActivity() {
                 settleAlphaWave = 19,
                 settlePhaseDegrees = 12f
             )
+        ),
+        additionalTheme("oled_blue", "OLED Blue", "#000000", "#000000", "#000000", "#93C5FD", "#2563EB", "#60A5FA", 215f),
+        additionalTheme("oled_green", "OLED Green", "#000000", "#000000", "#000000", "#86EFAC", "#16A34A", "#4ADE80", 145f),
+        additionalTheme("oled_amber", "OLED Amber", "#000000", "#000000", "#000000", "#FDE68A", "#D97706", "#FBBF24", 40f),
+        additionalTheme("oled_white", "OLED White", "#000000", "#000000", "#000000", "#F5F5F5", "#737373", "#E5E5E5", 0f, 0f),
+        additionalTheme("midnight_teal", "Midnight Teal", "#081A1F", "#102A30", "#193B42", "#E6F6F5", "#008577", "#5CE0C4", 166f)
+    )
+
+    private fun additionalTheme(id: String, label: String, background: String, card: String,
+        surface: String, text: String, accent: String, accentLight: String, hue: Float,
+        saturation: Float = 0.7f): UiTheme = UiTheme(
+        id, label, Color.parseColor(background), Color.parseColor(card), Color.parseColor(surface),
+        Color.parseColor(text), Color.parseColor(accent), Color.parseColor(accentLight),
+        HeaderThemePalette(
+            introHueStart = hue - 20f, introHueSpan = 40f, introSaturation = saturation, introValue = 0.98f,
+            settleHueStart = hue, settleHueSpan = 32f, settleHueWobbleAmplitude = 4f,
+            settleSaturationBase = saturation * 0.65f, settleSaturationWave = saturation * 0.15f,
+            settleValueBase = 0.85f, settleValueWave = 0.1f, settleAlphaBase = 236,
+            settleAlphaWave = 19, settlePhaseDegrees = 12f
         )
     )
+
     private var selectedUiTheme: UiTheme = builtInThemes.first()
 
     private val startupGuideLauncher =
@@ -1185,7 +1205,16 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun setupThemeFeature() {
-        val adapter = ArrayAdapter(this, R.layout.item_spinner_bifrost, builtInThemes.map { it.label })
+        val adapter = object : ArrayAdapter<String>(this, R.layout.item_spinner_bifrost, builtInThemes.map { it.label }) {
+            private fun colorRow(view: View): View = view.apply {
+                (this as? TextView)?.setTextColor(selectedUiTheme.textColor)
+                setBackgroundColor(selectedUiTheme.surfaceColor)
+            }
+            override fun getView(position: Int, convertView: View?, parent: ViewGroup): View =
+                colorRow(super.getView(position, convertView, parent))
+            override fun getDropDownView(position: Int, convertView: View?, parent: ViewGroup): View =
+                colorRow(super.getDropDownView(position, convertView, parent))
+        }
         adapter.setDropDownViewResource(R.layout.item_spinner_dropdown_bifrost)
         themeSpinner.adapter = adapter
 
@@ -3000,6 +3029,19 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun setupBackgroundControls() {
+        findViewById<MaterialButton>(R.id.lightingNotificationSettingsButton).setOnClickListener {
+            val manager = getSystemService(android.app.NotificationManager::class.java)
+            // Creating a missing channel needs no service and preserves an existing user block.
+            if (manager.getNotificationChannel(LEDService.CHANNEL_ID) == null) {
+                manager.createNotificationChannel(android.app.NotificationChannel(
+                    LEDService.CHANNEL_ID, "LED Service", android.app.NotificationManager.IMPORTANCE_LOW))
+            }
+            val settings = Intent(Settings.ACTION_CHANNEL_NOTIFICATION_SETTINGS).apply {
+                putExtra(Settings.EXTRA_APP_PACKAGE, packageName)
+                putExtra(Settings.EXTRA_CHANNEL_ID, LEDService.CHANNEL_ID)
+            }
+            if (runCatching { startActivity(settings) }.isFailure) openDuoFrostAppSettings()
+        }
         findViewById<MaterialButton>(R.id.replayOnboardingButton).setOnClickListener {
             startActivity(Intent(this, StartupGuideActivity::class.java).apply {
                 putExtra(StartupGuideActivity.EXTRA_REPLAY, true)

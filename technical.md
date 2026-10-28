@@ -550,6 +550,18 @@ CI intentionally uses debug signing and does not receive release keys.
 
 ### Guided first-run setup (2.6.0 draft)
 
+Alpha.2 adds five stable theme IDs (`oled_blue`, `oled_green`,
+`oled_amber`, `oled_white`, `midnight_teal`) to the existing catalogue.
+The theme-only archive schema remains version 1. Spinner rows use the active
+palette. Appearance changes send no lighting commands.
+
+Device settings opens `ACTION_CHANNEL_NOTIFICATION_SETTINGS` for
+`LEDService.CHANNEL_ID`. It creates the channel only if missing, preserves
+the user's existing importance/block choice and never starts or demotes the
+service. Android owns notification visibility and may still show its Active apps
+or media-projection indicators. The contributed short-ComponentName
+Accessibility fix remains included.
+
 Notification pinning remains independent of service lifetime: changing it sends
 only its parameter, even during a transition. Android may keep displaying a
 foreground-service notification when unpinned. Stop/destroy invalidate callbacks,

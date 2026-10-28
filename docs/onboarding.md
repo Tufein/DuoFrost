@@ -25,6 +25,12 @@ Existing installations keep their setup status. To try the new flow, open
 **Pin lighting notification** controls whether DuoFrost requests a pinned
 notification. Turning it off does not hide Android’s required notification for
 running lighting. Use **Stop** to end lighting and remove its notifications.
+To hide the lighting notification while lighting runs, open **Device settings →
+Lighting notification visibility** and turn off Android’s **LED Service**
+category. Android may still show Active apps or a screen-sharing indicator.
+
+Appearance now also offers **OLED Blue, OLED Green, OLED Amber, OLED White**
+and **Midnight Teal**. You can export the selected theme separately from presets.
 
 This build stays in a private GitHub draft. Production 2.5.1 remains available
 as the latest public release.

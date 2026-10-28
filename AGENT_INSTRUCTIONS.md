@@ -169,3 +169,8 @@ This document contains instructions for autonomous coding agents.
     destruction must remove lighting/capture notifications before risky cleanup;
     late callbacks from stopped instances must not post or promote again.
     After process loss, clear only lighting-owned orphan notifications.
+
+48. Notification visibility belongs to Android channel settings; pinning is not
+    hiding. Never demote a running foreground service to hide its notification.
+    Create a missing channel without starting lighting and preserve user blocks.
+    Added themes need stable transferable IDs, readable text and matching menus.

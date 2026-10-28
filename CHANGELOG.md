@@ -1,5 +1,14 @@
 # DuoFrost changelog
 
+## 2.6.0-alpha.2 — draft test build
+
+- Five additional appearance palettes: OLED Blue, Green, Amber, White and
+  Midnight Teal. Theme selection and theme-only transfers keep their stable IDs.
+- Open Android’s LED Service notification category from Device settings to hide
+  the lighting notification while keeping lighting running. Pinning and
+  visibility are separate; Android may still show its Active apps/capture status.
+- Retains the contributed Accessibility component-name fix and all alpha.1 fixes.
+
 ## 2.6.0-alpha.1 — draft test build
 
 - **Guided setup:** permissions, a short explanation, six LED checks and a final
