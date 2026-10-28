@@ -27,7 +27,7 @@ import io.github.tufein.duofrost.tools.OnboardingLedTestSession
 import io.github.tufein.duofrost.ui.SecondaryScreenUi
 
 /** Permissions stay optional; only the final action completes the first-run guide. */
-class StartupGuideActivity : AppCompatActivity() {
+class StartupGuideActivity : io.github.tufein.duofrost.ui.ThemedActivity() {
     companion object {
         const val PREF_DONE = "startup_guide_done"
         const val EXTRA_REPLAY = "replay_onboarding"

@@ -17,6 +17,7 @@ object EditorDraftCodec {
         put("schema", SCHEMA)
         put("version", VERSION)
         put("name", preset.name)
+        put("transitionDurationMs", preset.transitionDurationMs)
         put("animationType", preset.animationType.name)
         put("performanceProfile", preset.performanceProfile.name)
         put("color", preset.color)
@@ -54,6 +55,7 @@ object EditorDraftCodec {
             if (name.length > MAX_NAME_LENGTH) return null
 
             LedPreset(
+                transitionDurationMs = if (draft.has("transitionDurationMs")) integer(draft, "transitionDurationMs").also { require(it in 0..2000) } else 0,
                 name = name,
                 animationType = LedAnimationType.valueOf(draft.get("animationType") as String),
                 performanceProfile = PerformanceProfile.valueOf(draft.get("performanceProfile") as String),

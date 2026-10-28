@@ -30,7 +30,7 @@ object PresetImportReviewDialog {
         if (result.errors.isNotEmpty() || result.presets.size > PresetImportPlan.MAX_IMPORTED_PRESETS) {
             val message = if (result.errors.isNotEmpty()) result.errors.joinToString("\n").take(4_000)
                 else activity.getString(R.string.import_review_limit, PresetImportPlan.MAX_IMPORTED_PRESETS)
-            return MaterialAlertDialogBuilder(activity).setTitle(R.string.import_review_title)
+            return io.github.tufein.duofrost.ui.ThemedDialogBuilder(activity).setTitle(R.string.import_review_title)
                 .setMessage(message).setPositiveButton(R.string.alert_action_ok, null).show()
         }
 
@@ -76,7 +76,7 @@ object PresetImportReviewDialog {
         content.addView(Spinner(activity).apply {
             id = R.id.import_review_mode
             minimumHeight = dp(activity, 48)
-            adapter = ArrayAdapter(activity, android.R.layout.simple_spinner_item,
+            adapter = io.github.tufein.duofrost.ui.PaletteArrayAdapter(activity, android.R.layout.simple_spinner_item,
                 listOf(activity.getString(R.string.import_review_add),
                     activity.getString(R.string.import_review_replace), activity.getString(R.string.import_review_skip)))
                 .apply { setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item) }
@@ -149,7 +149,7 @@ object PresetImportReviewDialog {
             addView(scroll, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,
                 minOf(dp(activity, 420), (activity.resources.displayMetrics.heightPixels * 0.55f).toInt())))
         }
-        val created = MaterialAlertDialogBuilder(activity).setTitle(R.string.import_review_title)
+        val created = io.github.tufein.duofrost.ui.ThemedDialogBuilder(activity).setTitle(R.string.import_review_title)
             .setView(viewport).setPositiveButton(R.string.import_review_apply, null)
             .setNegativeButton(R.string.action_cancel, null).create()
         dialog = created

@@ -28,7 +28,7 @@ import java.time.format.TextStyle
 import java.util.Locale
 import java.util.UUID
 
-class ScheduleActivity : AppCompatActivity() {
+class ScheduleActivity : io.github.tufein.duofrost.ui.ThemedActivity() {
 
     private val prefs by lazy { getSharedPreferences("bifrost_prefs", Context.MODE_PRIVATE) }
 
@@ -221,7 +221,7 @@ class ScheduleActivity : AppCompatActivity() {
         val actionLabels = presetNames + OFF_LABEL
         val actionSpinner = Spinner(this).apply {
             minimumHeight = dp(48)
-            adapter = ArrayAdapter(
+            adapter = io.github.tufein.duofrost.ui.PaletteArrayAdapter(
                 this@ScheduleActivity,
                 android.R.layout.simple_spinner_dropdown_item,
                 actionLabels
@@ -261,7 +261,7 @@ class ScheduleActivity : AppCompatActivity() {
         content.addView(SecondaryScreenUi.body(this, "Tap a date range again to use all year."))
 
         val editorScroll = ScrollView(this).apply { addView(content) }
-        val dialog = MaterialAlertDialogBuilder(this)
+        val dialog = io.github.tufein.duofrost.ui.ThemedDialogBuilder(this)
             .setTitle(if (existing == null) "New rule" else "Edit rule")
             .setView(editorScroll)
             .setNegativeButton("Cancel", null)
@@ -335,7 +335,7 @@ class ScheduleActivity : AppCompatActivity() {
             addView(dayPicker)
         }
 
-        MaterialAlertDialogBuilder(this)
+        io.github.tufein.duofrost.ui.ThemedDialogBuilder(this)
             .setTitle(title)
             .setView(row)
             .setNegativeButton("Cancel", null)

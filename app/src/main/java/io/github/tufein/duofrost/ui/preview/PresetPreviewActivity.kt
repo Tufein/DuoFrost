@@ -21,7 +21,7 @@ import kotlin.math.min
 import kotlin.math.roundToInt
 
 /** Local illustration only: no LED command, capture permission, sensor read or preference edit. */
-class PresetPreviewActivity : AppCompatActivity() {
+class PresetPreviewActivity : io.github.tufein.duofrost.ui.ThemedActivity() {
     private var preset: LedPreset? = null
     private var animator: ValueAnimator? = null
     private var motionPaused = false

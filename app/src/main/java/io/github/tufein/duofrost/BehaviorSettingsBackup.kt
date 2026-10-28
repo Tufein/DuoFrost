@@ -8,7 +8,8 @@ object BehaviorSettingsBackup {
         "persistent_notification_enabled", "battery_override_when_plugged",
         "low_battery_alert_enabled", "disable_low_battery_alert_while_charging",
         "ambilight_use_media_projection", "thor_bottom_screen", "thor_ambient_bottom_screen",
-        "external_api_enabled"
+        "external_api_enabled", "dashboard_library_first", "dashboard_show_library",
+        "dashboard_show_scenes", "dashboard_show_output", "dashboard_show_quick", "dashboard_show_profiles"
     )
     private val integerRanges = mapOf(
         "led_output_maximum_percent" to 0..100,

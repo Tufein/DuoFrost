@@ -22,6 +22,7 @@ object BackupArchiveTransfer {
     private const val ICONS_DIR_PREFIX = "icons/"
     private val THEME_PREF_KEYS = setOf(
         "selected_ui_theme",
+        "custom_ui_themes_json",
         "colored_logo_enabled"
     )
     private val PROFILE_PREF_KEYS = setOf(

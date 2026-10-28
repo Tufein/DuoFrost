@@ -72,6 +72,7 @@ object PresetArchiveTransfer {
             presetJson.put("speed", preset.speed.toDouble())
             presetJson.put("smoothness", preset.smoothness.toDouble())
             presetJson.put("sensitivity", preset.sensitivity.toDouble())
+            presetJson.put("transitionDurationMs", preset.transitionDurationMs)
             presetJson.put("saturationBoost", preset.saturationBoost.toDouble())
             presetJson.put("useCustomSampling", preset.useCustomSampling)
             presetJson.put("useSingleColor", preset.useSingleColor)
@@ -309,6 +310,7 @@ object PresetArchiveTransfer {
         val color = obj.optInt("color", -1)
 
         return LedPreset(
+            transitionDurationMs = (obj.opt("transitionDurationMs") as? Int)?.takeIf { it in 0..2000 } ?: 0,
             name = name,
             animationType = animationType,
             performanceProfile = profile,

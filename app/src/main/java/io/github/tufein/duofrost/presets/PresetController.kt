@@ -267,7 +267,8 @@ class PresetController(
             customImageFileName = current.customImageFileName,
             appIconPackageName = current.appIconPackageName,
             ownerPackage = current.ownerPackage,
-            id = current.id
+            id = current.id,
+            transitionDurationMs = current.transitionDurationMs
         )
 
         return replacePreset(
@@ -483,7 +484,8 @@ class PresetController(
                 customImageFileName = current.customImageFileName,
                 appIconPackageName = current.appIconPackageName,
                 ownerPackage = current.ownerPackage,
-                id = current.id
+                id = current.id,
+                transitionDurationMs = current.transitionDurationMs
             )
 
             replacePreset(
@@ -581,7 +583,7 @@ class PresetController(
 
         customImageButton.visibility = if (showCustomImageOption) View.VISIBLE else View.GONE
 
-        val dialog = MaterialAlertDialogBuilder(activity)
+        val dialog = io.github.tufein.duofrost.ui.ThemedDialogBuilder(activity)
             .setView(view)
             .setPositiveButton(positiveButtonLabel) { _, _ ->
                 val resolvedName = if (showNameInput) {
@@ -702,7 +704,7 @@ class IconLabelSpinnerAdapter<T>(
     @LayoutRes private val dropdownLayoutRes: Int,
     private val labelProvider: (T) -> CharSequence,
     private val visualProvider: (T) -> PresetVisualSpec
-) : ArrayAdapter<T>(activity, itemLayoutRes, items) {
+) : io.github.tufein.duofrost.ui.PaletteArrayAdapter<T>(activity, itemLayoutRes, items) {
 
     private val inflater = LayoutInflater.from(context)
 
@@ -727,6 +729,10 @@ class IconLabelSpinnerAdapter<T>(
         val visual = visualProvider(item)
 
         text.text = labelProvider(item)
+        val palette = io.github.tufein.duofrost.ui.ThemeCatalog.selected(context)
+        row.setBackgroundColor(palette.surfaceColor)
+        text.setTextColor(palette.textColor)
+        emoji.setTextColor(palette.textColor)
 
         val iconSize = maxOf(icon.layoutParams?.width ?: 0, icon.layoutParams?.height ?: 0, 20)
         PresetVisuals.bind(context, visual, icon, emoji, iconSize)

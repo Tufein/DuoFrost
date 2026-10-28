@@ -71,6 +71,11 @@
             </intent-filter>
         </activity>
 
+        <activity android:name=".ThemeEditorActivity" android:exported="false" />
+        <activity android:name=".DashboardSettingsActivity" android:exported="false" />
+        <activity android:name=".BackupSettingsActivity" android:exported="false" />
+        <activity android:name=".PresetTransitionsActivity" android:exported="false" />
+        <activity android:name=".scenes.SceneSimulatorActivity" android:exported="false" />
         <activity android:name=".CreditsActivity" android:exported="false" />
         <activity android:name=".LedTestActivity" android:exported="false" android:label="LED test" />
         <activity android:name=".widgets.WidgetConfigureActivity" android:exported="true">

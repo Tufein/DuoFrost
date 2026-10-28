@@ -13,13 +13,13 @@ object PresetArtworkPruner {
     // An import can stage artwork before it commits any presets. Quarantine new files until later.
     internal const val MIN_FILE_AGE_MILLIS = PresetUndoStore.TTL_MILLIS
     private val safeFileName = Regex("^[A-Za-z0-9._-]{1,96}$")
-    private val knownFields = setOf("id", "name", "animationType", "performanceProfile", "color", "rightColor",
+    private val knownFields = setOf("transitionDurationMs", "id", "name", "animationType", "performanceProfile", "color", "rightColor",
         "fadeEndColor", "fadeEndRightColor", "brightness", "speed", "smoothness", "sensitivity", "saturationBoost",
         "useCustomSampling", "useSingleColor", "breatheWhenCharging", "indicateChargingSpeed", "flashWhenReady",
         "batteryLowColorOverride", "batteryMidColorOverride", "batteryHighColorOverride", "cpuCoolColorOverride",
         "cpuWarmColorOverride", "cpuHotColorOverride", "isAppProfileDefault", "ragnarokAccepted", "icon",
         "customEmoji", "customImageFileName", "appIconPackageName", "ownerPackage")
-    private val integerFields = setOf("color", "rightColor", "fadeEndColor", "fadeEndRightColor", "brightness",
+    private val integerFields = setOf("transitionDurationMs", "color", "rightColor", "fadeEndColor", "fadeEndRightColor", "brightness",
         "batteryLowColorOverride", "batteryMidColorOverride", "batteryHighColorOverride", "cpuCoolColorOverride",
         "cpuWarmColorOverride", "cpuHotColorOverride")
     private val booleanFields = setOf("useCustomSampling", "useSingleColor", "breatheWhenCharging",

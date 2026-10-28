@@ -1,5 +1,23 @@
 # DuoFrost changelog
 
+## 2.6.0-alpha.3 — draft roadmap preview
+
+- **Theme editor:** save custom palettes with contrast validation, a live preview
+  and independent theme transfer. Custom themes also travel in full backups.
+- **Shared appearance:** app-owned screens, editors, dialogs and menus use the
+  selected palette, including light themes and readable system-bar icons.
+- **Dashboard layout:** reorder the two main cards and hide optional controls.
+  Lighting status, Start/Stop and Settings remain accessible.
+- **Automatic backups:** choose a folder and opt into full backups after important
+  changes. Consecutive changes are combined; existing backups are retained.
+- **Preset transitions:** choose instant output or a bounded color blend per
+  incoming preset, preserving brightness limits and mute.
+- **Scene simulator:** inspect a hypothetical app, date/time and battery state
+  using the real scene/app-profile selection policies without applying lighting.
+
+All six roadmap features are available in this draft for device testing.
+See [the preview guide and validation limits](docs/roadmap-2.6.0.md).
+
 ## 2.6.0-alpha.2 — draft test build
 
 - Five additional appearance palettes: OLED Blue, Green, Amber, White and

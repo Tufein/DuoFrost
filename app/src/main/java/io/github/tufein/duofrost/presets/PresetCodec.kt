@@ -16,6 +16,7 @@ object PresetCodec {
         val color = obj.optInt("color", -1)
         val fadeEndColor = obj.optInt("fadeEndColor", FadeTransitionAnimation.DEFAULT_END_COLOR)
         return LedPreset(
+            transitionDurationMs = (obj.opt("transitionDurationMs") as? Int)?.takeIf { it in 0..2000 } ?: 0,
             name = obj.optString("name", "Preset ${index + 1}"),
             animationType = type,
             performanceProfile = profile,
@@ -53,6 +54,7 @@ object PresetCodec {
     fun encode(preset: LedPreset, existing: JSONObject? = null): JSONObject {
         val obj = existing?.let { JSONObject(it.toString()) } ?: JSONObject()
         obj.put("id", preset.id)
+        obj.put("transitionDurationMs", preset.transitionDurationMs.coerceIn(0, 2000))
         obj.put("name", preset.name)
         obj.put("animationType", preset.animationType.name)
         obj.put("performanceProfile", preset.performanceProfile.name)

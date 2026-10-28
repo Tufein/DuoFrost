@@ -45,7 +45,7 @@ import java.util.UUID
 import kotlin.math.ceil
 
 /** Scene editing never starts lighting. The running service observes saved preferences. */
-class ScenesActivity : AppCompatActivity() {
+class ScenesActivity : io.github.tufein.duofrost.ui.ThemedActivity() {
     private val prefs by lazy { getSharedPreferences("bifrost_prefs", Context.MODE_PRIVATE) }
     private val store by lazy { SceneStore(prefs) }
     private val presets by lazy { PresetRepository(prefs) }
@@ -124,6 +124,9 @@ class ScenesActivity : AppCompatActivity() {
         }
         statusContent.addView(usageButton)
         content.addView(statusCard)
+        content.addView(SecondaryScreenUi.action(this, "Simulate scenes") {
+            startActivity(Intent(this, SceneSimulatorActivity::class.java))
+        })
 
         val (temporaryCard, temporaryContent) = SecondaryScreenUi.card(this)
         temporaryContent.addView(section(R.string.scenes_temporary_heading))
@@ -392,7 +395,7 @@ class ScenesActivity : AppCompatActivity() {
         val minutes = listOf(15, 30, 60, 120)
         val duration = spinner(minutes.map { getString(R.string.scenes_minutes, it) })
         content.addView(duration)
-        MaterialAlertDialogBuilder(this).setTitle(R.string.scenes_temporary_heading)
+        io.github.tufein.duofrost.ui.ThemedDialogBuilder(this).setTitle(R.string.scenes_temporary_heading)
             .setView(editorScroll(content)).setNegativeButton(R.string.scenes_cancel, null)
             .setPositiveButton(R.string.scenes_temporary_start) { _, _ ->
                 if (store.setTemporaryScene(list[preset.selectedItemPosition].id, minutes[duration.selectedItemPosition],
@@ -424,7 +427,7 @@ class ScenesActivity : AppCompatActivity() {
             .apply { id = R.id.scenes_add_group })
         content.addView(list)
         refreshGroups()
-        MaterialAlertDialogBuilder(this).setTitle(R.string.scenes_groups).setView(editorScroll(content))
+        io.github.tufein.duofrost.ui.ThemedDialogBuilder(this).setTitle(R.string.scenes_groups).setView(editorScroll(content))
             .setPositiveButton(R.string.scenes_done, null).show()
     }
 
@@ -471,7 +474,7 @@ class ScenesActivity : AppCompatActivity() {
         val list = vertical().apply { id = R.id.scenes_apps_list }
         list.addView(body(getString(R.string.scenes_apps_loading)))
         content.addView(list)
-        val dialog = MaterialAlertDialogBuilder(this).setTitle(R.string.scenes_group_select)
+        val dialog = io.github.tufein.duofrost.ui.ThemedDialogBuilder(this).setTitle(R.string.scenes_group_select)
             .setView(editorScroll(content)).setNegativeButton(R.string.scenes_cancel, null)
             .setPositiveButton(R.string.scenes_done) { _, _ -> onChosen(selected.toSet()) }.create()
         dialog.show()
@@ -528,7 +531,7 @@ class ScenesActivity : AppCompatActivity() {
     }
 
     private fun confirmDeleteRule(rule: SceneRule) {
-        MaterialAlertDialogBuilder(this).setTitle(R.string.scenes_delete_rule_title)
+        io.github.tufein.duofrost.ui.ThemedDialogBuilder(this).setTitle(R.string.scenes_delete_rule_title)
             .setMessage(getString(R.string.scenes_delete_rule_body, rule.name))
             .setNegativeButton(R.string.scenes_cancel, null).setPositiveButton(R.string.scenes_delete) { _, _ ->
                 store.saveRules(store.loadRules().filterNot { it.id == rule.id })
@@ -537,7 +540,7 @@ class ScenesActivity : AppCompatActivity() {
     }
 
     private fun confirmDeleteGroup(group: AppGroup, onDeleted: () -> Unit) {
-        MaterialAlertDialogBuilder(this).setTitle(R.string.scenes_group_deleted_title)
+        io.github.tufein.duofrost.ui.ThemedDialogBuilder(this).setTitle(R.string.scenes_group_deleted_title)
             .setMessage(getString(R.string.scenes_group_deleted_body, group.name))
             .setNegativeButton(R.string.scenes_cancel, null).setPositiveButton(R.string.scenes_delete) { _, _ ->
                 store.saveGroups(store.loadGroups().filterNot { it.id == group.id })
@@ -550,7 +553,7 @@ class ScenesActivity : AppCompatActivity() {
     private fun chooseDays(initial: Set<Int>, onChosen: (Set<Int>) -> Unit) {
         val selected = initial.toMutableSet()
         val labels = DayOfWeek.values().map { it.getDisplayName(TextStyle.FULL, Locale.getDefault()) }.toTypedArray()
-        val dialog = MaterialAlertDialogBuilder(this).setTitle(R.string.scenes_days_title)
+        val dialog = io.github.tufein.duofrost.ui.ThemedDialogBuilder(this).setTitle(R.string.scenes_days_title)
             .setMultiChoiceItems(labels, BooleanArray(7) { it + 1 in initial }) { _, index, checked ->
                 if (checked) selected.add(index + 1) else selected.remove(index + 1)
             }.setNegativeButton(R.string.scenes_cancel, null).setPositiveButton(R.string.scenes_done, null).create()
@@ -571,7 +574,7 @@ class ScenesActivity : AppCompatActivity() {
     }.getOrDefault(false)
 
     private fun showUsageExplanation() {
-        MaterialAlertDialogBuilder(this).setTitle(R.string.scenes_usage_title).setMessage(R.string.scenes_usage_notice)
+        io.github.tufein.duofrost.ui.ThemedDialogBuilder(this).setTitle(R.string.scenes_usage_title).setMessage(R.string.scenes_usage_notice)
             .setNegativeButton(R.string.scenes_later, null).setPositiveButton(R.string.scenes_usage_action) { _, _ ->
                 runCatching { startActivity(Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS)) }
                     .onFailure { toast(R.string.scenes_usage_unavailable) }
@@ -601,7 +604,7 @@ class ScenesActivity : AppCompatActivity() {
         field.first.error = null
         return number
     }
-    private fun editorDialog(title: Int, content: LinearLayout) = MaterialAlertDialogBuilder(this)
+    private fun editorDialog(title: Int, content: LinearLayout) = io.github.tufein.duofrost.ui.ThemedDialogBuilder(this)
         .setTitle(title).setView(editorScroll(content)).setNegativeButton(R.string.scenes_cancel, null)
         .setPositiveButton(R.string.scenes_save, null).create()
     private fun editorScroll(content: LinearLayout): View = SecondaryScreenUi.safeScrollContainer(this, ScrollView(this).apply {
@@ -629,7 +632,7 @@ class ScenesActivity : AppCompatActivity() {
     }
     private fun spinner(labels: List<String>) = Spinner(this).apply {
         minimumHeight = dp(48)
-        adapter = ArrayAdapter(this@ScenesActivity, R.layout.item_spinner_bifrost, labels).apply {
+        adapter = io.github.tufein.duofrost.ui.PaletteArrayAdapter(this@ScenesActivity, R.layout.item_spinner_bifrost, labels).apply {
             setDropDownViewResource(R.layout.item_spinner_dropdown_bifrost)
         }
     }

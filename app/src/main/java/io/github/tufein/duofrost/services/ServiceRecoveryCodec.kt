@@ -26,7 +26,7 @@ object ServiceRecoveryCodec {
         "batterySaverBrightness"
     )
     val allowedKeys: Set<String> = colorKeys + floatKeys + booleanKeys + setOf(
-        "animationType", "performanceProfile", "brightness", "lowBatteryAlertThreshold", "ambientDisplayId"
+        "animationType", "performanceProfile", "brightness", "lowBatteryAlertThreshold", "ambientDisplayId", "presetTransitionDurationMs"
     )
 
     fun snapshot(input: Map<String, Any?>): ServiceRecoveryConfiguration? {
@@ -93,6 +93,7 @@ object ServiceRecoveryCodec {
                 }?.toFloat()
                 else -> integer(value)?.takeIf {
                     when (key) {
+                        "presetTransitionDurationMs" -> it in 0..2000
                         "brightness" -> it in 0..255
                         "lowBatteryAlertThreshold" -> it in 1..100
                         "ambientDisplayId" -> it in 0..65_535

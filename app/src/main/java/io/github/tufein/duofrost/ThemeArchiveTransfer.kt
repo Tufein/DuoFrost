@@ -8,7 +8,7 @@ import java.io.IOException
 object ThemeArchiveTransfer {
 
     private const val THEME_SCHEMA = "bifrost_theme_bundle"
-    private const val THEME_VERSION = 1
+    private const val THEME_VERSION = 2
 
     data class ExportResult(
         val themeId: String,
@@ -19,7 +19,8 @@ object ThemeArchiveTransfer {
         val themeId: String?,
         val coloredLogoEnabled: Boolean,
         val warnings: List<String>,
-        val errors: List<String>
+        val errors: List<String>,
+        val customTheme: io.github.tufein.duofrost.ui.UiTheme? = null
     )
 
     fun exportToUri(
@@ -28,9 +29,12 @@ object ThemeArchiveTransfer {
         themeId: String,
         coloredLogoEnabled: Boolean
     ): ExportResult {
+        val theme = io.github.tufein.duofrost.ui.ThemeCatalog.all(context.getSharedPreferences("bifrost_prefs", Context.MODE_PRIVATE)).firstOrNull { it.id == themeId }
+        val custom = theme?.takeIf { it.id.startsWith("custom_") }
         val payload = JSONObject().apply {
             put("schema", THEME_SCHEMA)
-            put("version", THEME_VERSION)
+            put("version", if (custom == null) 1 else THEME_VERSION)
+            if (custom != null) put("palette", io.github.tufein.duofrost.ui.ThemeCatalog.encode(custom))
             put("themeId", themeId)
             put("coloredLogoEnabled", coloredLogoEnabled)
         }
@@ -89,11 +93,17 @@ object ThemeArchiveTransfer {
             errors += "Theme bundle does not specify a theme."
         }
 
+        val custom = if (themeId?.startsWith("custom_") == true) {
+            runCatching { io.github.tufein.duofrost.ui.ThemeCatalog.decode(payload.getJSONObject("palette")).also {
+                require(it.id == themeId) { "Palette identity differs from selected theme" }
+            } }.getOrElse { errors += it.message ?: "Invalid palette"; null }
+        } else null
         return ImportResult(
             themeId = themeId,
             coloredLogoEnabled = payload.optBoolean("coloredLogoEnabled", true),
             warnings = warnings,
-            errors = errors
+            errors = errors,
+            customTheme = custom
         )
     }
 }

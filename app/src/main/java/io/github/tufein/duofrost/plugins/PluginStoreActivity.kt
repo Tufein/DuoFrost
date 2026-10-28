@@ -18,7 +18,7 @@ import io.github.tufein.duofrost.ui.SecondaryScreenUi
  * Network + install run on background threads; the UI is rebuilt on the main
  * thread after each action.
  */
-class PluginStoreActivity : AppCompatActivity() {
+class PluginStoreActivity : io.github.tufein.duofrost.ui.ThemedActivity() {
 
     private val prefs by lazy { PluginPrefs.prefs(this) }
     private lateinit var listContainer: LinearLayout

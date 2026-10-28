@@ -91,7 +91,7 @@ class ColorPickerDialog {
             }
         })
 
-        val dialog = MaterialAlertDialogBuilder(activity)
+        val dialog = io.github.tufein.duofrost.ui.ThemedDialogBuilder(activity)
             .setView(dialogView)
             .setPositiveButton("OK") { _, _ ->
                 val color = Color.rgb(seekR.progress, seekG.progress, seekB.progress)

@@ -84,6 +84,7 @@ object HeimdallStartupManager {
         preset: StartupPreset
     ): Intent {
         return Intent(context, LEDService::class.java).apply {
+            putExtra("presetTransitionDurationMs", preset.transitionDurationMs)
             putExtra("animationType", preset.animationType.name)
             putExtra("performanceProfile", preset.performanceProfile.name)
             putExtra("animationColor", preset.color)
@@ -173,6 +174,7 @@ object HeimdallStartupManager {
         val color = obj.optInt("color", Color.WHITE)
 
         return StartupPreset(
+            transitionDurationMs = (obj.opt("transitionDurationMs") as? Int)?.takeIf { it in 0..2000 } ?: 0,
             animationType = animationType,
             performanceProfile = performanceProfile,
             color = color,
@@ -198,6 +200,7 @@ object HeimdallStartupManager {
             ?.coerceIn(0f, 1f) ?: fallback
 
     private data class StartupPreset(
+        val transitionDurationMs: Int,
         val animationType: LedAnimationType,
         val performanceProfile: PerformanceProfile,
         val color: Int,

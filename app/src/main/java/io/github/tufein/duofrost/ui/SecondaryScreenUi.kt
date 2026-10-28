@@ -142,6 +142,6 @@ internal object SecondaryScreenUi {
         return card to content
     }
 
-    fun color(context: Context, id: Int): Int = ContextCompat.getColor(context, id)
+    fun color(context: Context, id: Int): Int = ThemeCatalog.color(context, id)
     fun dp(context: Context, value: Int): Int = (value * context.resources.displayMetrics.density).toInt()
 }

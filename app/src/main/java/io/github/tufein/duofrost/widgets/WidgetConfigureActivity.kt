@@ -9,7 +9,7 @@ import androidx.appcompat.app.AppCompatActivity
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import io.github.tufein.duofrost.R
 
-class WidgetConfigureActivity : AppCompatActivity() {
+class WidgetConfigureActivity : io.github.tufein.duofrost.ui.ThemedActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         val id = intent.getIntExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, AppWidgetManager.INVALID_APPWIDGET_ID)
@@ -23,7 +23,7 @@ class WidgetConfigureActivity : AppCompatActivity() {
         val names = WidgetPresets.names(getSharedPreferences("bifrost_prefs", Context.MODE_PRIVATE)
             .getString("presets_json", null))
         val options = arrayOf(getString(R.string.widget_no_favorite)) + names.toTypedArray()
-        MaterialAlertDialogBuilder(this)
+        io.github.tufein.duofrost.ui.ThemedDialogBuilder(this)
             .setTitle(R.string.widget_choose_preset)
             .setItems(options) { _, index ->
                 DuoFrostWidget.saveFavorite(this, id, names.getOrNull(index - 1).orEmpty())

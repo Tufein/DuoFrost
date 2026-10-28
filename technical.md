@@ -548,6 +548,45 @@ Android identity: `io.github.tufein.duofrost`
 
 CI intentionally uses debug signing and does not receive release keys.
 
+### Roadmap preview (2.6.0-alpha.3)
+
+`ThemeCatalog` owns the seven built-in palettes and up to 20 validated custom
+palettes. Opaque RGB colors, unique stable IDs, bounded names and 4.5:1 text
+contrast are checked before writing. Damaged/future theme data is not replaced
+by an editor save. Theme-only schema 2 carries a custom palette; built-in-only
+exports retain schema 1. Full-backup Themes includes the custom catalogue.
+`ThemedActivity`, `SecondaryScreenUi`, dialog attachment styling and palette
+adapters share the selection without recoloring LED previews. Dialog callbacks
+and activity lifecycle teardown remain owned by their original callers.
+
+Dashboard preferences use an explicit transferable boolean whitelist. The two
+cards can be reordered and optional groups hidden; the status card and Settings
+entry are never hidden. Layout invalidation includes order and visibility so a
+wide layout does not retain old margins.
+
+`AutomaticBackups` listens only for meaningful configuration changes. A
+single worker debounces writes for three seconds. SAF folder access is retained
+in a separate, non-exported preference file; activation and URI grants never
+enter an archive. Each save creates a new document and uses the existing full
+backup writer. Failure deletes only that new incomplete document and retains
+the previous-success timestamp. There is no periodic job, wake lock or extra
+foreground service; process death may interrupt a pending save.
+
+`SceneSimulator` calls the same `SceneEvaluator`, `AppProfileSelection`
+and `SceneSelectionPolicy` used by runtime. Its screen reads preset data
+without identity migration and never sends commands or writes configuration.
+User inputs are hypothetical; permission availability and current temporary
+holds are explicitly distinguished from the simulated wall-clock date.
+
+`transitionDurationMs` is bounded to 0–2000 and travels through the preset
+codec, import/export, editing, drafts, startup and recovery. Transition-only
+edits do not count as lighting changes. The controller captures four raw
+colors, starts interpolation on the first incoming frame and applies output
+ceilings/mute afterwards. A bounded 25ms callback supports static effects;
+streaming effects reuse their normal writes. Replacement captures the current
+interpolated output. Stop, shutdown, capture blackouts and urgent overlays
+cancel pending interpolation before sending black or taking ownership.
+
 ### Guided first-run setup (2.6.0 draft)
 
 Alpha.2 adds five stable theme IDs (`oled_blue`, `oled_green`,

@@ -144,7 +144,7 @@ internal class PresetLibraryUi(
             activity.getString(R.string.library_memberships),
             activity.getString(R.string.library_edit)
         )
-        MaterialAlertDialogBuilder(activity).setTitle(preset.name).setItems(labels) { _, which ->
+        io.github.tufein.duofrost.ui.ThemedDialogBuilder(activity).setTitle(preset.name).setItems(labels) { _, which ->
             val current = PresetRepository(prefs).list()
             val index = current.indexOfFirst { it.id == preset.id }
             if (index < 0) { toast(R.string.library_missing_preset); return@setItems }
@@ -165,7 +165,7 @@ internal class PresetLibraryUi(
         if (store.isReadOnly) { toast(R.string.library_read_only); return }
         val collections = store.state().collections
         val labels = collections.map { it.name } + activity.getString(R.string.library_new_collection)
-        MaterialAlertDialogBuilder(activity).setTitle(R.string.library_collections)
+        io.github.tufein.duofrost.ui.ThemedDialogBuilder(activity).setTitle(R.string.library_collections)
             .setItems(labels.toTypedArray()) { _, index ->
                 if (index == collections.size) editCollection(null)
                 else showCollection(collections[index])
@@ -173,7 +173,7 @@ internal class PresetLibraryUi(
     }
 
     private fun showCollection(collection: PresetLibraryStore.Collection) {
-        MaterialAlertDialogBuilder(activity).setTitle(collection.name).setItems(arrayOf(
+        io.github.tufein.duofrost.ui.ThemedDialogBuilder(activity).setTitle(collection.name).setItems(arrayOf(
             activity.getString(R.string.library_show_collection),
             activity.getString(R.string.library_rename_collection),
             activity.getString(R.string.library_delete_collection)
@@ -181,7 +181,7 @@ internal class PresetLibraryUi(
             when (action) {
                 0 -> { collectionId = collection.id; favoritesOnly = false; onChanged() }
                 1 -> editCollection(collection)
-                2 -> MaterialAlertDialogBuilder(activity).setTitle(R.string.library_delete_collection)
+                2 -> io.github.tufein.duofrost.ui.ThemedDialogBuilder(activity).setTitle(R.string.library_delete_collection)
                     .setMessage(R.string.library_delete_collection_body)
                     .setNegativeButton(R.string.library_cancel, null)
                     .setPositiveButton(R.string.library_delete_collection) { _, _ ->
@@ -210,7 +210,7 @@ internal class PresetLibraryUi(
             setPadding(SecondaryScreenUi.dp(activity, 24), 0, SecondaryScreenUi.dp(activity, 24), 0)
             addView(field)
         }
-        val dialog = MaterialAlertDialogBuilder(activity)
+        val dialog = io.github.tufein.duofrost.ui.ThemedDialogBuilder(activity)
             .setTitle(if (existing == null) R.string.library_new_collection else R.string.library_rename_collection)
             .setView(content).setNegativeButton(R.string.library_cancel, null)
             .setPositiveButton(R.string.library_save, null).create()
@@ -235,7 +235,7 @@ internal class PresetLibraryUi(
         val collections = store.state().collections
         if (collections.isEmpty()) { editCollection(null, presetId); return }
         val checked = collections.map { presetId in it.presetIds }.toBooleanArray()
-        MaterialAlertDialogBuilder(activity).setTitle(R.string.library_memberships)
+        io.github.tufein.duofrost.ui.ThemedDialogBuilder(activity).setTitle(R.string.library_memberships)
             .setMultiChoiceItems(collections.map { it.name }.toTypedArray(), checked) { _, index, value -> checked[index] = value }
             .setNegativeButton(R.string.library_cancel, null)
             .setPositiveButton(R.string.library_save) { _, _ ->

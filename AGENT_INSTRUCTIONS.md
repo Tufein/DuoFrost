@@ -174,3 +174,16 @@ This document contains instructions for autonomous coding agents.
     hiding. Never demote a running foreground service to hide its notification.
     Create a missing channel without starting lighting and preserve user blocks.
     Added themes need stable transferable IDs, readable text and matching menus.
+
+49. Custom themes must validate opaque RGB colors and 4.5:1 text contrast, retain
+    stable IDs in theme-only/full backups and protect damaged/future theme data.
+    Theme previews and dashboard layout edits never issue lighting commands.
+    Start/Stop and access to settings must remain available in every layout.
+50. Automatic backups are opt-in, event-driven and coalesced off the UI thread.
+    Never export the folder URI, storage grants or backup activation. Preserve
+    earlier backups; remove only the newly created incomplete document on failure.
+51. Scene simulation uses the real evaluators without applying results. Preserve
+    app mapping / temporary-hold priority and explain live overrides separately.
+    Per-preset transitions blend raw zones before output caps/mute, are bounded,
+    and are cancelled before Stop, capture-consent blackouts and urgent overlays.
+    Preserve transition metadata in preset edits, archives, drafts and recovery.

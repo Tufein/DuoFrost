@@ -15,6 +15,7 @@ object SceneBaseline {
             val value = extras.get(key)
             if (value is String || value is Int || value is Float || value is Boolean) {
                 val storedKey = when (key) {
+                    "presetTransitionDurationMs" -> "transitionDurationMs"
                     "animationColor" -> "color"
                     "animationRightColor" -> "rightColor"
                     else -> key

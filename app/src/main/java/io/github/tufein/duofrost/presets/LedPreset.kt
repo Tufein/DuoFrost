@@ -35,5 +35,6 @@ data class LedPreset(
     val customImageFileName: String? = null,
     val appIconPackageName: String? = null,
     val ownerPackage: String? = null,
-    val id: String = ""
+    val id: String = "",
+    val transitionDurationMs: Int = 0
 )

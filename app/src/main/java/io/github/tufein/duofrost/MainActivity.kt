@@ -1,5 +1,9 @@
 package io.github.tufein.duofrost
 
+import io.github.tufein.duofrost.ui.ThemeCatalog
+import io.github.tufein.duofrost.ui.UiTheme
+import io.github.tufein.duofrost.ui.HeaderThemePalette
+
 import android.animation.Animator
 import android.animation.AnimatorListenerAdapter
 import android.animation.ValueAnimator
@@ -233,35 +237,6 @@ class MainActivity : AppCompatActivity() {
         LIVE_WALLPAPER
     }
 
-    private data class HeaderThemePalette(
-        val introHueStart: Float,
-        val introHueSpan: Float,
-        val introSaturation: Float,
-        val introValue: Float,
-        val settleHueStart: Float,
-        val settleHueSpan: Float,
-        val settleHueWobbleAmplitude: Float,
-        val settleSaturationBase: Float,
-        val settleSaturationWave: Float,
-        val settleValueBase: Float,
-        val settleValueWave: Float,
-        val settleAlphaBase: Int,
-        val settleAlphaWave: Int,
-        val settlePhaseDegrees: Float
-    )
-
-    private data class UiTheme(
-        val id: String,
-        val label: String,
-        val backgroundColor: Int,
-        val cardColor: Int,
-        val surfaceColor: Int,
-        val textColor: Int,
-        val accentColor: Int,
-        val accentLightColor: Int,
-        val headerPalette: HeaderThemePalette
-    )
-
     companion object {
         var mediaProjectionResultCode: Int? = null
         var mediaProjectionData: Intent? = null
@@ -405,81 +380,8 @@ class MainActivity : AppCompatActivity() {
     private val colorPickerDialog = ColorPickerDialog()
     private val ragnarokWarningDialog = RagnarokWarningDialog()
     private lateinit var appProfileManager: AppProfileManager
-    private val builtInThemes = listOf(
-        UiTheme(
-            id = "classic",
-            label = "Classic",
-            backgroundColor = Color.parseColor("#0D111B"),
-            cardColor = Color.parseColor("#161D2B"),
-            surfaceColor = Color.parseColor("#202A3B"),
-            textColor = Color.parseColor("#F1F4FB"),
-            accentColor = Color.parseColor("#5965DB"),
-            accentLightColor = Color.parseColor("#A2ACFF"),
-            headerPalette = HeaderThemePalette(
-                introHueStart = 0f,
-                introHueSpan = 360f,
-                introSaturation = 0.82f,
-                introValue = 1f,
-                settleHueStart = 18f,
-                settleHueSpan = 300f,
-                settleHueWobbleAmplitude = 10f,
-                settleSaturationBase = 0.28f,
-                settleSaturationWave = 0.14f,
-                settleValueBase = 0.92f,
-                settleValueWave = 0.08f,
-                settleAlphaBase = 224,
-                settleAlphaWave = 31,
-                settlePhaseDegrees = 18f
-            )
-        ),
-        UiTheme(
-            id = "oled_purple",
-            label = "OLED Purple",
-            backgroundColor = Color.parseColor("#000000"),
-            cardColor = Color.parseColor("#000000"),
-            surfaceColor = Color.parseColor("#000000"),
-            textColor = Color.parseColor("#C084FC"),
-            accentColor = Color.parseColor("#A855F7"),
-            accentLightColor = Color.parseColor("#C084FC"),
-            headerPalette = HeaderThemePalette(
-                introHueStart = 264f,
-                introHueSpan = 64f,
-                introSaturation = 0.9f,
-                introValue = 0.98f,
-                settleHueStart = 272f,
-                settleHueSpan = 48f,
-                settleHueWobbleAmplitude = 5f,
-                settleSaturationBase = 0.5f,
-                settleSaturationWave = 0.16f,
-                settleValueBase = 0.76f,
-                settleValueWave = 0.2f,
-                settleAlphaBase = 236,
-                settleAlphaWave = 19,
-                settlePhaseDegrees = 12f
-            )
-        ),
-        additionalTheme("oled_blue", "OLED Blue", "#000000", "#000000", "#000000", "#93C5FD", "#2563EB", "#60A5FA", 215f),
-        additionalTheme("oled_green", "OLED Green", "#000000", "#000000", "#000000", "#86EFAC", "#16A34A", "#4ADE80", 145f),
-        additionalTheme("oled_amber", "OLED Amber", "#000000", "#000000", "#000000", "#FDE68A", "#D97706", "#FBBF24", 40f),
-        additionalTheme("oled_white", "OLED White", "#000000", "#000000", "#000000", "#F5F5F5", "#737373", "#E5E5E5", 0f, 0f),
-        additionalTheme("midnight_teal", "Midnight Teal", "#081A1F", "#102A30", "#193B42", "#E6F6F5", "#008577", "#5CE0C4", 166f)
-    )
-
-    private fun additionalTheme(id: String, label: String, background: String, card: String,
-        surface: String, text: String, accent: String, accentLight: String, hue: Float,
-        saturation: Float = 0.7f): UiTheme = UiTheme(
-        id, label, Color.parseColor(background), Color.parseColor(card), Color.parseColor(surface),
-        Color.parseColor(text), Color.parseColor(accent), Color.parseColor(accentLight),
-        HeaderThemePalette(
-            introHueStart = hue - 20f, introHueSpan = 40f, introSaturation = saturation, introValue = 0.98f,
-            settleHueStart = hue, settleHueSpan = 32f, settleHueWobbleAmplitude = 4f,
-            settleSaturationBase = saturation * 0.65f, settleSaturationWave = saturation * 0.15f,
-            settleValueBase = 0.85f, settleValueWave = 0.1f, settleAlphaBase = 236,
-            settleAlphaWave = 19, settlePhaseDegrees = 12f
-        )
-    )
-
-    private var selectedUiTheme: UiTheme = builtInThemes.first()
+    private val builtInThemes get() = ThemeCatalog.all(prefs)
+    private var selectedUiTheme: UiTheme = ThemeCatalog.builtIns.first()
 
     private val startupGuideLauncher =
         registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
@@ -1022,6 +924,7 @@ class MainActivity : AppCompatActivity() {
         maybeOfferCrashReport()
 
         isAppInitialized = true
+        DashboardLayout.apply(this, prefs)
         restoreEditorUiState()
 
         // Handle the case where the activity was freshly created from a projection-prompt
@@ -1115,12 +1018,17 @@ class MainActivity : AppCompatActivity() {
             val library = findViewById<View>(R.id.gui_libraryCard).layoutParams as LinearLayout.LayoutParams
             dashboard.width = if (wide) 0 else ViewGroup.LayoutParams.MATCH_PARENT
             dashboard.weight = if (wide) 0.9f else 0f
-            dashboard.marginEnd = if (wide) dpToPx(16) else 0
-            dashboard.bottomMargin = if (wide) 0 else dpToPx(16)
+            dashboard.marginEnd = if (wide && content.indexOfChild(activePresetInfoCard) == 0 && findViewById<View>(R.id.gui_libraryCard).visibility == View.VISIBLE) dpToPx(16) else 0
+            val libraryVisible = findViewById<View>(R.id.gui_libraryCard).visibility == View.VISIBLE
+            val controlsFirst = content.indexOfChild(activePresetInfoCard) == 0
+            dashboard.bottomMargin = if (!wide && controlsFirst && libraryVisible) dpToPx(16) else 0
             library.width = if (wide) 0 else ViewGroup.LayoutParams.MATCH_PARENT
             library.weight = if (wide) 1.1f else 0f
-            if (content.getTag(R.id.gui_textRole) != wide) {
-                content.setTag(R.id.gui_textRole, wide)
+            library.marginEnd = if (wide && !controlsFirst && libraryVisible) dpToPx(16) else 0
+            library.bottomMargin = if (!wide && !controlsFirst && libraryVisible) dpToPx(16) else 0
+            val layoutKey = Triple(wide, controlsFirst, libraryVisible)
+            if (content.getTag(R.id.gui_textRole) != layoutKey) {
+                content.setTag(R.id.gui_textRole, layoutKey)
                 activePresetInfoCard.layoutParams = dashboard
                 findViewById<View>(R.id.gui_libraryCard).layoutParams = library
             }
@@ -1244,6 +1152,7 @@ class MainActivity : AppCompatActivity() {
 
     private fun applyUiTheme(theme: UiTheme) {
         setupStatusBar()
+        findViewById<View>(R.id.gui_root).setBackgroundColor(theme.backgroundColor)
         findViewById<View>(android.R.id.content)?.setBackgroundColor(theme.backgroundColor)
         homeContainer.setBackgroundColor(theme.backgroundColor)
         settingsOverlay.setBackgroundColor(theme.backgroundColor)
@@ -1261,7 +1170,7 @@ class MainActivity : AppCompatActivity() {
             refreshPaletteButtons()
         }
         findViewById<TextInputLayout>(R.id.gui_searchLayout).apply {
-            defaultHintTextColor = ColorStateList.valueOf(ColorUtils.blendARGB(theme.textColor, theme.cardColor, 0.25f))
+            defaultHintTextColor = ColorStateList.valueOf(ThemeCatalog.secondary(theme))
             setBoxStrokeColorStateList(ColorStateList(
                 arrayOf(intArrayOf(android.R.attr.state_focused), intArrayOf()),
                 intArrayOf(theme.accentLightColor, ColorUtils.blendARGB(theme.cardColor, theme.textColor, 0.45f))
@@ -1277,7 +1186,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun applyThemeToViewTree(view: View, theme: UiTheme) {
-        val secondary = ColorUtils.blendARGB(theme.textColor, theme.cardColor, 0.25f)
+        val secondary = ThemeCatalog.secondary(theme)
         val outline = ColorUtils.blendARGB(theme.cardColor, theme.textColor, 0.24f)
         when (view) {
             is MaterialCardView -> {
@@ -1339,7 +1248,7 @@ class MainActivity : AppCompatActivity() {
 
         val modes = LiveWallpaperSettingsManager.PerformanceMode.values().toList()
         val modeLabels = modes.map { it.name.replace("_", " ") }
-        val adapter = ArrayAdapter(this, R.layout.item_spinner_bifrost, modeLabels)
+        val adapter = io.github.tufein.duofrost.ui.PaletteArrayAdapter(this, R.layout.item_spinner_bifrost, modeLabels)
         adapter.setDropDownViewResource(R.layout.item_spinner_dropdown_bifrost)
         liveWallpaperPerformanceSpinner.adapter = adapter
 
@@ -2281,9 +2190,11 @@ class MainActivity : AppCompatActivity() {
 
     private fun setupStatusBar() {
         window.statusBarColor = selectedUiTheme.backgroundColor
+        window.navigationBarColor = selectedUiTheme.backgroundColor
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
             WindowCompat.getInsetsController(window, window.decorView).apply {
-                isAppearanceLightStatusBars = false
+                isAppearanceLightStatusBars = ColorUtils.calculateLuminance(selectedUiTheme.backgroundColor) > 0.5
+                isAppearanceLightNavigationBars = isAppearanceLightStatusBars
             }
         }
     }
@@ -2331,6 +2242,8 @@ class MainActivity : AppCompatActivity() {
     override fun onResume() {
         super.onResume()
         if (!isAppInitialized) return
+        if (selectedUiTheme != ThemeCatalog.selected(this)) setupThemeFeature()
+        DashboardLayout.apply(this, prefs)
 
         resumeStateSyncRunnable?.let(mainHandler::removeCallbacks)
         resumeStateSyncRunnable = Runnable {
@@ -2588,7 +2501,7 @@ class MainActivity : AppCompatActivity() {
     private fun setupAnimationSpinner() {
         val types = LedAnimationType.values().toList()
         val labels = types.map { effectLabel(it.name) }
-        val adapter = ArrayAdapter(this, R.layout.item_spinner_bifrost, labels)
+        val adapter = io.github.tufein.duofrost.ui.PaletteArrayAdapter(this, R.layout.item_spinner_bifrost, labels)
         adapter.setDropDownViewResource(R.layout.item_spinner_dropdown_bifrost)
         animationSpinner.adapter = adapter
         animationSpinner.setSelection(types.indexOf(selectedAnimationType))
@@ -2628,7 +2541,7 @@ class MainActivity : AppCompatActivity() {
     private fun setupProfileSpinner() {
         val profiles = PerformanceProfile.values().toList()
         val labels = profiles.map { it.name.lowercase().replaceFirstChar { c -> c.uppercase() } }
-        val adapter = ArrayAdapter(this, R.layout.item_spinner_bifrost, labels)
+        val adapter = io.github.tufein.duofrost.ui.PaletteArrayAdapter(this, R.layout.item_spinner_bifrost, labels)
         adapter.setDropDownViewResource(R.layout.item_spinner_dropdown_bifrost)
         profileSpinner.adapter = adapter
         profileSpinner.setSelection(profiles.indexOf(selectedProfile))
@@ -3029,6 +2942,10 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun setupBackgroundControls() {
+        findViewById<View>(R.id.themeEditorButton).setOnClickListener { startActivity(Intent(this, ThemeEditorActivity::class.java)) }
+        findViewById<View>(R.id.dashboardLayoutButton).setOnClickListener { startActivity(Intent(this, DashboardSettingsActivity::class.java)) }
+        findViewById<View>(R.id.automaticBackupsButton).setOnClickListener { startActivity(Intent(this, BackupSettingsActivity::class.java)) }
+        findViewById<View>(R.id.presetTransitionsButton).setOnClickListener { startActivity(Intent(this, PresetTransitionsActivity::class.java)) }
         findViewById<MaterialButton>(R.id.lightingNotificationSettingsButton).setOnClickListener {
             val manager = getSystemService(android.app.NotificationManager::class.java)
             // Creating a missing channel needs no service and preserves an existing user block.
@@ -3277,7 +3194,7 @@ class MainActivity : AppCompatActivity() {
             val options = (minutes.map { if (it == 0) getString(R.string.sleep_timer_cancel)
                 else getString(R.string.sleep_timer_minutes, it) } +
                 getString(R.string.sleep_timer_custom)).toTypedArray()
-            MaterialAlertDialogBuilder(this).setTitle(R.string.sleep_timer_title).setItems(options) { _, index ->
+            io.github.tufein.duofrost.ui.ThemedDialogBuilder(this).setTitle(R.string.sleep_timer_title).setItems(options) { _, index ->
                 if (index == minutes.size) showCustomSleepTimerDialog()
                 else applySleepTimer(minutes[index])
             }.setNegativeButton(R.string.action_cancel, null).show()
@@ -3311,7 +3228,7 @@ class MainActivity : AppCompatActivity() {
         inputLayout.helperText = getString(R.string.sleep_timer_custom_range, SleepTimerDeadline.MAX_MINUTES)
         input.setText("30")
         input.selectAll()
-        val dialog = MaterialAlertDialogBuilder(this)
+        val dialog = io.github.tufein.duofrost.ui.ThemedDialogBuilder(this)
             .setTitle(R.string.sleep_timer_custom)
             .setView(content)
             .setPositiveButton(R.string.sleep_timer_set, null)
@@ -3688,7 +3605,7 @@ class MainActivity : AppCompatActivity() {
         val view = LayoutInflater.from(this).inflate(R.layout.dialog_app_picker, null)
         val listView = view.findViewById<ListView>(R.id.appListView)
 
-        val dialog = MaterialAlertDialogBuilder(this)
+        val dialog = io.github.tufein.duofrost.ui.ThemedDialogBuilder(this)
             .setView(view)
             .setNegativeButton("Cancel", null)
             .create()
@@ -3736,7 +3653,7 @@ class MainActivity : AppCompatActivity() {
         val view = LayoutInflater.from(this).inflate(R.layout.dialog_app_mappings, null)
         val listView = view.findViewById<ListView>(R.id.mappingsListView)
 
-        val dialog = MaterialAlertDialogBuilder(this)
+        val dialog = io.github.tufein.duofrost.ui.ThemedDialogBuilder(this)
             .setView(view)
             .setPositiveButton("Done", null)
             .create()
@@ -3783,6 +3700,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun currentEditorPreset(): LedPreset = LedPreset(
+        transitionDurationMs = if (::presetController.isInitialized) presetController.getPresets().getOrNull(presetSpinner.selectedItemPosition)?.transitionDurationMs ?: 0 else 0,
     name = "",
     animationType = selectedAnimationType,
     performanceProfile = selectedProfile,
@@ -4204,7 +4122,7 @@ class MainActivity : AppCompatActivity() {
         imagesSwitch.isChecked = true
         settingsSwitch.isChecked = true
 
-        val dialog = MaterialAlertDialogBuilder(this)
+        val dialog = io.github.tufein.duofrost.ui.ThemedDialogBuilder(this)
             .setView(view)
             .setPositiveButton(confirmLabel, null)
             .setNegativeButton(R.string.action_cancel, null)
@@ -4327,6 +4245,12 @@ class MainActivity : AppCompatActivity() {
             return
         }
 
+        if (result.errors.isEmpty() && result.customTheme != null) {
+            runCatching { ThemeCatalog.save(prefs, result.customTheme) }.onFailure {
+                Toast.makeText(this, it.message, Toast.LENGTH_LONG).show()
+                return
+            }
+        }
         val importedTheme = builtInThemes.firstOrNull { it.id == result.themeId }
         val errors = result.errors.toMutableList()
         if (importedTheme == null) {
@@ -4683,6 +4607,7 @@ class MainActivity : AppCompatActivity() {
 
     private fun createLedServiceIntent(): Intent {
         return Intent(this, LEDService::class.java).apply {
+            putExtra("presetTransitionDurationMs", presetController.getPresets().getOrNull(presetSpinner.selectedItemPosition)?.transitionDurationMs ?: 0)
             putExtra("animationType", selectedAnimationType.name)
             putExtra("performanceProfile", selectedProfile.name)
             putExtra("animationColor", selectedColor)

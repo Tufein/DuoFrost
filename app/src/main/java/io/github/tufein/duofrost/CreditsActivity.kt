@@ -12,7 +12,7 @@ import com.google.android.material.button.MaterialButton
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import io.github.tufein.duofrost.ui.SecondaryScreenUi
 
-class CreditsActivity : AppCompatActivity() {
+class CreditsActivity : io.github.tufein.duofrost.ui.ThemedActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_credits)
@@ -29,7 +29,7 @@ class CreditsActivity : AppCompatActivity() {
         }
         findViewById<MaterialButton>(R.id.creditsLicense).setOnClickListener {
             val license = assets.open("LICENSE.txt").bufferedReader().use { it.readText() }
-            MaterialAlertDialogBuilder(this)
+            io.github.tufein.duofrost.ui.ThemedDialogBuilder(this)
                 .setTitle(R.string.credits_license)
                 .setMessage(license)
                 .setPositiveButton(android.R.string.ok, null)

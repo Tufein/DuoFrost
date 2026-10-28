@@ -56,7 +56,9 @@ class SceneRuntimeController(
 
     fun updateBaseline(intent: Intent) {
         val original = baseline ?: return
-        val updated = SceneBaseline.fromIntent(intent, original.id, original.name)
+        val updated = SceneBaseline.fromIntent(intent, original.id, original.name).let {
+            if (intent.hasExtra("presetTransitionDurationMs")) it else it.copy(transitionDurationMs = original.transitionDurationMs)
+        }
         if (updated != original) {
             baseline = updated
             // Live parameter updates are already applied by the service. Track the

@@ -11,7 +11,7 @@ import io.github.tufein.duofrost.services.LEDService
 import io.github.tufein.duofrost.tools.LedDiagnosticFrame
 import io.github.tufein.duofrost.ui.SecondaryScreenUi
 
-class LedTestActivity : AppCompatActivity() {
+class LedTestActivity : io.github.tufein.duofrost.ui.ThemedActivity() {
     private var step = 0
 
     override fun onCreate(savedInstanceState: Bundle?) {

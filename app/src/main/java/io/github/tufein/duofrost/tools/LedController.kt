@@ -7,12 +7,19 @@ import java.util.concurrent.locks.ReentrantLock
 import kotlin.concurrent.withLock
 import kotlin.math.roundToInt
 
-class LedController {
+class LedController(private val pServerBinder: IBinder? = findBinder()) {
     companion object {
         private const val TAG = "LedController"
+        private fun findBinder(): IBinder? = try {
+            val serviceManager = Class.forName("android.os.ServiceManager")
+            val getService = serviceManager.getDeclaredMethod("getService", String::class.java)
+            getService.invoke(serviceManager, "PServerBinder") as? IBinder
+        } catch (e: Exception) {
+            Log.w(TAG, "Failed to get PServerBinder", e)
+            null
+        }
     }
 
-    private val pServerBinder: IBinder?
     /** Binder availability is a capability check, not confirmation of an LED write. */
     val isAvailable: Boolean get() = pServerBinder != null
     private val lock = ReentrantLock()
@@ -41,16 +48,37 @@ class LedController {
         }
     }
 
-    init {
-        pServerBinder = try {
-            val serviceManager = Class.forName("android.os.ServiceManager")
-            val getService = serviceManager.getDeclaredMethod("getService", String::class.java)
-            getService.invoke(serviceManager, "PServerBinder") as? IBinder
-        } catch (e: Exception) {
-            Log.w(TAG, "Failed to get PServerBinder", e)
-            null
+    private val transition = LedTransition()
+    private val transitionHandler = android.os.Handler(android.os.Looper.getMainLooper())
+    private val transitionTick = object : Runnable {
+        override fun run() {
+            lock.withLock {
+                emitCachedFrame()
+                if (transition.active(android.os.SystemClock.elapsedRealtime())) transitionHandler.postDelayed(this, 25)
+                else transition.cancel()
+            }
         }
     }
+    fun beginTransition(durationMs: Int) = lock.withLock {
+        val now = android.os.SystemClock.elapsedRealtime()
+        val colors = IntArray(4) { transition.color(it, frameCache.colorAt(it), now) }
+        transitionHandler.removeCallbacks(transitionTick)
+        transition.begin(colors, durationMs)
+    }
+    fun cancelTransition() = lock.withLock {
+        transitionHandler.removeCallbacks(transitionTick)
+        transition.cancel()
+    }
+    private fun emitTransitionFrame(): Boolean {
+        val now = android.os.SystemClock.elapsedRealtime()
+        if (!transition.active(now)) return false
+        transition.frameArrived(now)
+        emitCachedFrame()
+        transitionHandler.removeCallbacks(transitionTick)
+        transitionHandler.postDelayed(transitionTick, 25)
+        return true
+    }
+
 
     fun setLedColor(
         red: Int,
@@ -72,6 +100,7 @@ class LedController {
             val color = (r shl 16) or (g shl 8) or b
             frameCache.update(color, color, zoneMask(leftTop, leftBottom, rightTop, rightBottom))
             if (diagnosticFrame != null) return
+            if (emitTransitionFrame()) return
             emit(r, g, b, br, leftTop, leftBottom, rightTop, rightBottom)
         }
     }
@@ -141,6 +170,7 @@ class LedController {
                 zoneMask(leftTop, leftBottom, rightTop, rightBottom)
             )
             if (diagnosticFrame != null) return
+            if (emitTransitionFrame()) return
             emitDual(lr, lg, lb, rr, rg, rb, br, leftTop, leftBottom, rightTop, rightBottom)
         }
     }
@@ -211,7 +241,7 @@ class LedController {
         for (zone in 0..3) {
             if ((zones and (1 shl zone)) == 0) continue
             val color = diagnostic?.colorAt(zone, outputBrightnessLimit)
-                ?: BatterySaverBrightness.limitRgb(frameCache.colorAt(zone), outputBrightnessLimit)
+                ?: BatterySaverBrightness.limitRgb(transition.color(zone, frameCache.colorAt(zone), android.os.SystemClock.elapsedRealtime()), outputBrightnessLimit)
             val red = (((color ushr 16) and 255) * scale).roundToInt().coerceIn(0, 255)
             val green = (((color ushr 8) and 255) * scale).roundToInt().coerceIn(0, 255)
             val blue = ((color and 255) * scale).roundToInt().coerceIn(0, 255)
@@ -272,6 +302,5 @@ class LedController {
         }
     }
 
-    fun shutdown() {
-    }
+    fun shutdown() { cancelTransition() }
 }

@@ -649,6 +649,7 @@ class LEDService : Service() {
             return restartMode()
         }
 
+        if (isRunning && !isSceneOverlayActive()) ledController.beginTransition(intent.getIntExtra("presetTransitionDurationMs", 0))
         keepRunning = ServiceRecoveryStore.isKeepRunningEnabled(prefs)
         allowBackgroundRun = intent.getBooleanExtra(EXTRA_ALLOW_BACKGROUND_RUN, keepRunning)
         currentBatteryOverrideWhenPlugged = intent.getBooleanExtra(
@@ -1242,6 +1243,7 @@ class LEDService : Service() {
     private fun updatePluggedState(intent: Intent): Boolean {
         val plugged = (intent.getIntExtra(BatteryManager.EXTRA_PLUGGED, 0) != 0)
         if (plugged == isDevicePluggedIn) return false
+        if (plugged && currentBatteryOverrideWhenPlugged) ledController.cancelTransition()
         isDevicePluggedIn = plugged
         updateForegroundNotification()
         return true
@@ -1257,6 +1259,7 @@ class LEDService : Service() {
             batteryLevelPercent < currentLowBatteryAlertThreshold &&
             !(currentDisableLowBatteryAlertWhileCharging && isDevicePluggedIn)
         if (active == isLowBatteryAlertActive) return false
+        if (active) ledController.cancelTransition()
         isLowBatteryAlertActive = active
         updateForegroundNotification()
         return true
@@ -1368,6 +1371,7 @@ class LEDService : Service() {
         isTransitioning.set(false)
         stopCurrentAnimation()
         clearMediaProjection()
+        ledController.cancelTransition()
         runCatching { ledController.setLedColor(0, 0, 0, 0, true, true, true, true) }
         promoteToForeground(false)
         if (!waitingForProjectionConsent) {
@@ -1457,6 +1461,7 @@ class LEDService : Service() {
             prefs.edit().putString(PREF_KEY_LAST_PRESET, switchResult.presetName.orEmpty()).apply()
         }
         if (!switchResult.presetChanged) return
+        if (currentAnimation != null) ledController.beginTransition(switchResult.preset?.transitionDurationMs ?: 0)
 
         val preset = switchResult.preset
         if (preset == null) {
@@ -1574,6 +1579,7 @@ class LEDService : Service() {
         releasePipboyWakeLock()
         stopCurrentAnimation()
         clearMediaProjection()
+        ledController.cancelTransition()
         runCatching { ledController.setLedColor(0, 0, 0, 0, true, true, true, true) }
         runCatching { ledController.shutdown() }
     }
@@ -1615,6 +1621,7 @@ class LEDService : Service() {
         clearMediaProjection()
         // The binder receives the off command immediately. No delayed shutdown
         // callback may later interrupt a newly started service instance.
+        ledController.cancelTransition()
         runCatching { ledController.setLedColor(0, 0, 0, 0, true, true, true, true) }
         runCatching { ledController.shutdown() }
         stopSelf()
@@ -1915,6 +1922,7 @@ class LEDService : Service() {
             else -> Terminator.UntilNextCommand
         }
 
+        ledController.cancelTransition()
         // Snapshot the pre-override state only on the first transition in —
         // re-commands from the same or higher-priority caller replay onto the
         // already-captured snapshot.

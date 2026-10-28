@@ -54,7 +54,7 @@ class DuoFrostAlertDialog {
             bodyView.text = body
         }
 
-        val builder = MaterialAlertDialogBuilder(activity)
+        val builder = io.github.tufein.duofrost.ui.ThemedDialogBuilder(activity)
             .setView(view)
             .setPositiveButton(positiveLabelResId) { _, _ -> onConfirm() }
             .setCancelable(cancelable)

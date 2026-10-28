@@ -10,6 +10,7 @@ class DuoFrostApp : Application() {
     override fun onCreate() {
         super.onCreate()
         CrashReporter.install(this)
+        AutomaticBackups.install(this)
         runCatching {
             PresetMigration.run(getSharedPreferences("bifrost_prefs", Context.MODE_PRIVATE))
         }
