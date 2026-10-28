@@ -176,6 +176,20 @@ class RoadmapFeaturesTest {
         controller.pause().stop().destroy()
     }
 
+    @Test fun editingTransitionMetadataUpdatesFutureReturnsWithoutResettingManualDraftColors() {
+        val stored = preset("manual")
+        val repository = PresetRepository(prefs)
+        repository.save(listOf(stored))
+        val runtime = SceneRuntimeController(prefs, io.github.tufein.duofrost.services.AppProfileManager(prefs))
+        runtime.setBaseline(stored.copy(color = 0x123456))
+        runtime.evaluate(app, 50, false)
+        repository.save(listOf(stored.copy(transitionDurationMs = 1000)))
+        val updated = runtime.evaluate(app, 50, false)!!
+        assertFalse(updated.presetChanged)
+        assertEquals(0x123456, updated.preset!!.color)
+        assertEquals(1000, updated.preset.transitionDurationMs)
+    }
+
     @Test fun fadesWaitForTheIncomingFrameAndRemainBoundedDuringRapidChangesAndCancellation() {
         val fade = LedTransition()
         fade.begin(intArrayOf(0xff0000, 0, 0x0000ff, 0), 500)

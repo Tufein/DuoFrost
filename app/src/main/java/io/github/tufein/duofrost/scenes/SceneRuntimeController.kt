@@ -78,6 +78,14 @@ class SceneRuntimeController(
         val temporary = store.getTemporaryScene(nowElapsed, bootCount)
         val presets = repository.list()
         val byId = presets.associateBy { it.id }
+        // Transition metadata can be edited without replacing unsaved manual colors.
+        // Keep it current for the later return from an automatic scene.
+        baseline?.let { original ->
+            byId[original.id]?.let { stored ->
+                if (original.transitionDurationMs != stored.transitionDurationMs)
+                    baseline = original.copy(transitionDurationMs = stored.transitionDurationMs)
+            }
+        }
         // Legacy name-based APIs resolve the first stored match. Imports and
         // managed presets may share a name, so keep that existing behaviour.
         val byName = buildMap<String, LedPreset> {
