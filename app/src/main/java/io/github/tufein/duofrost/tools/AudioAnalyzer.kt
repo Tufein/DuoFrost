@@ -110,15 +110,22 @@ class AudioAnalyzer(
                 )
                 activeSession = session
                 session.start()
+            } catch (error: SecurityException) {
+                failStart(error, record)
             } catch (error: Exception) {
-                Log.w(TAG, "Audio analyzer failed to start", error)
-                val failedSession = activeSession
-                activeSession = null
-                if (failedSession != null) failedSession.stop()
-                else runCatching { record?.release() }
-                silence()
+                failStart(error, record)
             }
         }
+    }
+
+    /** Called with sessionLock held, including permission revocation during startup. */
+    private fun failStart(error: Exception, record: AudioRecord?) {
+        Log.w(TAG, "Audio analyzer failed to start", error)
+        val failedSession = activeSession
+        activeSession = null
+        if (failedSession != null) failedSession.stop()
+        else runCatching { record?.release() }
+        silence()
     }
 
     fun stop() {

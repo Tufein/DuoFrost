@@ -1,5 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <string name="onboarding_audio_title">Audio-reactive lighting</string>
+    <string name="onboarding_audio_body">Optional for Audio Reactive and AmbiAurora. Android requires audio permission and screen-sharing consent to capture sound played by other apps. DuoFrost uses playback capture, not the physical microphone. Apps can prevent their sound from being captured.</string>
+    <string name="onboarding_audio_action">Allow audio capture</string>
     <string name="onboarding_progress">Step %1$d of 4 · %2$s</string>
     <string name="onboarding_permissions">Permissions</string>
     <string name="onboarding_explanation">How it works</string>

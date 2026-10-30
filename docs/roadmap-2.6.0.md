@@ -1,6 +1,7 @@
 # 2.6.0 roadmap preview
 
-These six features are implemented in the alpha.3 draft. They still need testing
+These six features were introduced in alpha.3; alpha.4 includes review fixes.
+They still need testing
 on an AYN device. Production 2.5.1 remains the latest public release.
 
 | Feature | Where to find it | What it does |
@@ -17,6 +18,8 @@ contrast on backgrounds, cards and controls. You can keep up to 20 named custom
 themes. Theme-only export includes the palette and colored-logo choice. Existing
 Classic and OLED theme IDs still work. Android settings and permission dialogs
 retain Android's own appearance.
+Theme imports are limited to 128 KiB. The picker refreshes after importing a new
+palette, and existing screens update when you return after changing a theme.
 
 Dashboard controls do not apply presets or change lighting. Status, Start/Stop
 and Settings remain available even when the preset library is hidden. Restore
@@ -29,6 +32,9 @@ the last successful backup and failures. Earlier backups are never overwritten
 or deleted; manage storage in your file manager. A system kill can interrupt a
 pending backup. Folder permissions and automatic-backup activation are local;
 choose the folder again after reinstalling. Keep the folder private.
+Full-backup imports reject duplicate ZIP entries and incorrect preference types
+before replacing settings. Expanded data is limited to 64 MiB in total, 8 MiB
+per file (2 MiB for the manifest), and 4096 entries including directories.
 
 Transitions are attached to the incoming preset and preserved by preset export
 and full backup. They interpolate the previous raw zone colors towards incoming
@@ -48,3 +54,8 @@ provider failures, rule priority and bounded interpolation. Builds and Android
 test compilation are checked separately. Physical LED output, Android storage
 providers, notification behavior and OEM lifecycle restrictions require device
 testing; compilation does not establish that those device tests ran.
+
+Audio Reactive and AmbiAurora require Android audio permission in addition to
+screen-sharing consent. Grant it in onboarding or when starting an audio effect.
+Capture uses other apps' playback, not the physical microphone. Protected apps
+can exclude their audio. Denying access does not block non-audio effects.

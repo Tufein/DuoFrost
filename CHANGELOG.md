@@ -1,5 +1,22 @@
 # DuoFrost changelog
 
+## 2.6.0-alpha.4 — draft review fixes
+
+- Rebuild the theme picker before selecting an imported custom theme, preventing
+  an out-of-bounds crash. Keep its entries synchronized with the saved catalogue.
+- Retain theme roles across screen resumes; style newly added switches and keep
+  dialog actions readable when a custom highlight has low contrast.
+- Dismiss themed dialogs with their host without firing user actions. Refresh
+  backup results when returning to the settings screen.
+- Bound theme imports and reject exports of missing themes. Full-backup reads
+  now bound actual expanded ZIP data, reject duplicate entries and validate
+  preference types before replacing settings.
+- Declare and request audio permission for playback capture. Audio effects wait
+  for access, denial leaves other effects available, and recorder startup handles
+  permission revocation explicitly. Audio access stays optional in onboarding.
+- Retain the Android 13 tile-launch compatibility path while using PendingIntent
+  on Android 14 and newer. No public release is promoted.
+
 ## 2.6.0-alpha.3 — draft roadmap preview
 
 - **Theme editor:** save custom palettes with contrast validation, a live preview

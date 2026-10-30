@@ -381,6 +381,7 @@ class MainActivity : AppCompatActivity() {
     private val ragnarokWarningDialog = RagnarokWarningDialog()
     private lateinit var appProfileManager: AppProfileManager
     private val builtInThemes get() = ThemeCatalog.all(prefs)
+    private var displayedThemes: List<UiTheme> = emptyList()
     private var selectedUiTheme: UiTheme = ThemeCatalog.builtIns.first()
 
     private val startupGuideLauncher =
@@ -401,17 +402,8 @@ class MainActivity : AppCompatActivity() {
                 val requested = pendingTileStartIntent
                 if (requested != null) {
                     continueRequestedStart(requested)
-                } else if (needsAccessibilityPermission(selectedAnimationType) && !DuoFrostAccessibilityService.isEnabled(this)) {
-                    Toast.makeText(this, "Enable Accessibility for Ambilight features", Toast.LENGTH_LONG).show()
-                    startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
-                } else if (requiresProjectionToken(selectedAnimationType)) {
-                    if (mediaProjectionResultCode != null && mediaProjectionData != null) {
-                        serviceController.startDebounced { createLedServiceIntent() }
-                    } else {
-                        requestScreenCapturePermission()
-                    }
                 } else {
-                    serviceController.startDebounced { createLedServiceIntent() }
+                    handleStartWithCurrentSelection()
                 }
             } else {
                 pendingTileStartIntent = null
@@ -422,6 +414,20 @@ class MainActivity : AppCompatActivity() {
                     "Notification permission required for Foreground Service",
                     Toast.LENGTH_SHORT
                 ).show()
+            }
+        }
+
+    private val audioPermissionLauncher =
+        registerForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+            if (granted) {
+                if (isGrantingProjectionForAppProfile || pendingTileStartIntent != null) requestScreenCapturePermission()
+                else handleStartWithCurrentSelection()
+            } else {
+                pendingTileStartIntent = null
+                isGrantingProjectionForAppProfile = false
+                isAwaitingPermissionResult = false
+                syncServiceToggle(LEDService.isRunning)
+                Toast.makeText(this, "Audio permission is required for audio-reactive effects. Other effects remain available.", Toast.LENGTH_LONG).show()
             }
         }
 
@@ -1015,12 +1021,13 @@ class MainActivity : AppCompatActivity() {
             val orientation = if (wide) LinearLayout.HORIZONTAL else LinearLayout.VERTICAL
             if (content.orientation != orientation) content.orientation = orientation
             val dashboard = activePresetInfoCard.layoutParams as LinearLayout.LayoutParams
-            val library = findViewById<View>(R.id.gui_libraryCard).layoutParams as LinearLayout.LayoutParams
+            val libraryView = findViewById<View>(R.id.gui_libraryCard)
+            val library = libraryView.layoutParams as LinearLayout.LayoutParams
             dashboard.width = if (wide) 0 else ViewGroup.LayoutParams.MATCH_PARENT
             dashboard.weight = if (wide) 0.9f else 0f
-            dashboard.marginEnd = if (wide && content.indexOfChild(activePresetInfoCard) == 0 && findViewById<View>(R.id.gui_libraryCard).visibility == View.VISIBLE) dpToPx(16) else 0
-            val libraryVisible = findViewById<View>(R.id.gui_libraryCard).visibility == View.VISIBLE
+            val libraryVisible = libraryView.visibility == View.VISIBLE
             val controlsFirst = content.indexOfChild(activePresetInfoCard) == 0
+            dashboard.marginEnd = if (wide && controlsFirst && libraryVisible) dpToPx(16) else 0
             dashboard.bottomMargin = if (!wide && controlsFirst && libraryVisible) dpToPx(16) else 0
             library.width = if (wide) 0 else ViewGroup.LayoutParams.MATCH_PARENT
             library.weight = if (wide) 1.1f else 0f
@@ -1030,7 +1037,7 @@ class MainActivity : AppCompatActivity() {
             if (content.getTag(R.id.gui_textRole) != layoutKey) {
                 content.setTag(R.id.gui_textRole, layoutKey)
                 activePresetInfoCard.layoutParams = dashboard
-                findViewById<View>(R.id.gui_libraryCard).layoutParams = library
+                libraryView.layoutParams = library
             }
         }
         presetCoverFlowScroll.setOnScrollChangeListener { _, _, _, _, _ -> updateCoverFlowCardTransforms() }
@@ -1113,7 +1120,10 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun setupThemeFeature() {
-        val adapter = object : ArrayAdapter<String>(this, R.layout.item_spinner_bifrost, builtInThemes.map { it.label }) {
+        val themes = builtInThemes
+        displayedThemes = themes
+        themeSpinner.onItemSelectedListener = null
+        val adapter = object : ArrayAdapter<String>(this, R.layout.item_spinner_bifrost, themes.map { it.label }) {
             private fun colorRow(view: View): View = view.apply {
                 (this as? TextView)?.setTextColor(selectedUiTheme.textColor)
                 setBackgroundColor(selectedUiTheme.surfaceColor)
@@ -1126,15 +1136,15 @@ class MainActivity : AppCompatActivity() {
         adapter.setDropDownViewResource(R.layout.item_spinner_dropdown_bifrost)
         themeSpinner.adapter = adapter
 
-        val selectedThemeId = prefs.getString(PREF_SELECTED_UI_THEME, builtInThemes.first().id)
-        val selectedIndex = builtInThemes.indexOfFirst { it.id == selectedThemeId }.takeIf { it >= 0 } ?: 0
-        selectedUiTheme = builtInThemes[selectedIndex]
+        val selectedThemeId = prefs.getString(PREF_SELECTED_UI_THEME, themes.first().id)
+        val selectedIndex = themes.indexOfFirst { it.id == selectedThemeId }.takeIf { it >= 0 } ?: 0
+        selectedUiTheme = themes[selectedIndex]
         themeSpinner.setSelection(selectedIndex, false)
         applySelectedTheme(selectedUiTheme, persistSelection = false)
 
         themeSpinner.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
             override fun onItemSelected(parent: AdapterView<*>?, view: View?, position: Int, id: Long) {
-                val theme = builtInThemes.getOrNull(position) ?: return
+                val theme = themes.getOrNull(position) ?: return
                 applySelectedTheme(theme, persistSelection = true)
             }
 
@@ -2242,7 +2252,7 @@ class MainActivity : AppCompatActivity() {
     override fun onResume() {
         super.onResume()
         if (!isAppInitialized) return
-        if (selectedUiTheme != ThemeCatalog.selected(this)) setupThemeFeature()
+        if (displayedThemes != builtInThemes || selectedUiTheme != ThemeCatalog.selected(this)) setupThemeFeature()
         DashboardLayout.apply(this, prefs)
 
         resumeStateSyncRunnable?.let(mainHandler::removeCallbacks)
@@ -4302,9 +4312,7 @@ class MainActivity : AppCompatActivity() {
             .apply()
 
         isColoredLogoEnabled = coloredLogoEnabled
-        val themeIndex = builtInThemes.indexOfFirst { it.id == theme.id }.takeIf { it >= 0 } ?: 0
-        themeSpinner.setSelection(themeIndex, false)
-        applySelectedTheme(theme, persistSelection = false)
+        setupThemeFeature()
         if (coloredLogoSwitch.isChecked != coloredLogoEnabled) {
             coloredLogoSwitch.isChecked = coloredLogoEnabled
         } else {
@@ -4545,6 +4553,7 @@ class MainActivity : AppCompatActivity() {
             serviceController.startDebounced { createLedServiceIntent() }
             return
         }
+        if (requestMissingAudioPermission(selectedAnimationType)) return
         if (needsAccessibilityPermission(selectedAnimationType) && !DuoFrostAccessibilityService.isEnabled(this)) {
             Toast.makeText(this, "Enable Accessibility for Ambilight features", Toast.LENGTH_LONG).show()
             startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
@@ -4577,12 +4586,24 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun requestScreenCapturePermission() {
+        val type = pendingTileStartIntent?.getStringExtra("animationType")?.let(LedAnimationType::fromStoredName)
+            ?: if (isGrantingProjectionForAppProfile) appProfileManager.getPendingProjectionPresetName()?.let { name ->
+                PresetRepository(prefs).list().firstOrNull { it.name == name }?.animationType
+            } ?: selectedAnimationType else selectedAnimationType
+        if (requestMissingAudioPermission(type)) return
         Toast.makeText(
             this,
-            "Android requires a capture consent popup for internal audio capture",
+            "Android requires your consent for screen or internal audio capture",
             Toast.LENGTH_SHORT
         ).show()
         screenCaptureLauncher.launch(mediaProjectionManager.createScreenCaptureIntent())
+    }
+
+    private fun requestMissingAudioPermission(type: LedAnimationType): Boolean {
+        if (type != LedAnimationType.AUDIO_REACTIVE && type != LedAnimationType.AMBIAURORA) return false
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED) return false
+        audioPermissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
+        return true
     }
 
     private fun requiresProjectionToken(type: LedAnimationType): Boolean {

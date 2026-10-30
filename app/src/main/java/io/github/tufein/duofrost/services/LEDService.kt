@@ -1146,9 +1146,10 @@ class LEDService : Service() {
         }
 
         val effectiveType = resolveEffectiveAnimationType()
-        if (needsMediaProjection(effectiveType) && lastProjectionData == null &&
-            synchronized(mediaProjectionLock) { mediaProjection == null }
-        ) {
+        if ((effectiveType == LedAnimationType.AUDIO_REACTIVE || effectiveType == LedAnimationType.AMBIAURORA) &&
+            checkSelfPermission(android.Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED ||
+            needsMediaProjection(effectiveType) && lastProjectionData == null &&
+            synchronized(mediaProjectionLock) { mediaProjection == null }) {
             awaitProjectionConsent()
             return
         }
@@ -1473,7 +1474,9 @@ class LEDService : Service() {
         }
 
         val needsMP = needsMediaProjection(preset.animationType)
-        val hasProjectionData = lastProjectionResultCode == Activity.RESULT_OK && lastProjectionData != null
+        val needsAudio = preset.animationType == LedAnimationType.AUDIO_REACTIVE || preset.animationType == LedAnimationType.AMBIAURORA
+        val hasProjectionData = lastProjectionResultCode == Activity.RESULT_OK && lastProjectionData != null &&
+            (!needsAudio || checkSelfPermission(android.Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED)
         Log.d(TAG, "checkAutoProfileSwitch: needsMP=$needsMP, hasProjectionData=$hasProjectionData, lastProjectionResultCode=$lastProjectionResultCode, lastProjectionData=${lastProjectionData != null}")
 
         // A manual start without consent is handled by the regular capture flow,

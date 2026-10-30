@@ -57,6 +57,9 @@ class StartupGuideActivity : io.github.tufein.duofrost.ui.ThemedActivity() {
     private val notificationLauncher = registerForActivityResult(ActivityResultContracts.RequestPermission()) {
         if (page == Page.PERMISSIONS) render()
     }
+    private val audioLauncher = registerForActivityResult(ActivityResultContracts.RequestPermission()) {
+        if (page == Page.PERMISSIONS) render()
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -172,6 +175,17 @@ class StartupGuideActivity : io.github.tufein.duofrost.ui.ThemedActivity() {
             R.id.guideUsageStatus, profiles.hasUsageStatsPermission(this), R.id.buttonOpenUsageAccess,
             R.string.onboarding_usage_action) {
             openSettings(Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS))
+        }
+        permissionCard(R.string.onboarding_audio_title, R.string.onboarding_audio_body,
+            R.id.guideAudioStatus, ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED,
+            R.id.buttonGrantAudio, R.string.onboarding_audio_action) {
+            if (prefs.getBoolean("onboarding_audio_requested", false) &&
+                !shouldShowRequestPermissionRationale(Manifest.permission.RECORD_AUDIO)) {
+                openSettings(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:$packageName")))
+            } else {
+                prefs.edit().putBoolean("onboarding_audio_requested", true).apply()
+                audioLauncher.launch(Manifest.permission.RECORD_AUDIO)
+            }
         }
     }
 

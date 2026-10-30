@@ -53,7 +53,11 @@ class BackupSettingsActivity : ThemedActivity() {
         setContentView(root)
         render()
     }
-    override fun onStart() { super.onStart(); state.registerOnSharedPreferenceChangeListener(listener) }
+    override fun onStart() {
+        super.onStart()
+        state.registerOnSharedPreferenceChangeListener(listener)
+        render()
+    }
     override fun onStop() { state.unregisterOnSharedPreferenceChangeListener(listener); super.onStop() }
     private fun render() {
         if (!::summary.isInitialized) return

@@ -3,7 +3,8 @@
 On the first launch, DuoFrost guides you through four steps:
 
 1. **Permissions:** notifications for lighting controls, optional Accessibility
-   for screen colors, and optional Usage access for automatic app presets.
+   for screen colors, optional Usage access for automatic app presets, and
+   optional audio permission for Audio Reactive and AmbiAurora playback capture.
    Enable only the access you want. You can change it later in Android settings.
 2. **How it works:** choosing and editing presets, Start/Stop, capture effects,
    automation and background settings.

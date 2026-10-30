@@ -6,10 +6,8 @@ import android.net.Uri
 import android.os.CancellationSignal
 import org.json.JSONArray
 import org.json.JSONObject
-import java.io.ByteArrayOutputStream
 import java.io.IOException
 import java.util.zip.ZipEntry
-import java.util.zip.ZipInputStream
 import java.util.zip.ZipOutputStream
 
 object BackupArchiveTransfer {
@@ -40,6 +38,8 @@ object BackupArchiveTransfer {
         "pending_projection_notified",
         PresetLibraryStore.PREF_KEY_LIBRARY
     )
+    private val BOOLEAN_PREF_KEYS = setOf("colored_logo_enabled", "auto_switch_enabled",
+        "game_scene_enabled", "smart_scenes_enabled", "pending_projection_notified")
 
     data class CategoryOptions(
         val themes: Boolean = true,
@@ -164,26 +164,16 @@ object BackupArchiveTransfer {
         val warnings = mutableListOf<String>()
         val errors = mutableListOf<String>()
 
-        val zipEntries = mutableMapOf<String, ByteArray>()
         cancelSignal?.throwIfCanceled()
-        context.contentResolver.openInputStream(uri)?.use { input ->
-            ZipInputStream(input.buffered()).use { zip ->
-                while (true) {
+        val zipEntries = try {
+            context.contentResolver.openInputStream(uri)?.use { input ->
+                PresetArchiveReader.read(input, PresetArchiveReader.Limits(maxEntries = 4096)) {
                     cancelSignal?.throwIfCanceled()
-                    val entry = zip.nextEntry ?: break
-                    if (entry.isDirectory) {
-                        zip.closeEntry()
-                        continue
-                    }
-
-                    val data = ByteArrayOutputStream().use { output ->
-                        zip.copyTo(output)
-                        output.toByteArray()
-                    }
-                    zipEntries[entry.name] = data
-                    zip.closeEntry()
                 }
             }
+        } catch (error: IOException) {
+            return ImportResult(0, 0, options, emptyList(),
+                listOf(error.message?.replace("Preset archive", "Backup archive") ?: "Unable to read backup archive."))
         } ?: return ImportResult(
             preferenceCount = 0,
             iconCount = 0,
@@ -262,6 +252,17 @@ object BackupArchiveTransfer {
         val effectiveOptions = resolveEffectiveOptions(manifest, options)
 
         val prefItems = prefsJson.optJSONArray("items") ?: JSONArray()
+        // Validate typed configuration before clearing any of the existing categories.
+        // Otherwise a declared int for a string preference crashes its next reader.
+        for (index in 0 until prefItems.length()) {
+            val item = prefItems.optJSONObject(index) ?: continue
+            val key = item.optString("key")
+            if (!shouldIncludePreference(key, effectiveOptions) || key in BehaviorSettingsBackup.keys) continue
+            val valid = if (key in BOOLEAN_PREF_KEYS) item.opt("type") == "boolean" && item.opt("value") is Boolean
+                else item.opt("type") == "string" && item.opt("value") is String
+            if (!valid) return ImportResult(0, 0, effectiveOptions, warnings,
+                listOf("Preference '$key' has an invalid type; no settings were restored."))
+        }
         val prefs = context.getSharedPreferences(PREF_FILE_NAME, Context.MODE_PRIVATE)
         val editor = prefs.edit()
 

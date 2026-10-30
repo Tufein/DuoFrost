@@ -1,4 +1,6 @@
 <resources>
+    <item type="id" name="guideAudioStatus" />
+    <item type="id" name="buttonGrantAudio" />
     <item type="id" name="buttonGrantNotifications" />
     <item type="id" name="buttonOpenAccessibility" />
     <item type="id" name="buttonOpenUsageAccess" />

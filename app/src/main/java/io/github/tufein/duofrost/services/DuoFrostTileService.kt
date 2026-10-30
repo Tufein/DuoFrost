@@ -68,10 +68,14 @@ class DuoFrostTileService : TileService() {
             )
             startActivityAndCollapse(pending)
         } else {
-            @Suppress("DEPRECATION")
-            startActivityAndCollapse(launch)
+            openAppOnAndroid13(launch)
         }
     }
+
+    // PendingIntent overload was added in API 34; API 33 requires this overload.
+    @android.annotation.SuppressLint("StartActivityAndCollapseDeprecated")
+    @Suppress("DEPRECATION")
+    private fun openAppOnAndroid13(launch: Intent) = startActivityAndCollapse(launch)
 
     private fun renderState(forcedRunning: Boolean? = null) {
         val tile = qsTile ?: return

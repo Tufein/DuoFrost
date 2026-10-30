@@ -3,5 +3,7 @@
     <item name="appProfileDefaultSwitch" type="id" />
     <item type="id" name="gui_textRole" />
     <item type="id" name="gui_presetIdentity" />
+    <item type="id" name="palette_text_role" />
+    <item type="id" name="palette_background_role" />
 </resources>
 

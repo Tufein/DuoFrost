@@ -9,6 +9,7 @@ object ThemeArchiveTransfer {
 
     private const val THEME_SCHEMA = "bifrost_theme_bundle"
     private const val THEME_VERSION = 2
+    private const val MAX_THEME_BYTES = 128 * 1024
 
     data class ExportResult(
         val themeId: String,
@@ -30,6 +31,7 @@ object ThemeArchiveTransfer {
         coloredLogoEnabled: Boolean
     ): ExportResult {
         val theme = io.github.tufein.duofrost.ui.ThemeCatalog.all(context.getSharedPreferences("bifrost_prefs", Context.MODE_PRIVATE)).firstOrNull { it.id == themeId }
+        require(theme != null) { "The selected theme is no longer available" }
         val custom = theme?.takeIf { it.id.startsWith("custom_") }
         val payload = JSONObject().apply {
             put("schema", THEME_SCHEMA)
@@ -58,9 +60,17 @@ object ThemeArchiveTransfer {
         val errors = mutableListOf<String>()
 
         val rawJson = context.contentResolver.openInputStream(uri)?.use { input ->
-            input.bufferedReader(Charsets.UTF_8).use { reader ->
-                reader.readText()
+            val bytes = java.io.ByteArrayOutputStream()
+            val buffer = ByteArray(8192)
+            while (true) {
+                val read = input.read(buffer)
+                if (read < 0) break
+                if (bytes.size() + read > MAX_THEME_BYTES) return ImportResult(
+                    themeId = null, coloredLogoEnabled = true, warnings = emptyList(),
+                    errors = listOf("Theme file is too large (maximum 128 KiB)."))
+                bytes.write(buffer, 0, read)
             }
+            bytes.toString(Charsets.UTF_8.name())
         } ?: return ImportResult(
             themeId = null,
             coloredLogoEnabled = true,

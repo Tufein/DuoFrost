@@ -187,3 +187,13 @@ This document contains instructions for autonomous coding agents.
     Per-preset transitions blend raw zones before output caps/mute, are bounded,
     and are cancelled before Stop, capture-consent blackouts and urgent overlays.
     Preserve transition metadata in preset edits, archives, drafts and recovery.
+52. Theme picker entries and selection must use the same catalogue snapshot.
+    Rebuild it before selecting a newly imported theme. Remember semantic palette
+    roles across reapplication; leave LED swatches unchanged and style dynamic controls.
+    Themed dialog teardown must retain caller callbacks without invoking user actions.
+53. Validate full-backup preference types and expanded ZIP budgets before replacing
+    categories. Reject duplicate files, count directory payloads and check cancellation
+    while reading. Theme-only input is bounded to 128 KiB.
+54. Playback capture requires RECORD_AUDIO as well as MediaProjection consent.
+    Keep access optional, request it before starting audio capture, and handle denial
+    and revocation without opening a microphone route or starting an unwanted service.

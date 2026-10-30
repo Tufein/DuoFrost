@@ -27,6 +27,7 @@ internal object SecondaryScreenUi {
             isFillViewport = true
             clipToPadding = false
             setBackgroundColor(color(activity, R.color.bifrost_bg))
+            setTag(R.id.palette_background_role, R.color.bifrost_bg)
         }
         val content = LinearLayout(activity).apply {
             orientation = LinearLayout.VERTICAL
@@ -72,6 +73,7 @@ internal object SecondaryScreenUi {
         textSize = 26f
         typeface = Typeface.create("sans-serif-medium", Typeface.NORMAL)
         setTextColor(color(context, R.color.bifrost_text))
+        setTag(R.id.palette_text_role, R.color.bifrost_text)
         isAccessibilityHeading = true
     }
 
@@ -79,6 +81,7 @@ internal object SecondaryScreenUi {
         this.text = text
         textSize = if (secondary) 14f else 16f
         setTextColor(color(context, if (secondary) R.color.bifrost_text_secondary else R.color.bifrost_text))
+        setTag(R.id.palette_text_role, if (secondary) R.color.bifrost_text_secondary else R.color.bifrost_text)
         setLineSpacing(dp(context, 3).toFloat(), 1f)
     }
 
@@ -96,6 +99,7 @@ internal object SecondaryScreenUi {
             val surface = color(context, R.color.bifrost_card)
             val foreground = color(context, R.color.bifrost_text)
             val accent = color(context, R.color.bifrost_accent)
+            setTag(R.id.palette_background_role, if (primary) R.color.bifrost_accent else R.color.bifrost_surface)
             if (primary) {
                 backgroundTintList = UiPalette.enabledColors(accent, ColorUtils.blendARGB(surface, accent, 0.3f))
                 setTextColor(UiPalette.enabledColors(UiPalette.foreground(accent, surface),
@@ -120,6 +124,7 @@ internal object SecondaryScreenUi {
             minHeight = dp(context, 56)
             gravity = Gravity.CENTER_VERTICAL
             isChecked = checked
+            ThemeStyler.apply(this)
             setOnCheckedChangeListener { _, value -> onChange(value) }
         }
 

@@ -548,7 +548,7 @@ Android identity: `io.github.tufein.duofrost`
 
 CI intentionally uses debug signing and does not receive release keys.
 
-### Roadmap preview (2.6.0-alpha.3)
+### Roadmap preview (2.6.0-alpha.3, reviewed in alpha.4)
 
 `ThemeCatalog` owns the seven built-in palettes and up to 20 validated custom
 palettes. Opaque RGB colors, unique stable IDs, bounded names and 4.5:1 text
@@ -557,7 +557,11 @@ by an editor save. Theme-only schema 2 carries a custom palette; built-in-only
 exports retain schema 1. Full-backup Themes includes the custom catalogue.
 `ThemedActivity`, `SecondaryScreenUi`, dialog attachment styling and palette
 adapters share the selection without recoloring LED previews. Dialog callbacks
-and activity lifecycle teardown remain owned by their original callers.
+remain owned by their original callers. Palette roles are remembered across
+reapplication. The shared dialog builder also dismisses on host destruction,
+without replacing caller show/dismiss listeners or invoking button actions.
+The main theme picker uses one catalogue snapshot and rebuilds before selecting
+an imported custom theme. Theme reads are bounded to 128 KiB.
 
 Dashboard preferences use an explicit transferable boolean whitelist. The two
 cards can be reordered and optional groups hidden; the status card and Settings
@@ -571,6 +575,10 @@ enter an archive. Each save creates a new document and uses the existing full
 backup writer. Failure deletes only that new incomplete document and retains
 the previous-success timestamp. There is no periodic job, wake lock or extra
 foreground service; process death may interrupt a pending save.
+Full-backup input uses the bounded archive reader (4096 entries, 2 MiB manifest,
+8 MiB per file, 64 MiB expanded total), including directory payloads and duplicate
+entry rejection. Preference types are validated before clearing categories.
+The backup status screen refreshes after returning from a paused lifecycle.
 
 `SceneSimulator` calls the same `SceneEvaluator`, `AppProfileSelection`
 and `SceneSelectionPolicy` used by runtime. Its screen reads preset data
@@ -586,6 +594,13 @@ ceilings/mute afterwards. A bounded 25ms callback supports static effects;
 streaming effects reuse their normal writes. Replacement captures the current
 interpolated output. Stop, shutdown, capture blackouts and urgent overlays
 cancel pending interpolation before sending black or taking ownership.
+
+Alpha.4 declares `RECORD_AUDIO`, requests it before audio playback capture and
+keeps it optional in onboarding. The service waits for permission before audio
+effects; the recorder handles startup/revocation `SecurityException` explicitly.
+Capture still uses `AudioPlaybackCaptureConfiguration`, never a physical mic.
+Tile launch uses the PendingIntent overload on API 34+; a narrowly annotated
+API 33 compatibility helper retains the only overload available on Android 13.
 
 ### Guided first-run setup (2.6.0 draft)
 
