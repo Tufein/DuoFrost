@@ -24,6 +24,10 @@
     <string name="led_test_previous">Previous color</string>
     <string name="led_test_next">Next color</string>
     <string name="led_test_finish">Finish and restore effect</string>
+    <string name="screen_probe_title">Screen readout experiment</string>
+    <string name="screen_probe_description">For testing a future lighter way to read screen colours. One tap takes a single screenshot through the device\'s own service, shows the average colour and timing here, and deletes the screenshot straight away. Nothing is saved or sent, and your lighting does not change.</string>
+    <string name="screen_probe_button">Run the experiment once</string>
+    <string name="screen_probe_running">Running…</string>
     <string name="widget_description">Start, stop, mute and launch a favorite DuoFrost preset.</string>
     <string name="widget_enabled">Lighting enabled</string>
     <string name="widget_muted">Lighting enabled · muted</string>

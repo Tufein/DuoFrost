@@ -70,6 +70,7 @@ is still 2.5.1. See [the onboarding guide](docs/onboarding.md).
 - Deleting a preset and tapping Undo keeps your Game Scene setting.
 - Preset images from an import stay available while you review the import, however long it takes.
 - Searching the library stays smooth while an Undo is available.
+- **Screen readout experiment:** the LED test screen has a one-tap test of a possible lighter way to read screen colours. It changes nothing about your lighting.
 
 ## 2.5.1 — startup fix
 

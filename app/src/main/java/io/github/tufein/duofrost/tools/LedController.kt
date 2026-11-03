@@ -10,7 +10,7 @@ import kotlin.math.roundToInt
 class LedController(private val pServerBinder: IBinder? = findBinder()) {
     companion object {
         private const val TAG = "LedController"
-        private fun findBinder(): IBinder? = try {
+        internal fun findBinder(): IBinder? = try {
             val serviceManager = Class.forName("android.os.ServiceManager")
             val getService = serviceManager.getDeclaredMethod("getService", String::class.java)
             getService.invoke(serviceManager, "PServerBinder") as? IBinder
