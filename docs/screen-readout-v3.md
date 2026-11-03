@@ -89,8 +89,27 @@ full-frame capture takes (the baseline any lighter source must beat).
 - Shizuku is acceptable as an optional requirement. Root is not needed.
   A Shizuku source stays opt-in, with MediaProjection as the default and fallback.
 
+## Measured on the Thor (2026-11-03, over ADB, shell uid)
+
+- AYN Thor, Android 13, two displays (HWC ports 131 and 132).
+- `PServerBinder` is registered in the service list.
+- The LED `brightness` files are mode 666, so writing LEDs needs no special rights.
+- `screencap` as the shell uid works: exit 0, 5,356,816 bytes = 16-byte header +
+  1080x1240x4, in about 0.11 s. Full frames are about 5 MB each, so a source that
+  moves whole frames is too heavy for 60 fps; only Low and Medium look realistic
+  unless the frame is shrunk before it is handed over.
+
+## Experiment in the app
+
+`ScreenReadoutProbe` (button on the LED test screen) sends one `screencap` through
+PServerBinder into a folder this app can read, then reports the user the command
+ran as (`id`), the exit code, the time until the file appeared, and the average
+colour. This answers the open questions below. It runs only on a tap and deletes
+the screenshot straight after sampling.
+
 ## Still open
 
-- Does the shell uid on the Thor's firmware allow `ScreenCapture.captureDisplay`
-  (or `screencap`) at all, and what does one small sample cost?
+- Which user does PServerBinder run commands as, and can it write where the app
+  can read? (The experiment above reports both.)
+- The Thor has two displays; `screencap` without `-d` reads the default one.
 - Battery numbers per profile from the existing tests, as the baseline.

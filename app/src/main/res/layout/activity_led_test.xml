@@ -95,5 +95,47 @@
             android:text="@string/led_test_finish"
             android:textAllCaps="false"
             android:textSize="14sp" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="32dp"
+            android:accessibilityHeading="true"
+            android:text="@string/screen_probe_title"
+            android:textColor="@color/bifrost_text"
+            android:textSize="18sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:lineSpacingExtra="3dp"
+            android:text="@string/screen_probe_description"
+            android:textColor="@color/bifrost_text_secondary"
+            android:textSize="14sp" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/screenProbeButton"
+            style="@style/Widget.Material3.Button.OutlinedButton"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
+            android:minHeight="48dp"
+            android:text="@string/screen_probe_button"
+            android:textAllCaps="false"
+            android:textSize="14sp"
+            app:cornerRadius="12dp" />
+
+        <TextView
+            android:id="@+id/screenProbeResult"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
+            android:accessibilityLiveRegion="polite"
+            android:fontFamily="monospace"
+            android:textColor="@color/bifrost_text"
+            android:textIsSelectable="true"
+            android:textSize="13sp" />
     </LinearLayout>
 </ScrollView>
