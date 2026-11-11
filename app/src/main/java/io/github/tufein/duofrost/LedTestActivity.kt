@@ -9,6 +9,7 @@ import androidx.appcompat.app.AppCompatActivity
 import com.google.android.material.button.MaterialButton
 import io.github.tufein.duofrost.services.LEDService
 import io.github.tufein.duofrost.tools.LedDiagnosticFrame
+import io.github.tufein.duofrost.tools.ScreenReadoutProbe
 import io.github.tufein.duofrost.ui.SecondaryScreenUi
 
 class LedTestActivity : io.github.tufein.duofrost.ui.ThemedActivity() {
@@ -28,6 +29,19 @@ class LedTestActivity : io.github.tufein.duofrost.ui.ThemedActivity() {
             showStep()
         }
         findViewById<MaterialButton>(R.id.ledTestFinish).setOnClickListener { finish() }
+        val probeButton = findViewById<MaterialButton>(R.id.screenProbeButton)
+        val probeResult = findViewById<TextView>(R.id.screenProbeResult)
+        probeButton.setOnClickListener {
+            probeButton.isEnabled = false
+            probeResult.text = getString(R.string.screen_probe_running)
+            Thread {
+                val report = ScreenReadoutProbe.run(applicationContext)
+                runOnUiThread {
+                    probeResult.text = report
+                    probeButton.isEnabled = true
+                }
+            }.start()
+        }
     }
 
     override fun onStart() {
