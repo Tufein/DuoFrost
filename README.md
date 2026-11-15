@@ -81,3 +81,11 @@ Original authorship and Git history are preserved; see [credits](CREDITS.md).
 
 Source and releases are available under [GPLv3](LICENSE). Forks and contributions
 are welcome. DuoFrost is not affiliated with AYN.
+
+## Security
+
+See [SECURITY.md](SECURITY.md) for how to report a vulnerability and which secrets this project stores.
+
+## Documentation
+
+[Contributing](CONTRIBUTING.md) · [Security](SECURITY.md) · [Changelog](CHANGELOG.md) · [Roadmap](docs/roadmap-2.6.0.md)

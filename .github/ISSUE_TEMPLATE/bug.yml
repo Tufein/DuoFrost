@@ -1,0 +1,28 @@
+name: Bug report
+description: Report a reproducible lighting problem with the device you tested.
+body:
+  - type: markdown
+    attributes:
+      value: Do not share private plugin URLs, tokens or any file you are not allowed to publish. Include the AYN model, firmware and DuoFrost version.
+  - type: input
+    id: version
+    attributes:
+      label: Version and download source
+    validations:
+      required: true
+  - type: input
+    id: device
+    attributes:
+      label: Device model, firmware and Android version
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Steps, expected result, and actual result
+    validations:
+      required: true
+  - type: textarea
+    id: conditions
+    attributes:
+      label: Relevant lighting preset, scene or plugin and whether an external app called the API
