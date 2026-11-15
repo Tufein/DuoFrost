@@ -40,7 +40,7 @@ jobs:
         with:
           ref: ${{ steps.draft.outputs.source_sha }}
           persist-credentials: false
-      - uses: actions/setup-java@v4
+      - uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: '17'
