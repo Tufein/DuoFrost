@@ -1,5 +1,38 @@
 # DuoFrost changelog
 
+## 2.6.0 — themes, backups and guided setup
+
+Not yet published. Updates production 2.5.1 in place with the same signing key,
+keeping presets and settings. Export a full backup before installing.
+
+- **Guided setup:** permissions, a short explanation, six LED checks and a final
+  screen before entering the app. Optional access can be enabled later, and the
+  guide can be replayed from Device settings.
+- **Theme editor:** save custom palettes with contrast validation and a live
+  preview. Custom themes transfer on their own and travel in full backups. Five
+  more appearance palettes are available, and app-owned screens follow the
+  selected palette.
+- **Dashboard layout:** reorder the two main cards and hide optional sections.
+  Status, Start/Stop and Settings stay available.
+- **Automatic backups:** opt in, choose a folder, and get full backups after
+  important changes. Earlier backups are kept.
+- **Preset transitions:** instant changes, or a bounded colour blend of 250 to
+  2000 ms per incoming preset. Brightness limits and mute still apply.
+- **Scene simulator:** preview which preset a hypothetical app, time, battery and
+  charging state would select, without changing lighting.
+- **Notifications:** hide the lighting notification in Android's channel settings
+  while lighting keeps running. Pinning and visibility are separate settings.
+- **Audio effects:** playback capture asks for Android's audio permission. If it is
+  denied, other effects keep working.
+- **Fixes since 2.5.1:** Smart Scenes, undo and import fixes from the 2.5.0 review,
+  and accessibility capture when Android stores the service name in short form
+  (contributed by mleo2003).
+
+Before publication, the features need checks on an AYN device. Unit tests do not
+cover physical LED output, notifications, storage providers or OEM lifecycle
+behaviour. See the [feature guide](docs/roadmap-2.6.0.md) and the
+[release notes](docs/2.6.0.md).
+
 ## 2.6.0-alpha.4 — draft review fixes
 
 - Rebuild the theme picker before selecting an imported custom theme, preventing
