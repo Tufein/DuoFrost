@@ -74,9 +74,11 @@ or backup from BiFrost, then import them into DuoFrost. Run one LED controller a
 a time. For Obtainium, add [this repository](https://github.com/Tufein/DuoFrost).
 
 Ambient and audio effects need capture permission. Audio effects also need Android's
-audio permission. Samples are processed locally; captured content is not recorded or
-uploaded. For background lighting, allow DuoFrost to run in the background in Android's
-battery settings. After an Android Force stop, open the app again.
+audio permission. Samples are processed locally and nothing is uploaded. The optional
+screen readout test on the LED test screen writes one full-screen capture to app storage
+for a moment and deletes it right after sampling. It runs only when you tap it and does
+not change your lighting. For background lighting, allow DuoFrost to run in the background
+in Android's battery settings. After an Android Force stop, open the app again.
 
 **Hidden feature — tidy Recent apps:** DuoFrost's window stays out of Android's
 Recent apps list. Reopen it from its app icon; use Start/Stop to control lighting.
