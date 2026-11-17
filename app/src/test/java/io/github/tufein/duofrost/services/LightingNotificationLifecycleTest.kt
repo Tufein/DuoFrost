@@ -183,6 +183,34 @@ class LightingNotificationLifecycleTest {
         assertFalse(ServiceRecoveryStore.isDesiredRunning(context))
     }
 
+    @Test fun startDuringStopTeardownSupersedesTheStopInsteadOfBeingDropped() {
+        startLighting()
+        val isStopping = field("isStopping") as java.util.concurrent.atomic.AtomicBoolean
+        isStopping.set(true)
+        LEDService.isRunning = false
+
+        service.onStartCommand(Intent(context, LEDService::class.java).apply {
+            putExtra("animationType", "STATIC")
+            putExtra("animationColor", 0xff224466.toInt())
+        }, 0, 2)
+
+        assertFalse(isStopping.get())
+        assertTrue(LEDService.isRunning)
+        assertTrue(ServiceRecoveryStore.isDesiredRunning(context))
+    }
+
+    @Test fun muteNotificationActionPersistsWhileLightingIsNotRunning() {
+        LEDService.isRunning = false
+        assertFalse(ServiceRecoveryStore.isMuted(context))
+
+        service.onStartCommand(Intent(context, LEDService::class.java).apply {
+            action = LEDService.ACTION_SET_MUTED
+            putExtra(LEDService.EXTRA_MUTED, true)
+        }, 0, 2)
+
+        assertTrue(ServiceRecoveryStore.isMuted(context))
+    }
+
     private fun startLighting() {
         service.onStartCommand(Intent(context, LEDService::class.java).apply {
             putExtra("animationType", "STATIC")

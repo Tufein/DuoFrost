@@ -84,6 +84,7 @@ import com.google.android.material.textfield.TextInputEditText
 import com.google.android.material.textfield.TextInputLayout
 import io.github.tufein.duofrost.animations.FadeTransitionAnimation
 import io.github.tufein.duofrost.animations.LedAnimationType
+import io.github.tufein.duofrost.external.ExternalApi
 import io.github.tufein.duofrost.external.ExternalApiGate
 import io.github.tufein.duofrost.services.AppProfileManager
 import io.github.tufein.duofrost.services.DuoFrostAccessibilityService
@@ -110,6 +111,7 @@ import io.github.tufein.duofrost.tools.LedOutputLimits
 import io.github.tufein.duofrost.tools.PerformanceProfile
 import io.github.tufein.duofrost.ui.AnimatedRainbowDrawable
 import io.github.tufein.duofrost.ui.DuoFrostAlertDialog
+import io.github.tufein.duofrost.ui.SecondaryScreenUi
 import io.github.tufein.duofrost.ui.ColorPickerDialog
 import io.github.tufein.duofrost.ui.LockableHorizontalScrollView
 import io.github.tufein.duofrost.ui.PresetCardView
@@ -268,6 +270,10 @@ class MainActivity : AppCompatActivity() {
         private const val PREF_COLORED_LOGO_ENABLED = "colored_logo_enabled"
         private const val STATE_AWAITING_STARTUP_GUIDE = "awaiting_startup_guide"
         private const val STATE_DEFERRED_LAUNCH_REQUEST = "deferred_launch_request"
+        private const val STATE_PENDING_BACKUP_EXPORT_OPTIONS = "pending_backup_export_options"
+        private const val STATE_PENDING_BACKUP_IMPORT_OPTIONS = "pending_backup_import_options"
+        private const val EXTRA_PENDING_BACKUP_EXPORT_OPTIONS = "pending_backup_export_options"
+        private const val EXTRA_PENDING_BACKUP_IMPORT_OPTIONS = "pending_backup_import_options"
         private const val PREF_LIVE_WALLPAPER_RESTORE_SETTINGS = "live_wallpaper_restore_settings"
         private const val PREF_LIVE_WALLPAPER_APPLY_IN_PROGRESS = "live_wallpaper_apply_in_progress"
         private const val LIVE_WALLPAPER_LOCAL_VIDEO_FILE = "live_wallpaper_video.mp4"
@@ -515,9 +521,10 @@ class MainActivity : AppCompatActivity() {
 
     private val exportPresetsLauncher =
         registerForActivityResult(ActivityResultContracts.CreateDocument("application/octet-stream")) { uri: Uri? ->
-            if (uri == null) return@registerForActivityResult
+            // Consume the choice even on cancel so a later recreate cannot reuse it.
             val options = pendingBackupExportOptions ?: BackupArchiveTransfer.CategoryOptions()
             pendingBackupExportOptions = null
+            if (uri == null) return@registerForActivityResult
             exportPresetBundle(uri, options)
         }
 
@@ -529,9 +536,10 @@ class MainActivity : AppCompatActivity() {
 
     private val importPresetsLauncher =
         registerForActivityResult(ActivityResultContracts.OpenDocument()) { uri: Uri? ->
-            if (uri == null) return@registerForActivityResult
+            // Consume the choice even on cancel so a later recreate cannot reuse it.
             val options = pendingBackupImportOptions ?: BackupArchiveTransfer.CategoryOptions()
             pendingBackupImportOptions = null
+            if (uri == null) return@registerForActivityResult
             importPresetBundle(uri, options)
         }
 
@@ -574,6 +582,7 @@ class MainActivity : AppCompatActivity() {
                 })
             }
         }
+        restorePendingBackupOptions(savedInstanceState)
 
         if (intent.getBooleanExtra("finish", false)) {
             finishAffinity()
@@ -3363,6 +3372,86 @@ class MainActivity : AppCompatActivity() {
                 }
             }
         }
+        addExternalApiAccessControls()
+    }
+
+    /**
+     * Bound-service callers need an explicit per-package approval; legacy
+     * broadcasts cannot prove who sent them and stay opt-in. Both controls are
+     * created in code so no new layout ids can collide with existing settings.
+     */
+    private fun addExternalApiAccessControls() {
+        val row = externalApiSwitch.parent as? ViewGroup ?: return
+        val container = row.parent as? LinearLayout ?: return
+        val insertAt = container.indexOfChild(row) + 1
+        val topMargin = (resources.displayMetrics.density * 8).toInt()
+
+        val manage = SecondaryScreenUi.action(this, "Allowed apps") {
+            showExternalApiAppsDialog()
+        }
+        container.addView(
+            manage,
+            insertAt,
+            LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+            ).apply { this.topMargin = topMargin }
+        )
+
+        val legacy = SecondaryScreenUi.toggle(
+            this,
+            "Legacy broadcast API (less secure)",
+            ExternalApiGate.isLegacyBroadcastEnabled(prefs)
+        ) { enabled ->
+            ExternalApiGate.setLegacyBroadcastEnabled(this, enabled)
+        }
+        container.addView(legacy, insertAt + 1)
+    }
+
+    private fun showExternalApiAppsDialog() {
+        val holders = runCatching {
+            packageManager.getPackagesHoldingPermissions(arrayOf(ExternalApi.PERMISSION), 0)
+                .map { it.packageName }
+        }.getOrDefault(emptyList())
+        val approved = ExternalApiGate.approvedPackages(this)
+        val packages = (holders + approved + ExternalApiGate.pendingPackages(this))
+            .filter { it.isNotBlank() && it != packageName }
+            .distinct()
+            .sorted()
+
+        if (packages.isEmpty()) {
+            DuoFrostAlertDialog().show(
+                activity = this,
+                title = "ALLOWED APPS",
+                subtitle = "No companion app has requested LED control",
+                body = "Install a companion that declares the LED-control permission, then approve it here.",
+                positiveLabelResId = R.string.alert_action_ok,
+                negativeLabelResId = null,
+                cancelable = true,
+                onConfirm = {}
+            )
+            return
+        }
+
+        val labels = packages.map { pkg ->
+            val label = runCatching {
+                packageManager.getApplicationLabel(packageManager.getApplicationInfo(pkg, 0)).toString()
+            }.getOrDefault(pkg)
+            "$label ($pkg)"
+        }.toTypedArray()
+        val checked = BooleanArray(packages.size) { packages[it] in approved }
+
+        io.github.tufein.duofrost.ui.ThemedDialogBuilder(this)
+            .setTitle("Allowed apps")
+            .setMultiChoiceItems(labels, checked) { _, index, value -> checked[index] = value }
+            .setPositiveButton("Save") { _, _ ->
+                ExternalApiGate.setApprovedPackages(
+                    this,
+                    packages.filterIndexed { index, _ -> checked[index] }.toSet()
+                )
+            }
+            .setNegativeButton(R.string.action_cancel, null)
+            .show()
     }
 
     private fun setupPluginStore() {
@@ -3465,6 +3554,14 @@ class MainActivity : AppCompatActivity() {
         val newIntent = Intent(intent).setClass(this, MainActivity::class.java).apply {
             addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
             putExtra(EXTRA_DISPLAY_RELAUNCH_ATTEMPT, attempt + 1)
+            // A document picker may be open; carry the chosen backup categories
+            // so the result is never restored with every category enabled.
+            pendingBackupExportOptions?.let {
+                putExtra(EXTRA_PENDING_BACKUP_EXPORT_OPTIONS, it.toFlags())
+            }
+            pendingBackupImportOptions?.let {
+                putExtra(EXTRA_PENDING_BACKUP_IMPORT_OPTIONS, it.toFlags())
+            }
         }
         val options = ActivityOptions.makeBasic()
         options.launchDisplayId = targetDisplayId
@@ -3789,6 +3886,33 @@ class MainActivity : AppCompatActivity() {
         updateParameterVisibility()
     }
 
+    /**
+     * A SAF picker stays open while MainActivity can be recreated (Thor display
+     * relaunches, configuration changes). Keep the category choice with the
+     * instance state and hand it across the relaunch intent, so a scoped restore
+     * never falls back to "everything".
+     */
+    private fun restorePendingBackupOptions(savedInstanceState: Bundle?) {
+        pendingBackupExportOptions = readPendingBackupOptions(
+            savedInstanceState, STATE_PENDING_BACKUP_EXPORT_OPTIONS, EXTRA_PENDING_BACKUP_EXPORT_OPTIONS)
+        pendingBackupImportOptions = readPendingBackupOptions(
+            savedInstanceState, STATE_PENDING_BACKUP_IMPORT_OPTIONS, EXTRA_PENDING_BACKUP_IMPORT_OPTIONS)
+    }
+
+    private fun readPendingBackupOptions(
+        state: Bundle?,
+        stateKey: String,
+        extraKey: String
+    ): BackupArchiveTransfer.CategoryOptions? {
+        if (state != null && state.containsKey(stateKey)) {
+            return BackupArchiveTransfer.CategoryOptions.fromFlags(state.getInt(stateKey))
+        }
+        if (!intent.hasExtra(extraKey)) return null
+        val options = BackupArchiveTransfer.CategoryOptions.fromFlags(intent.getIntExtra(extraKey, 0))
+        intent.removeExtra(extraKey)
+        return options
+    }
+
     override fun onSaveInstanceState(outState: Bundle) {
         val restoringState = pendingUiState
         if (restoringState != null) {
@@ -3804,6 +3928,8 @@ class MainActivity : AppCompatActivity() {
             outState.putString("gui_preset_name", presetController.getPresets().getOrNull(presetSpinner.selectedItemPosition)?.name)
             outState.putInt("gui_editor_scroll", mainSettingsScroll.scrollY)
         }
+        pendingBackupExportOptions?.let { outState.putInt(STATE_PENDING_BACKUP_EXPORT_OPTIONS, it.toFlags()) }
+        pendingBackupImportOptions?.let { outState.putInt(STATE_PENDING_BACKUP_IMPORT_OPTIONS, it.toFlags()) }
         outState.putBoolean(STATE_AWAITING_STARTUP_GUIDE, isAwaitingStartupGuide)
         if (isAwaitingStartupGuide) {
             outState.putBundle(STATE_DEFERRED_LAUNCH_REQUEST, Bundle().apply {

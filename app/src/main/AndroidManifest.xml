@@ -19,13 +19,16 @@
     <!-- Plugin store: fetch the catalogue + download bundles. -->
     <uses-permission android:name="android.permission.INTERNET" />
 
+    <!-- Fixed name so debug builds exercise the same permission string that
+         published companions declare. The bound service enforces the real
+         per-package approval; this permission only keeps unrelated apps out. -->
     <permission
-        android:name="${applicationId}.permission.CONTROL_LEDS"
+        android:name="io.github.tufein.duofrost.permission.CONTROL_LEDS"
         android:label="@string/perm_control_leds_label"
         android:description="@string/perm_control_leds_desc"
         android:protectionLevel="normal" />
 
-    <uses-permission android:name="${applicationId}.permission.CONTROL_LEDS" />
+    <uses-permission android:name="io.github.tufein.duofrost.permission.CONTROL_LEDS" />
 
 
     <queries>
@@ -183,7 +186,7 @@
             android:name=".external.ExternalApiReceiver"
             android:enabled="true"
             android:exported="true"
-            android:permission="${applicationId}.permission.CONTROL_LEDS">
+            android:permission="io.github.tufein.duofrost.permission.CONTROL_LEDS">
             <intent-filter>
                 <action android:name="io.github.tufein.duofrost.api.ACTION_DISPLAY" />
                 <action android:name="io.github.tufein.duofrost.api.ACTION_CLEAR" />
@@ -193,6 +196,12 @@
                 <action android:name="io.github.tufein.duofrost.api.ACTION_PULSE" />
             </intent-filter>
         </receiver>
+
+        <service
+            android:name=".external.ExternalApiService"
+            android:enabled="true"
+            android:exported="true"
+            android:permission="io.github.tufein.duofrost.permission.CONTROL_LEDS" />
 
         <receiver
             android:name=".receivers.PackageRemovedReceiver"

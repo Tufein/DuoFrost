@@ -664,7 +664,20 @@ to be removed before installing a hosted build. Production signing stays local.
 ## Integration API
 
 
-DuoFrost exposes a broadcast-based IPC API that lets other apps on the device drive its LEDs — flashing police lights during a car chase, matching the LED colour to a character's health bar, setting a preset for your launcher wallpaper, reacting to in-game events in real time. It is entirely opt-in: the user must enable **"Allow third-party LED control"** in DuoFrost settings before any command is accepted.
+DuoFrost exposes an IPC API that lets other apps on the device drive its LEDs — flashing police lights during a car chase, matching the LED colour to a character's health bar, setting a preset for your launcher wallpaper, reacting to in-game events in real time. It is entirely opt-in: the user must enable **"Allow third-party LED control"** and explicitly approve your package under **"Allowed apps"** before any command is accepted.
+
+> **Preferred transport: bound service (API v2).** Bind to
+> `io.github.tufein.duofrost.external.ExternalApiService` with
+> `ExternalApi.SERVICE_ACTION`, then send `MSG_COMMAND` messages and read
+> `MSG_RESULT` replies. `onBind` resolves the real caller UID, so approvals
+> cannot be spoofed.
+>
+> **Broadcast transport is legacy and off by default.** A `BroadcastReceiver`
+> cannot recover the sending app — `Binder.getCallingUid()` reports DuoFrost
+> itself — so the exported receiver only runs after the user enables
+> **"Legacy broadcast API (less secure)"**. The rest of this guide documents the
+> broadcast payloads, which remain the message format for service commands
+> (put the action and extras in the message `data` bundle).
 
 > **Available since public Version 1**
 > **API version:** 1  
@@ -696,10 +709,10 @@ DuoFrost exposes a broadcast-based IPC API that lets other apps on the device dr
 
 | Concept | What it means for you |
 |---|---|
-| **Commands are broadcasts** | Send an explicit ordered broadcast; read the result code if you need acknowledgement. |
+| **Binding is the v2 transport** | Bind the exported service; send command messages, read the result message. Legacy ordered broadcasts still work only while the user enables the legacy option. |
 | **Your override is a removable layer** | DuoFrost snapshots its current state when your override starts and restores it automatically when it ends. App-profile switching is paused while an override is active. |
-| **DuoFrost must already be running** | You cannot start the foreground service remotely (Android 12+ restriction). If it's not running, commands are silently dropped. Design gracefully for this. |
-| **Rate limit: 8 burst / 4 per second** | Per calling UID. Burst budget refills at 4 tokens/s. |
+| **DuoFrost must already be running** | You cannot start the foreground service remotely (Android 12+ restriction). Commands return `RESULT_REJECTED_UNAVAILABLE` instead of pretending to succeed. Design gracefully for this. |
+| **Rate limit: 8 burst / 4 per second** | Per calling UID, measured on a monotonic clock. PULSE has its own bound (30 burst / 15 per second). |
 | **Priority arbitrates between apps** | If two apps both try to drive the LEDs, the higher-priority command wins. Each app can always update its own active override regardless of priority. |
 | **No library dependency needed** | Copy the string constants below. The API surface is intentionally minimal. |
 
@@ -713,7 +726,9 @@ Add one line to your `AndroidManifest.xml`. This is a `normal`-level permission 
 <uses-permission android:name="io.github.tufein.duofrost.permission.CONTROL_LEDS" />
 ```
 
-The user still has to flip **"Allow third-party LED control"** inside DuoFrost settings. Your commands are silently rejected until they do.
+The user still has to flip **"Allow third-party LED control"** and approve your
+package under **"Allowed apps"** inside DuoFrost settings. Until then the service
+returns no binder and broadcasts are rejected.
 
 ---
 
@@ -777,14 +792,16 @@ object DuoFrostApi {
     const val EXTRA_CPU_WARM_COLOR            = "cpuWarmColor"         // Int (ARGB) optional
     const val EXTRA_CPU_HOT_COLOR             = "cpuHotColor"          // Int (ARGB) optional
 
-    // ── Result codes (ordered broadcasts only) ───────────────────────────
+    // ── Result codes (broadcast resultCode or MSG_RESULT.arg1) ───────────
     const val RESULT_ACCEPTED              =  0
-    const val RESULT_REJECTED_DISABLED     = -1  // toggle is off in DuoFrost settings
+    const val RESULT_REJECTED_DISABLED     = -1  // toggle off / package not approved
     const val RESULT_REJECTED_VERSION      = -2  // apiVersion mismatch
     const val RESULT_REJECTED_VALIDATION   = -3  // bad/missing extras
     const val RESULT_REJECTED_UNAUTHORIZED = -4  // caller UID could not be resolved
     const val RESULT_REJECTED_RATE_LIMITED = -5  // > 4 commands/s
     const val RESULT_REJECTED_UNKNOWN_ACTION = -6
+    const val RESULT_REJECTED_UNAVAILABLE  = -7  // DuoFrost is not running
+    const val RESULT_REJECTED_CONFLICT     = -8  // profile install/uninstall refused
     const val RESULT_NOT_FOUND             =  1  // plugin query miss
 }
 ```
@@ -987,17 +1004,20 @@ plugin inventory.
 
 ## 10 — Result codes
 
-These are only returned when you use `sendOrderedBroadcast`. Plain `sendBroadcast` gives you no feedback.
+These are returned to the legacy ordered-broadcast result or as `arg1` of the
+`MSG_RESULT` message. Plain `sendBroadcast` gives you no feedback.
 
 | Code | Value | Meaning |
 |---|---|---|
 | `RESULT_ACCEPTED` | 0 | Command accepted and dispatched (or stored, for profile installs). |
-| `RESULT_REJECTED_DISABLED` | -1 | The "Allow third-party LED control" toggle is off. |
+| `RESULT_REJECTED_DISABLED` | -1 | The "Allow third-party LED control" toggle is off, or your package is not approved (service) / the legacy option is off (broadcast). |
 | `RESULT_REJECTED_VERSION` | -2 | `apiVersion` doesn't match `API_VERSION = 1`. |
-| `RESULT_REJECTED_VALIDATION` | -3 | Bad or missing extras (unknown effect name, out-of-range duration, conflicting terminators, etc.). |
+| `RESULT_REJECTED_VALIDATION` | -3 | Bad or missing extras (unknown effect name, out-of-range duration, conflicting terminators, unknown pulse kind, etc.). |
 | `RESULT_REJECTED_UNAUTHORIZED` | -4 | Caller UID couldn't be resolved to a package. Should not happen under normal circumstances. |
-| `RESULT_REJECTED_RATE_LIMITED` | -5 | More than ~4 commands/second from your UID. Back off and retry. |
+| `RESULT_REJECTED_RATE_LIMITED` | -5 | More than ~4 commands/second from your UID (PULSE is bounded separately). Back off and retry. |
 | `RESULT_REJECTED_UNKNOWN_ACTION` | -6 | Action string not recognised. Check for typos. |
+| `RESULT_REJECTED_UNAVAILABLE` | -7 | Valid command, but DuoFrost is not running so nothing was applied. |
+| `RESULT_REJECTED_CONFLICT` | -8 | Profile install/uninstall refused (existing name, wrong owner or damaged store). |
 | `RESULT_NOT_FOUND` | 1 | Plugin query miss. |
 
 `resultData` contains your `requestId` string when the result is `RESULT_ACCEPTED`, useful for correlating asynchronous acknowledgements.

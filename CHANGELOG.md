@@ -2,6 +2,12 @@
 
 ## 2.6.0-alpha.4 — draft review fixes
 
+- **External API:** new companions bind the exported service, which proves the caller's UID and
+  requires an explicit per-package approval in Device settings. Legacy broadcasts are opt-in and
+  cannot vouch for the sender. PULSE kinds are validated, query access follows the same gate, and
+  commands report unavailable/conflict results instead of false success.
+- **Lighting start/stop:** a Start that arrives during Stop teardown supersedes the stop instead of
+  being dropped, and unmatched command intents no longer cancel a pending recovery start.
 - Rebuild the theme picker before selecting an imported custom theme, preventing
   an out-of-bounds crash. Keep its entries synchronized with the saved catalogue.
 - Retain theme roles across screen resumes; style newly added switches and keep

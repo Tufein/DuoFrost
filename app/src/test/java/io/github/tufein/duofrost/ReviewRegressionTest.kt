@@ -31,6 +31,7 @@ class ReviewRegressionTest {
             .putBoolean("first_launch_alert_shown", true).putBoolean("plugin_update_prompt_shown", true)
             .putBoolean("colored_logo_enabled", false).commit()
         AutomaticBackups.state(app).edit().clear().commit()
+        File(app.filesDir, "preset_icons").deleteRecursively()
         io.github.tufein.duofrost.services.LEDService.isRunning = false
         MainActivity.mediaProjectionResultCode = null
         MainActivity.mediaProjectionData = null
@@ -142,7 +143,11 @@ class ReviewRegressionTest {
         controller.pause().stop().destroy()
     }
 
-    private fun backup(prefsJson: String, duplicate: Boolean = false): Uri {
+    private fun backup(
+        prefsJson: String,
+        duplicate: Boolean = false,
+        icons: Map<String, ByteArray> = emptyMap()
+    ): Uri {
         val bytes = java.io.ByteArrayOutputStream()
         java.util.zip.ZipOutputStream(bytes).use { zip ->
             fun entry(name: String, value: String) {
@@ -152,6 +157,11 @@ class ReviewRegressionTest {
             }
             entry("manifest.json", """{"schema":"bifrost_full_backup","version":2}""")
             entry("prefs.json", prefsJson)
+            icons.forEach { (name, value) ->
+                zip.putNextEntry(java.util.zip.ZipEntry("icons/$name"))
+                zip.write(value)
+                zip.closeEntry()
+            }
             if (duplicate) entry("prefx.json", prefsJson)
         }
         val file = File(app.cacheDir, "review-backup.zip")
@@ -181,6 +191,64 @@ class ReviewRegressionTest {
         val result = BackupArchiveTransfer.importFromUri(app, backup("x".repeat(8 * 1024 * 1024 + 1)))
         assertTrue(result.errors.any { it.contains("byte limit") })
         assertEquals(before, prefs.all)
+    }
+
+    @Test fun fullBackupRejectsMissingItemsArrayBeforeClearingExistingSettings() {
+        prefs.edit().putString("selected_ui_theme", "oled_green")
+            .putBoolean("colored_logo_enabled", true).commit()
+        assertTrue(PresetImageStorage.writeIconWithExactName(app, "keep.png", byteArrayOf(1, 2, 3)))
+        val before = prefs.all
+        for (prefsJson in listOf("""{"items":"corrupt"}""", """{"items":5}""", """{"other":[]}""")) {
+            val result = BackupArchiveTransfer.importFromUri(app, backup(prefsJson))
+            assertTrue(result.errors.any { it.contains("items") })
+            assertEquals(before, prefs.all)
+            assertTrue(File(app.filesDir, "preset_icons/keep.png").exists())
+        }
+    }
+
+    @Test fun fullBackupRejectsUnsafeImageNamesBeforeClearingExistingSettings() {
+        prefs.edit().putString("selected_ui_theme", "oled_green").commit()
+        assertTrue(PresetImageStorage.writeIconWithExactName(app, "keep.png", byteArrayOf(1, 2, 3)))
+        val before = prefs.all
+        val result = BackupArchiveTransfer.importFromUri(app,
+            backup("""{"items":[]}""", icons = mapOf("../escape.png" to byteArrayOf(9))))
+        assertTrue(result.errors.any { it.contains("invalid image") })
+        assertEquals(before, prefs.all)
+        assertTrue(File(app.filesDir, "preset_icons/keep.png").exists())
+        assertFalse(File(app.filesDir, "escape.png").exists())
+    }
+
+    @Test fun fullBackupRestoresImagesWithoutDeletingThemFirst() {
+        assertTrue(PresetImageStorage.writeIconWithExactName(app, "old.png", byteArrayOf(1, 2, 3)))
+        val result = BackupArchiveTransfer.importFromUri(app,
+            backup("""{"items":[]}""", icons = mapOf("new.png" to byteArrayOf(4, 5, 6))))
+        assertTrue(result.errors.isEmpty())
+        assertEquals(1, result.iconCount)
+        assertTrue(File(app.filesDir, "preset_icons/new.png").exists())
+        assertFalse(File(app.filesDir, "preset_icons/old.png").exists())
+    }
+
+    @Test fun pendingBackupCategoryChoicesSurviveActivityRecreation() {
+        val controller = Robolectric.buildActivity(MainActivity::class.java).setup()
+        val activity = controller.get()
+        val importOptions = BackupArchiveTransfer.CategoryOptions(false, true, false, true)
+        val exportOptions = BackupArchiveTransfer.CategoryOptions(true, false, false, false)
+        MainActivity::class.java.getDeclaredField("pendingBackupImportOptions")
+            .apply { isAccessible = true }.set(activity, importOptions)
+        MainActivity::class.java.getDeclaredField("pendingBackupExportOptions")
+            .apply { isAccessible = true }.set(activity, exportOptions)
+
+        val state = android.os.Bundle()
+        controller.saveInstanceState(state)
+        controller.pause().stop().destroy()
+
+        val recreated = Robolectric.buildActivity(MainActivity::class.java).setup(state).get()
+        val restoredImport = MainActivity::class.java.getDeclaredField("pendingBackupImportOptions")
+            .apply { isAccessible = true }.get(recreated)
+        val restoredExport = MainActivity::class.java.getDeclaredField("pendingBackupExportOptions")
+            .apply { isAccessible = true }.get(recreated)
+        assertEquals(importOptions, restoredImport)
+        assertEquals(exportOptions, restoredExport)
     }
 
     @Test fun audioCaptureRequestsAudioAccessBeforeScreenConsentAndDenialStartsNothing() {

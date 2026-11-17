@@ -16,6 +16,7 @@ class PackageRemovedReceiver : BroadcastReceiver() {
         if (pkg == context.packageName) return
 
         val prefs = context.getSharedPreferences(ExternalApiGate.PREFS_NAME, Context.MODE_PRIVATE)
+        ExternalApiGate.revoke(context, pkg)
         val removedPresetNames = ExternalProfileStore.removePresetsOwnedBy(prefs, pkg)
         if (removedPresetNames.isNotEmpty()) {
             AppProfileManager(prefs).removeMappingsReferencing(removedPresetNames)

@@ -192,6 +192,9 @@ class LEDService : Service() {
     private val handler = Handler(Looper.getMainLooper())
     private val isTransitioning = AtomicBoolean(false)
     private val isStopping = AtomicBoolean(false)
+    // True when a Start arrived during Stop teardown and superseded it, so a
+    // later onDestroy must not wipe the accepted session.
+    private var startSupersededStop = false
     private val mediaProjectionLock = Any()
 
     private var currentColor: Int = Color.WHITE
@@ -580,10 +583,35 @@ class LEDService : Service() {
             cleanupAndStop()
             return START_NOT_STICKY
         }
-        if (isStopping.get()) return START_NOT_STICKY
-        if (intent.action != null && !isRunning) {
-            stopSelf()
+        var supersededStop = false
+        if (isStopping.get()) {
+            if (intent.action == null) {
+                // A Start that arrives before onDestroy supersedes the in-flight
+                // stop; dropping it would leave lighting off after a rapid
+                // Stop -> Start.
+                isStopping.set(false)
+                supersededStop = true
+                Log.d(TAG, "onStartCommand: start supersedes in-flight stop")
+            } else {
+                return START_NOT_STICKY
+            }
+        }
+        if (intent.action == ACTION_SET_MUTED && !isRunning) {
+            // Persist the notification action even during a restart gap.
+            ServiceRecoveryStore.setMuted(
+                this,
+                intent.getBooleanExtra(EXTRA_MUTED, ServiceRecoveryStore.isMuted(this))
+            )
             return START_NOT_STICKY
+        }
+        if (intent.action != null && !isRunning) {
+            // Never stopSelf here: a pending recovery start may still arrive.
+            return START_NOT_STICKY
+        }
+        if (intent.action == null) {
+            // Only a full start can supersede a stop; every other full start
+            // clears a stale flag from an earlier race.
+            startSupersededStop = supersededStop
         }
 
         if (intent.action == ACTION_SET_MUTED) {
@@ -1560,13 +1588,21 @@ class LEDService : Service() {
     override fun onDestroy() {
         // Invalidate callbacks and remove UI before animation/receiver teardown:
         // even an OEM cleanup failure must not leave a stale active notification.
+        val newerSession = startSupersededStop && isRunning
+        startSupersededStop = false
         isStopping.set(true)
-        isRunning = false
-        isWaitingForCapturePermission = false
-        waitingForProjectionConsent = false
-        removeServiceNotifications()
+        if (!newerSession) {
+            isRunning = false
+            isWaitingForCapturePermission = false
+            waitingForProjectionConsent = false
+            removeServiceNotifications()
+        }
         super.onDestroy()
         prefs.unregisterOnSharedPreferenceChangeListener(scenePreferencesListener)
+        if (newerSession) {
+            Log.w(TAG, "onDestroy skipped teardown: a start superseded the stop")
+            return
+        }
         handler.removeCallbacks(activityCheckRunnable)
         clearPendingCallbacks()
         unregisterBatteryStateReceiver()
@@ -1600,6 +1636,7 @@ class LEDService : Service() {
 
     private fun cleanupAndStop() {
         if (isStopping.getAndSet(true)) return
+        startSupersededStop = false
         ServiceRecoveryStore.markStopped(this)
         Log.d(TAG, "cleanupAndStop: STOPPING SERVICE")
         handler.removeCallbacksAndMessages(null)

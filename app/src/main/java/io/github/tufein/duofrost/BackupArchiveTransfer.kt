@@ -48,6 +48,27 @@ object BackupArchiveTransfer {
         val settings: Boolean = true
     ) {
         fun hasAtLeastOneCategory(): Boolean = themes || profiles || images || settings
+
+        /** Compact form used to retain the user's choice across activity recreation. */
+        fun toFlags(): Int =
+            (if (themes) FLAG_THEMES else 0) or
+                (if (profiles) FLAG_PROFILES else 0) or
+                (if (images) FLAG_IMAGES else 0) or
+                (if (settings) FLAG_SETTINGS else 0)
+
+        companion object {
+            private const val FLAG_THEMES = 1
+            private const val FLAG_PROFILES = 2
+            private const val FLAG_IMAGES = 4
+            private const val FLAG_SETTINGS = 8
+
+            fun fromFlags(flags: Int): CategoryOptions = CategoryOptions(
+                themes = flags and FLAG_THEMES != 0,
+                profiles = flags and FLAG_PROFILES != 0,
+                images = flags and FLAG_IMAGES != 0,
+                settings = flags and FLAG_SETTINGS != 0
+            )
+        }
     }
 
     data class ExportResult(
@@ -251,7 +272,13 @@ object BackupArchiveTransfer {
 
         val effectiveOptions = resolveEffectiveOptions(manifest, options)
 
-        val prefItems = prefsJson.optJSONArray("items") ?: JSONArray()
+        val prefItems = prefsJson.opt("items")
+        if (prefItems !is JSONArray) {
+            // A missing or mistyped items array must never fall through to the
+            // destructive category clears below with nothing to import.
+            return ImportResult(0, 0, effectiveOptions, warnings,
+                listOf("prefs.json is missing a valid items array; no settings were restored."))
+        }
         // Validate typed configuration before clearing any of the existing categories.
         // Otherwise a declared int for a string preference crashes its next reader.
         for (index in 0 until prefItems.length()) {
@@ -263,6 +290,23 @@ object BackupArchiveTransfer {
             if (!valid) return ImportResult(0, 0, effectiveOptions, warnings,
                 listOf("Preference '$key' has an invalid type; no settings were restored."))
         }
+
+        // Validate artwork entries before preferences change or stored icons are
+        // touched, so an unsafe or oversized image aborts the whole restore.
+        val restoredIcons = linkedMapOf<String, ByteArray>()
+        if (effectiveOptions.images) {
+            for ((entryName, bytes) in zipEntries) {
+                if (!entryName.startsWith(ICONS_DIR_PREFIX)) continue
+                val fileName = entryName.removePrefix(ICONS_DIR_PREFIX).trim()
+                if (fileName.isBlank()) continue
+                if (!PresetImageStorage.isRestorableIcon(fileName, bytes)) {
+                    return ImportResult(0, 0, effectiveOptions, warnings,
+                        listOf("Backup contains an invalid image '$fileName'; no settings or artwork were restored."))
+                }
+                restoredIcons[fileName] = bytes
+            }
+        }
+
         val prefs = context.getSharedPreferences(PREF_FILE_NAME, Context.MODE_PRIVATE)
         val editor = prefs.edit()
 
@@ -352,19 +396,12 @@ object BackupArchiveTransfer {
 
         var importedIconCount = 0
         if (effectiveOptions.images) {
-            PresetImageStorage.clearAllIcons(context)
-            zipEntries.forEach { (entryName, bytes) ->
-                cancelSignal?.throwIfCanceled()
-                if (!entryName.startsWith(ICONS_DIR_PREFIX)) return@forEach
-
-                val fileName = entryName.removePrefix(ICONS_DIR_PREFIX).trim()
-                if (fileName.isBlank()) return@forEach
-
-                if (PresetImageStorage.writeIconWithExactName(context, fileName, bytes)) {
-                    importedIconCount++
-                } else {
-                    warnings += "Could not restore image '$fileName'."
-                }
+            // Preferences are already committed, so a failed artwork swap keeps
+            // the previous images rather than leaving none behind.
+            if (PresetImageStorage.restoreIcons(context, restoredIcons)) {
+                importedIconCount = restoredIcons.size
+            } else {
+                errors += "Could not restore all images; previously stored artwork was kept where possible."
             }
         }
 

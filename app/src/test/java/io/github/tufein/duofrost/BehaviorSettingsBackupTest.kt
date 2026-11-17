@@ -34,6 +34,13 @@ class BehaviorSettingsBackupTest {
         assertTrue(BackupArchiveTransfer.CategoryOptions(false, false, false, true).hasAtLeastOneCategory())
         assertFalse(BackupArchiveTransfer.CategoryOptions(false, false, false, false).hasAtLeastOneCategory())
     }
+    @Test fun categoryOptionsSurviveFlagsRoundTrip() {
+        for (flags in 0..15) {
+            assertEquals(flags, BackupArchiveTransfer.CategoryOptions.fromFlags(flags).toFlags())
+        }
+        assertEquals(1, BackupArchiveTransfer.CategoryOptions(true, false, false, false).toFlags())
+        assertEquals(10, BackupArchiveTransfer.CategoryOptions(false, true, false, true).toFlags())
+    }
     @Test fun legacyManifestWithoutSettingsPreservesExistingBehavior() {
         val options = BackupArchiveTransfer.resolveEffectiveOptions(JSONObject(), BackupArchiveTransfer.CategoryOptions())
         assertFalse(options.settings)

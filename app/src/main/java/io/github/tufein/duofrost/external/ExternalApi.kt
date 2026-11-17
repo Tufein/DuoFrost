@@ -26,6 +26,22 @@ object ExternalApi {
 
     const val API_VERSION = 1
 
+    /**
+     * Bound-service API (v2) entry point.
+     *
+     * A BroadcastReceiver cannot recover the sending app: `Binder.getCallingUid()`
+     * inside `onReceive` belongs to this process. Binding a service does expose
+     * the real caller UID in `onBind`, so v2 requires an approved package before
+     * it returns a binder. The exported broadcast receiver remains available for
+     * older companions only when the user enables the legacy option, and its
+     * commands must be treated as untrusted identity.
+     */
+    const val SERVICE_ACTION = "io.github.tufein.duofrost.api.BIND_V2"
+    const val MSG_COMMAND = 1
+    const val MSG_RESULT = 2
+    const val EXTRA_ACTION = "action"
+    const val EXTRA_RESULT_DATA = "resultData"
+
     const val EXTRA_API_VERSION = "apiVersion"
     const val EXTRA_EFFECT = "effect"
     const val EXTRA_COLOR = "color"
@@ -74,6 +90,10 @@ object ExternalApi {
     const val RESULT_REJECTED_UNAUTHORIZED = -4
     const val RESULT_REJECTED_RATE_LIMITED = -5
     const val RESULT_REJECTED_UNKNOWN_ACTION = -6
+    // The command was valid but could not be delivered (lighting service not
+    // running) or was refused by the profile store (conflict/damaged data).
+    const val RESULT_REJECTED_UNAVAILABLE = -7
+    const val RESULT_REJECTED_CONFLICT = -8
     const val RESULT_NOT_FOUND = 1
 
     const val MAX_DURATION_MS = 600_000L

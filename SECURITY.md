@@ -9,9 +9,11 @@ minimal issue requesting a private contact, without publishing exploit details.
 
 ## What this app trusts
 
-- **`CONTROL_LEDS` and the external API** are `normal`-protection: every installed app can request
-  them, and one user toggle governs all callers. There is no per-package allowlist yet, so a
-  malicious app that asks the user for the toggle can drive the LEDs; rate limits only bound the load.
+- **`CONTROL_LEDS` is `normal`-protection**, so any installed app can request it. The external API
+  therefore requires the master toggle **and** an explicit per-package approval. Bound-service calls
+  prove the caller through the binder UID; the exported broadcast receiver cannot, so legacy
+  broadcasts are off until the user enables them and their commands are treated as untrusted
+  identity. Rate limits (8 burst / 4 per second, monotonic clock) only bound the load.
 - **The plugin catalog** is fetched over HTTPS from this repository and is not signed. A checksum is
   verified only when the catalog provides one. Treat catalog content as trusted input from the
   maintainer, not from the network.

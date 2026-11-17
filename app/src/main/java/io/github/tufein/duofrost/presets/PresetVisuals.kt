@@ -116,12 +116,38 @@ object PresetImageStorage {
             ?: emptyList()
     }
 
-    fun clearAllIcons(context: Context) {
+    /** Restore validates names and sizes before anything touches stored artwork. */
+    fun isRestorableIcon(fileName: String, bytes: ByteArray): Boolean =
+        fileName.trim().matches(SAFE_FILE_NAME_REGEX) &&
+            bytes.isNotEmpty() && bytes.size <= MAX_IMAGE_BYTES
+
+    /**
+     * Replaces stored artwork with [icons] without deleting it first. Every entry
+     * is written to a temporary file and renamed into place, so a failed restore
+     * cannot truncate an existing icon. Stale files are removed only once all
+     * restored images are active.
+     */
+    fun restoreIcons(context: Context, icons: Map<String, ByteArray>): Boolean {
         val dir = resolveDirectory(context)
-        dir.listFiles()?.forEach { file ->
-            if (file.isFile) {
-                file.delete()
+        val staged = linkedMapOf<String, File>()
+        return runCatching {
+            icons.forEach { (fileName, bytes) ->
+                require(isRestorableIcon(fileName, bytes))
+                val temp = File(dir, ".restore-${UUID.randomUUID()}.tmp")
+                FileOutputStream(temp).use { it.write(bytes) }
+                staged[fileName] = temp
             }
+            staged.forEach { (fileName, temp) ->
+                val target = resolveFile(context, fileName)
+                if (!temp.renameTo(target)) error("could not activate restored image '$fileName'")
+            }
+            dir.listFiles()?.forEach { file ->
+                if (file.isFile && file.name !in icons) file.delete()
+            }
+            true
+        }.getOrElse {
+            staged.values.forEach { file -> file.delete() }
+            false
         }
     }
 
