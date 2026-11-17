@@ -10,19 +10,28 @@ An independent, open-source continuation of
 [BiFrost](https://github.com/Pollux-MoonBench/Bifrost), maintained by
 **Stefan van Den Broek (Tufein)**. The maintainer's device is **AYN Thor**.
 
-**[Download DuoFrost 2.5.1](https://github.com/Tufein/DuoFrost/releases/download/v2.5.1/DuoFrost-2.5.1.apk)** ·
-[Release notes](https://github.com/Tufein/DuoFrost/releases/tag/v2.5.1) ·
+**[Download DuoFrost 2.6.0](https://github.com/Tufein/DuoFrost/releases/download/v2.6.0/DuoFrost-2.6.0.apk)** ·
+[Release notes](https://github.com/Tufein/DuoFrost/releases/tag/v2.6.0) ·
 [User guide](docs/2.5.0.md) · [Report a problem](https://github.com/Tufein/DuoFrost/issues)
 
 ![DuoFrost lighting dashboard and preset library](assets/screenshots/2.5.0-dashboard.png)
 
 *App interface captured in an Android emulator; sample presets shown.*
 
-## Fixed in 2.5.1
+## New in 2.6.0
 
-The welcome message now closes cleanly when Android recreates the app screen,
-including during AYN Thor display changes. An interrupted message is shown
-again until you confirm it. [Patch details](docs/2.5.1.md).
+- **Guided setup:** a short first-run guide covers permissions and checks each
+  LED stick before you enter the app.
+- **Themes:** build your own colour palette, with text contrast checked for you.
+  Themes travel in backups.
+- **Dashboard layout:** put the library or the lighting card first and hide the
+  sections you do not use.
+- **Automatic backups:** choose a folder and let DuoFrost keep full backups after
+  important changes.
+- **Preset transitions and a scene simulator:** blend smoothly between presets,
+  and preview which preset Smart Scenes would pick.
+
+[Feature guide and limits](docs/roadmap-2.6.0.md)
 
 ## New in 2.5.0
 
@@ -52,22 +61,22 @@ the changes from BiFrost and earlier DuoFrost versions.
 2. Download the APK above and open it on your AYN device.
 3. Follow the first-run guide, choose a preset and grant only the permissions you need.
 
-**DuoFrost 2.1.0, 2.3.0, the 2.5.0 alphas and 2.5.0 update in place.** Your presets and
+**DuoFrost 2.1.0 and later production builds update in place.** Your presets and
 settings are retained. Keep the backup until you have checked the update.
 
 **Original Version 1 or Version 2 needs a one-time reinstall.** Export a full
 backup outside the app **before uninstalling**. Uninstall the old DuoFrost,
-install 2.5.1, import your backup and grant the needed permissions again.
+install 2.6.0, import your backup and grant the needed permissions again.
 The original Version 2 APK retains Android version 1.5.1.
 
 Coming from BiFrost? DuoFrost installs alongside it. Export your presets, themes
 or backup from BiFrost, then import them into DuoFrost. Run one LED controller at
 a time. For Obtainium, add [this repository](https://github.com/Tufein/DuoFrost).
 
-Ambient and audio effects need capture permission. Samples are processed locally;
-captured content is not recorded or uploaded. For background lighting, allow
-DuoFrost to run in the background in Android's battery settings. After an Android
-Force stop, open the app again.
+Ambient and audio effects need capture permission. Audio effects also need Android's
+audio permission. Samples are processed locally; captured content is not recorded or
+uploaded. For background lighting, allow DuoFrost to run in the background in Android's
+battery settings. After an Android Force stop, open the app again.
 
 **Hidden feature — tidy Recent apps:** DuoFrost's window stays out of Android's
 Recent apps list. Reopen it from its app icon; use Start/Stop to control lighting.
