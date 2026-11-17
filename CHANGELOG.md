@@ -27,6 +27,10 @@ keeping presets and settings. Export a full backup before installing.
 - **Fixes since 2.5.1:** Smart Scenes, undo and import fixes from the 2.5.0 review,
   and accessibility capture when Android stores the service name in short form
   (contributed by mleo2003).
+- **Screen readout test:** a one-tap test on the LED test screen checks a possible
+  lighter way to read screen colours. It runs only when tapped, writes one
+  full-screen capture to app storage for a moment, deletes it after sampling, and
+  changes nothing about your lighting.
 
 Before publication, the features need checks on an AYN device. Unit tests do not
 cover physical LED output, notifications, storage providers or OEM lifecycle
