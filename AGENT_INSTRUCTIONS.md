@@ -197,3 +197,10 @@ This document contains instructions for autonomous coding agents.
 54. Playback capture requires RECORD_AUDIO as well as MediaProjection consent.
     Keep access optional, request it before starting audio capture, and handle denial
     and revocation without opening a microphone route or starting an unwanted service.
+55. 2.6.0 is signed with a new production key, chosen by the maintainer on 2026-11-18.
+    Android blocks updates across different signing keys, so 2.6.0 cannot update 2.5.1
+    or earlier: users export a full backup, uninstall and reinstall. This supersedes
+    the 2.1.0-key requirement in items 30 and 38 for 2.6.0 and later. Generate and store
+    the new key on the maintainer's own machine, never in a cloud session or a CI log.
+    Keep it and its recovery backup private and out of Git, and sign every later update
+    with it: losing it forces another reinstall. Item 39 still applies to version codes.
