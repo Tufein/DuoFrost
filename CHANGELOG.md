@@ -2,8 +2,9 @@
 
 ## 2.6.0 — themes, backups and guided setup
 
-Not yet published. Updates production 2.5.1 in place with the same signing key,
-keeping presets and settings. Export a full backup before installing.
+Not yet published. Signed with a new release key, so Android cannot update 2.5.1
+or earlier in place. Export a full backup, uninstall the old version, install
+2.6.0 and import the backup. Updates from 2.6.0 onwards update in place.
 
 - **Guided setup:** permissions, a short explanation, six LED checks and a final
   screen before entering the app. Optional access can be enabled later, and the
