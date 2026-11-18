@@ -22,7 +22,7 @@ jobs:
         with:
           # The legacy `tools` package was removed from Google's SDK repository.
           packages: 'platform-tools platforms;android-36 build-tools;35.0.0'
-      - uses: gradle/actions/setup-gradle@v4
+      - uses: gradle/actions/setup-gradle@v6
       - name: Run regression tests and build debug APK
         run: bash gradlew --no-daemon :app:testDebugUnitTest :app:assembleDebug
       - name: Upload test reports
