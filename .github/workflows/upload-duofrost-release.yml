@@ -24,7 +24,7 @@ jobs:
     env:
       DRAFT_RELEASE_ID: ${{ github.event.inputs.release_id || github.event.client_payload.release_id }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           persist-credentials: false
       - name: Validate the existing draft and retain the upload helper
@@ -36,7 +36,7 @@ jobs:
           python3 "$RUNNER_TEMP/upload_draft_release.py" prepare \
             --state "$RUNNER_TEMP/draft-release.json" --release-id "$DRAFT_RELEASE_ID"
       - name: Check out the exact application source
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           ref: ${{ steps.draft.outputs.source_sha }}
           persist-credentials: false
