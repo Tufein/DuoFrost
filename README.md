@@ -20,6 +20,10 @@ An independent, open-source continuation of
 
 ## New in 2.6.0
 
+**One-time reinstall:** 2.6.0 is signed with a new release key, so Android cannot
+update 2.5.1 or earlier in place. Export a full backup first; see
+[Install or update](#install-or-update).
+
 - **Guided setup:** a short first-run guide covers permissions and checks each
   LED stick before you enter the app.
 - **Themes:** build your own colour palette, with text contrast checked for you.
@@ -58,15 +62,17 @@ the changes from BiFrost and earlier DuoFrost versions.
 ## Install or update
 
 1. Export a full backup and keep it outside the app.
-2. Download the APK above and open it on your AYN device.
+2. If DuoFrost is already installed, uninstall it first (see below). Then download
+   the APK above and open it on your AYN device.
 3. Follow the first-run guide, choose a preset and grant only the permissions you need.
 
-**DuoFrost 2.1.0 and later production builds update in place.** Your presets and
-settings are retained. Keep the backup until you have checked the update.
+**DuoFrost 2.5.1 and earlier need a one-time reinstall.** 2.6.0 is signed with a
+new release key, and Android does not update an app across different signing keys.
+Export a full backup outside the app **before uninstalling**. Uninstall the old
+DuoFrost, install 2.6.0, import your backup and grant the needed permissions again.
+Updates from 2.6.0 onwards update in place. Keep the backup until you have checked
+the result.
 
-**Original Version 1 or Version 2 needs a one-time reinstall.** Export a full
-backup outside the app **before uninstalling**. Uninstall the old DuoFrost,
-install 2.6.0, import your backup and grant the needed permissions again.
 The original Version 2 APK retains Android version 1.5.1.
 
 Coming from BiFrost? DuoFrost installs alongside it. Export your presets, themes
